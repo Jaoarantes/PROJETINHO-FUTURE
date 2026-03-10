@@ -7,12 +7,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
-import {
-  LogoutRounded,
-  LightModeRounded,
-  DarkModeRounded,
-  SettingsBrightnessRounded,
-} from '@mui/icons-material';
+import { LogOut, Moon, Sun, Settings2 } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
 
@@ -49,15 +44,15 @@ export default function Perfil() {
         sx={{ mb: 3 }}
       >
         <ToggleButton value="light">
-          <LightModeRounded sx={{ mr: 1, fontSize: 20 }} />
+          <Sun size={20} style={{ marginRight: 8 }} />
           Claro
         </ToggleButton>
         <ToggleButton value="system">
-          <SettingsBrightnessRounded sx={{ mr: 1, fontSize: 20 }} />
+          <Settings2 size={20} style={{ marginRight: 8 }} />
           Sistema
         </ToggleButton>
         <ToggleButton value="dark">
-          <DarkModeRounded sx={{ mr: 1, fontSize: 20 }} />
+          <Moon size={20} style={{ marginRight: 8 }} />
           Escuro
         </ToggleButton>
       </ToggleButtonGroup>
@@ -67,7 +62,7 @@ export default function Perfil() {
       <Button
         variant="outlined"
         color="error"
-        startIcon={<LogoutRounded />}
+        startIcon={<LogOut />}
         onClick={signOut}
         fullWidth
       >
