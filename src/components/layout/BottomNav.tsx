@@ -1,44 +1,41 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
-import {
-  FitnessCenterRounded,
-  RestaurantRounded,
-  HistoryRounded,
-  PersonRounded,
-} from '@mui/icons-material';
+import { BottomNavigation, BottomNavigationAction, Box } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { Dumbbell, User, Utensils } from 'lucide-react';
 
 const tabs = [
-  { label: 'Treino', icon: <FitnessCenterRounded />, path: '/treino' },
-  { label: 'Dieta', icon: <RestaurantRounded />, path: '/dieta' },
-  { label: 'Histórico', icon: <HistoryRounded />, path: '/historico' },
-  { label: 'Perfil', icon: <PersonRounded />, path: '/perfil' },
+  { label: 'Treino', icon: <Dumbbell />, path: '/treino' },
+  { label: 'Dieta', icon: <Utensils />, path: '/dieta' },
+  { label: 'Perfil', icon: <User />, path: '/perfil' },
 ];
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
 
-  const currentTab = tabs.findIndex((tab) =>
-    location.pathname.startsWith(tab.path)
-  );
+  const currentTab = tabs.findIndex((t) => location.pathname.startsWith(t.path));
 
   return (
-    <Paper
-      sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000 }}
-      elevation={8}
+    <Box
+      sx={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: '500px', zIndex: 1000,
+        background: isDark
+          ? 'rgba(2, 6, 23, 0.95)'
+          : 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderTop: isDark
+          ? '1px solid rgba(255,255,255,0.08)'
+          : '1px solid rgba(0,0,0,0.06)',
+        pb: 'env(safe-area-inset-bottom, 0px)',
+      }}
     >
       <BottomNavigation
         value={currentTab === -1 ? 0 : currentTab}
-        onChange={(_, newValue) => navigate(tabs[newValue].path)}
-        sx={{
-          bgcolor: 'background.paper',
-          '& .MuiBottomNavigationAction-root': {
-            color: 'text.secondary',
-            '&.Mui-selected': {
-              color: 'primary.main',
-            },
-          },
-        }}
+        onChange={(_, v) => navigate(tabs[v].path)}
       >
         {tabs.map((tab) => (
           <BottomNavigationAction
@@ -48,6 +45,6 @@ export default function BottomNav() {
           />
         ))}
       </BottomNavigation>
-    </Paper>
+    </Box>
   );
 }

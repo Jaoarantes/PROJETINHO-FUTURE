@@ -10,12 +10,7 @@ import {
   InputAdornment,
   CircularProgress,
 } from '@mui/material';
-import {
-  FitnessCenterRounded,
-  VisibilityRounded,
-  VisibilityOffRounded,
-  Google,
-} from '@mui/icons-material';
+import { EyeOff, Eye, User, Dumbbell } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -38,6 +33,7 @@ type RegistroForm = z.infer<typeof registroSchema>;
 export default function Registro() {
   const navigate = useNavigate();
   const { signUp, signInWithGoogle } = useAuthContext();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -94,43 +90,36 @@ export default function Registro() {
   return (
     <Box
       sx={{
-        height: '100vh',
+        minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        alignItems: 'center',
         px: 3,
-        maxWidth: '420px',
-        mx: 'auto',
-        overflow: 'hidden',
+        py: 4,
       }}
     >
-      <Box sx={{ textAlign: 'center', mb: 2 }}>
+      {/* Logo */}
+      <Box sx={{ textAlign: 'center', mb: 3.5 }}>
         <Box
           sx={{
-            width: 56,
-            height: 56,
-            borderRadius: '16px',
-            bgcolor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mx: 'auto',
-            mb: 1.5,
+            width: 72, height: 72, borderRadius: '18px',
+            background: '#F97316',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            mx: 'auto', mb: 2,
           }}
         >
-          <FitnessCenterRounded sx={{ fontSize: 28, color: '#fff' }} />
+          <Dumbbell size={36} color="#000" />
         </Box>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h5" fontWeight={700}>
           Criar Conta
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           Preencha os dados para começar
         </Typography>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ width: '100%', mb: 1.5 }}>
+        <Alert severity="error" sx={{ mb: 1.5 }}>
           {error}
         </Alert>
       )}
@@ -139,22 +128,17 @@ export default function Registro() {
         variant="outlined"
         size="large"
         fullWidth
-        startIcon={googleLoading ? <CircularProgress size={20} /> : <Google />}
+        startIcon={googleLoading ? <CircularProgress size={20} /> : <User />}
         disabled={loading || googleLoading}
         onClick={handleGoogleSignIn}
-        sx={{
-          mb: 2,
-          borderColor: 'divider',
-          color: 'text.primary',
-          '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-        }}
+        sx={{ mb: 2 }}
       >
         Cadastrar com Google
       </Button>
 
-      <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-        <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ px: 2, fontSize: '0.75rem' }}>
           ou preencha o formulário
         </Typography>
         <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
@@ -163,7 +147,7 @@ export default function Registro() {
       <Box
         component="form"
         onSubmit={handleSubmit(onSubmit)}
-        sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}
+        sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}
       >
         <TextField
           size="small"
@@ -200,7 +184,7 @@ export default function Registro() {
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                    {showPassword ? <VisibilityOffRounded fontSize="small" /> : <VisibilityRounded fontSize="small" />}
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </IconButton>
                 </InputAdornment>
               ),
@@ -222,7 +206,7 @@ export default function Registro() {
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end" size="small">
-                    {showConfirmPassword ? <VisibilityOffRounded fontSize="small" /> : <VisibilityRounded fontSize="small" />}
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </IconButton>
                 </InputAdornment>
               ),
@@ -236,12 +220,13 @@ export default function Registro() {
           size="large"
           fullWidth
           disabled={loading || googleLoading}
+          sx={{ mt: 0.5 }}
         >
           {loading ? <CircularProgress size={24} color="inherit" /> : 'Criar Conta'}
         </Button>
       </Box>
 
-      <Typography sx={{ mt: 2 }} variant="body2" color="text.secondary">
+      <Typography sx={{ mt: 2.5, textAlign: 'center' }} variant="body2" color="text.secondary">
         Já tem conta?{' '}
         <Typography
           component={RouterLink}

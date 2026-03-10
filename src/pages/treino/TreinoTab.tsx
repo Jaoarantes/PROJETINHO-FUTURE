@@ -18,13 +18,7 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import {
-  AddRounded,
-  FitnessCenterRounded,
-  MoreVertRounded,
-  DeleteRounded,
-  EditRounded,
-} from '@mui/icons-material';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -87,7 +81,7 @@ export default function TreinoTab() {
 
       {sessoes.length === 0 ? (
         <Box sx={{ textAlign: 'center', mt: 8 }}>
-          <FitnessCenterRounded sx={{ fontSize: 64, color: 'text.secondary', opacity: 0.3, mb: 2 }} />
+          <Dumbbell size={64} color="gray" style={{ opacity: 0.3, marginBottom: 16 }} />
           <Typography color="text.secondary" sx={{ mb: 1 }}>
             Nenhum treino criado ainda
           </Typography>
@@ -114,7 +108,7 @@ export default function TreinoTab() {
                       flexShrink: 0,
                     }}
                   >
-                    <FitnessCenterRounded sx={{ color: '#fff', fontSize: 22 }} />
+                    <Dumbbell color="#000" size={22} />
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="subtitle1" fontWeight={600} noWrap>
@@ -129,7 +123,7 @@ export default function TreinoTab() {
                     size="small"
                     onClick={(e) => handleMenuOpen(e, sessao.id)}
                   >
-                    <MoreVertRounded />
+                    <MoreVertical />
                   </IconButton>
                 </CardContent>
               </CardActionArea>
@@ -145,11 +139,11 @@ export default function TreinoTab() {
         onClose={() => setMenuAnchor(null)}
       >
         <MenuItem onClick={handleEditar}>
-          <EditRounded sx={{ mr: 1, fontSize: 20 }} />
+          <Pencil size={20} style={{ marginRight: 8 }} />
           Renomear
         </MenuItem>
         <MenuItem onClick={handleDeletar} sx={{ color: 'error.main' }}>
-          <DeleteRounded sx={{ mr: 1, fontSize: 20 }} />
+          <Trash2 size={20} style={{ marginRight: 8 }} />
           Excluir
         </MenuItem>
       </Menu>
@@ -158,9 +152,14 @@ export default function TreinoTab() {
       <Fab
         color="primary"
         onClick={() => { setNome(''); setDiaSelecionado(undefined); setDialogOpen(true); }}
-        sx={{ position: 'fixed', bottom: 80, right: 20 }}
+        sx={{
+          position: 'fixed',
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+          right: { xs: 16, sm: 'calc(50% - 234px)' },
+          zIndex: 999,
+        }}
       >
-        <AddRounded />
+        <Plus />
       </Fab>
 
       {/* Dialog criar sessão */}

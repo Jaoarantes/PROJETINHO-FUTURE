@@ -1,10 +1,10 @@
 import { Box, Typography } from '@mui/material';
-import { FitnessCenterRounded } from '@mui/icons-material';
+import { Dumbbell } from 'lucide-react';
 
 export default function Home() {
   return (
     <Box sx={{ textAlign: 'center', pt: 4 }}>
-      <FitnessCenterRounded sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+      <Dumbbell size={64} style={{ color: '#F97316', marginBottom: 16 }} />
       <Typography variant="h5" gutterBottom>
         Projetinho Future
       </Typography>

@@ -8,7 +8,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { LockResetRounded, ArrowBackRounded } from '@mui/icons-material';
+import { ArrowLeft, KeyRound } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -85,7 +85,7 @@ export default function EsqueceuSenha() {
             mb: 1.5,
           }}
         >
-          <LockResetRounded sx={{ fontSize: 28, color: '#fff' }} />
+          <KeyRound size={28} color="#fff" />
         </Box>
         <Typography variant="h5" gutterBottom>
           Recuperar Senha
@@ -112,7 +112,7 @@ export default function EsqueceuSenha() {
             variant="contained"
             size="large"
             fullWidth
-            startIcon={<ArrowBackRounded />}
+            startIcon={<ArrowLeft />}
           >
             Voltar ao Login
           </Button>
