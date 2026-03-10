@@ -10,12 +10,7 @@ import {
   IconButton,
   InputAdornment,
 } from '@mui/material';
-import {
-  LockRounded,
-  VisibilityRounded,
-  VisibilityOffRounded,
-  CheckCircleRounded,
-} from '@mui/icons-material';
+import { EyeOff, Eye, CheckCircle2, Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -110,7 +105,7 @@ export default function RedefinirSenha() {
     >
       {success ? (
         <Box sx={{ textAlign: 'center', width: '100%' }}>
-          <CheckCircleRounded sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+          <CheckCircle2 size={64} style={{ color: '#22C55E', marginBottom: 16 }} />
           <Typography variant="h5" gutterBottom>
             Senha redefinida!
           </Typography>
@@ -143,7 +138,7 @@ export default function RedefinirSenha() {
                 mb: 1.5,
               }}
             >
-              <LockRounded sx={{ fontSize: 28, color: '#fff' }} />
+              <Lock size={28} color="#fff" />
             </Box>
             <Typography variant="h5" gutterBottom>
               Nova Senha
@@ -182,7 +177,7 @@ export default function RedefinirSenha() {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                          {showPassword ? <VisibilityOffRounded /> : <VisibilityRounded />}
+                          {showPassword ? <EyeOff /> : <Eye />}
                         </IconButton>
                       </InputAdornment>
                     ),
