@@ -3,7 +3,12 @@
     "allow": [
       "Bash(node -e \"require\\(''./node_modules/firebase/firestore/package.json''\\); console.log\\(''ok''\\)\")",
       "Bash(npx tsc --noEmit)",
-      "Bash(npm install html5-qrcode)"
+      "Bash(npm install html5-qrcode)",
+      "Bash(npx vite:*)",
+      "WebSearch",
+      "Bash(curl -s \"https://wger.de/api/v2/exerciseimage/?format=json&limit=100&offset=0\")",
+      "Bash(python3 -c \":*)",
+      "Bash(curl -s \"https://wger.de/api/v2/exerciseimage/?format=json&limit=50\")"
     ]
   }
 }
