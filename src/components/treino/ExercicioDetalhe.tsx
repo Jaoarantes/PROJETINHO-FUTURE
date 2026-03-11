@@ -1,24 +1,13 @@
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  IconButton,
-  Typography,
-  Chip,
-  Box,
-  Button,
-  Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  IconButton, Typography, Chip, Box, Button, Divider,
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { ArrowLeft, Trash2, Dumbbell, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Trash2, Dumbbell } from 'lucide-react';
 import type { Exercicio } from '../../types/treino';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { useState } from 'react';
-import { getExerciseGifUrl } from '../../services/exerciseGifs';
-
 interface Props {
   exercicio: Exercicio | null;
   open: boolean;
@@ -32,7 +21,6 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const removerExercicio = useExercicioCustomStore((s) => s.removerExercicio);
   const { user } = useAuthContext();
-  const [gifError, setGifError] = useState(false);
 
   if (!exercicio) return null;
 
@@ -40,11 +28,6 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
     if (!user) return;
     await removerExercicio(user.uid, exercicio.id);
     onClose();
-  };
-
-  const handleYoutube = () => {
-    const query = encodeURIComponent(`${exercicio.nome} execução como fazer`);
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank');
   };
 
   const steps = exercicio.descricao
@@ -61,8 +44,8 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
       sx={{
         '& .MuiDialog-paper': {
           maxWidth: '500px',
-          margin: isMobile ? 0 : 'auto'
-        }
+          margin: isMobile ? 0 : 'auto',
+        },
       }}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
@@ -82,7 +65,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, pb: modoSelecao ? 2 : 4 }}>
-        {/* Chips de info */}
+        {/* Info chips */}
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
           <Chip label={exercicio.grupoMuscular} size="small" color="primary" />
           {exercicio.isCustom && (
@@ -93,48 +76,10 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
           )}
         </Box>
 
-        {/* GIF de execução */}
-        {(() => {
-          const gifSrc = getExerciseGifUrl(exercicio.id, exercicio.gifUrl);
-          return gifSrc && !gifError ? (
-            <Box
-              sx={{
-                mb: 3,
-                borderRadius: 2,
-                overflow: 'hidden',
-                bgcolor: 'action.hover',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 200,
-              }}
-            >
-              <img
-                src={gifSrc}
-                alt={`Execução: ${exercicio.nome}`}
-                onError={() => setGifError(true)}
-                style={{ width: '100%', maxHeight: 280, objectFit: 'contain', display: 'block' }}
-              />
-            </Box>
-          ) : null;
-        })()}
-
-        {/* Botão YouTube — secundário */}
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ExternalLink size={16} />}
-          onClick={handleYoutube}
-          fullWidth
-          sx={{ mb: 3, fontSize: '0.8rem' }}
-        >
-          Ver execução no YouTube
-        </Button>
-
         {exercicio.musculosSecundarios && (
           <Box sx={{ mb: 3 }}>
-            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-              MÚSCULOS SECUNDÁRIOS
+            <Typography variant="caption" color="text.secondary" display="block" gutterBottom sx={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>
+              Músculos Secundários
             </Typography>
             <Typography variant="body2">{exercicio.musculosSecundarios}</Typography>
           </Box>
@@ -151,18 +96,10 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
                 <Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                   <Box
                     sx={{
-                      minWidth: 24,
-                      height: 24,
-                      borderRadius: '50%',
-                      bgcolor: 'primary.main',
-                      color: '#000',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      mt: 0.1,
+                      minWidth: 24, height: 24, borderRadius: '50%',
+                      bgcolor: 'primary.main', color: '#000',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, flexShrink: 0, mt: 0.1,
                     }}
                   >
                     {i + 1}
@@ -176,9 +113,9 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
           </>
         )}
 
-        {steps.length === 0 && !exercicio.gifUrl && (
+        {steps.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Dumbbell size={48} color="rgba(255,255,255,0.3)" style={{ marginBottom: 8 }} />
+            <Dumbbell size={48} style={{ opacity: 0.12, marginBottom: 8 }} />
             <Typography color="text.secondary" variant="body2">
               Sem descrição cadastrada
             </Typography>
@@ -188,11 +125,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
 
       {modoSelecao && onSelecionar && (
         <DialogActions sx={{ px: 3, pb: 4 }}>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={() => onSelecionar(exercicio)}
-          >
+          <Button variant="contained" fullWidth onClick={() => onSelecionar(exercicio)}>
             Selecionar este exercício
           </Button>
         </DialogActions>

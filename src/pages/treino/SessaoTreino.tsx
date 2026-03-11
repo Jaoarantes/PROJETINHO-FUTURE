@@ -1,39 +1,21 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  Card,
-  CardContent,
-  TextField,
-  Chip,
-  Collapse,
+  Box, Typography, IconButton, Button, Card, CardContent,
+  TextField, Chip,
 } from '@mui/material';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, StickyNote, Zap } from 'lucide-react';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
-import { calcularVolumeExercicio, calcularVolumeSessao } from '../../types/treino';
 import type { TecnicaTreino } from '../../types/treino';
 import { TECNICA_LABELS } from '../../types/treino';
-import { getExerciseGifUrl } from '../../services/exerciseGifs';
-
-const TECNICA_CORES: Record<TecnicaTreino, string> = {
-  normal: 'default',
-  superset: '#8B5CF6',
-  dropset: '#EF4444',
-  restpause: '#F59E0B',
-};
+const TECNICA_COR = '#FBBF24';
 
 export default function SessaoTreino() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { sessoes, removerExercicio, atualizarSerie, adicionarSerie, removerSerie, atualizarNotas, atualizarTecnica } = useTreinoStore();
+  const { sessoes, removerExercicio, atualizarSerie, adicionarSerie, removerSerie, atualizarTecnica } = useTreinoStore();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [notasAbertas, setNotasAbertas] = useState<Record<string, boolean>>({});
-  const [gifExpandido, setGifExpandido] = useState<string | null>(null);
-
   const sessao = sessoes.find((s) => s.id === id);
 
   if (!sessao) {
@@ -45,192 +27,151 @@ export default function SessaoTreino() {
     );
   }
 
-  const volumeTotal = calcularVolumeSessao(sessao.exercicios);
-
   return (
     <Box sx={{ pt: 1, pb: 10 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <IconButton onClick={() => navigate('/treino')} sx={{ mr: 1 }}>
-          <ArrowLeft />
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <IconButton onClick={() => navigate('/treino')} sx={{ mr: 1, ml: -1 }}>
+          <ArrowLeft size={22} />
         </IconButton>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h6">{sessao.nome}</Typography>
+          <Typography variant="h5" sx={{ fontSize: '1.4rem', lineHeight: 1.2 }}>
+            {sessao.nome}
+          </Typography>
           {sessao.diaSemana && (
-            <Typography variant="body2" color="text.secondary">{sessao.diaSemana}</Typography>
+            <Typography variant="caption" color="primary.main" fontWeight={600}>
+              {sessao.diaSemana}
+            </Typography>
           )}
         </Box>
       </Box>
 
-      {/* Volume total da sessão */}
-      {volumeTotal > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, px: 0.5 }}>
-          <Chip
-            icon={<Zap size={14} />}
-            label={`Volume total: ${volumeTotal.toLocaleString('pt-BR')} kg`}
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
-          <Chip
-            label={`${sessao.exercicios.length} exercícios`}
-            size="small"
-            variant="outlined"
-          />
+      {/* Stats bar */}
+      {sessao.exercicios.length > 0 && (
+        <Box
+          sx={{
+            display: 'flex', gap: 1, mb: 2.5,
+            p: 1.5, borderRadius: 2,
+            bgcolor: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Exercícios
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              {sessao.exercicios.length}
+            </Typography>
+          </Box>
+          <Box sx={{ width: '1px', bgcolor: 'divider' }} />
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Séries
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              {sessao.exercicios.reduce((acc, ex) => acc + ex.series.length, 0)}
+            </Typography>
+          </Box>
         </Box>
       )}
 
-      {/* Lista de exercícios */}
+      {/* Exercise list */}
       {sessao.exercicios.length === 0 ? (
-        <Box sx={{ textAlign: 'center', mt: 6, mb: 4 }}>
-          <Typography color="text.secondary" sx={{ mb: 1 }}>
+        <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 3, border: '1px dashed rgba(255,255,255,0.08)' }}>
+          <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>
             Nenhum exercício adicionado
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
             Adicione exercícios ao seu treino
           </Typography>
         </Box>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
           {sessao.exercicios.map((exTreino) => {
-            const volExercicio = calcularVolumeExercicio(exTreino.series);
-            const gifUrl = getExerciseGifUrl(exTreino.exercicio.id, exTreino.exercicio.gifUrl);
-            const notaAberta = notasAbertas[exTreino.id] ?? false;
-            const gifAberto = gifExpandido === exTreino.id;
-
             return (
-              <Card key={exTreino.id} variant="outlined">
-                <CardContent sx={{ pb: '12px !important' }}>
-                  {/* Header do exercício */}
+              <Card key={exTreino.id}>
+                <CardContent sx={{ pb: '12px !important', px: 2 }}>
+                  {/* Exercise header */}
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    {/* Mini GIF */}
-                    {gifUrl && (
-                      <Box
-                        onClick={() => setGifExpandido(gifAberto ? null : exTreino.id)}
-                        sx={{
-                          width: 44, height: 44, borderRadius: '10px', overflow: 'hidden',
-                          bgcolor: 'action.hover', mr: 1.5, cursor: 'pointer', flexShrink: 0,
-                        }}
-                      >
-                        <img
-                          src={gifUrl}
-                          alt={exTreino.exercicio.nome}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </Box>
-                    )}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="subtitle1" fontWeight={600} noWrap>
+                      <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>
                         {exTreino.exercicio.nome}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
-                        <Chip
-                          label={exTreino.exercicio.grupoMuscular}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 20, fontSize: '0.65rem' }}
-                        />
-                        {volExercicio > 0 && (
-                          <Chip
-                            label={`${volExercicio.toLocaleString('pt-BR')} kg`}
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.65rem', bgcolor: 'primary.main', color: '#000', fontWeight: 600 }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                    <IconButton size="small" onClick={() => setNotasAbertas({ ...notasAbertas, [exTreino.id]: !notaAberta })} sx={{ mr: 0.5 }}>
-                      <StickyNote size={18} />
-                    </IconButton>
-                    <IconButton size="small" color="error" onClick={() => removerExercicio(sessao.id, exTreino.id)}>
-                      <Trash2 size={18} />
-                    </IconButton>
-                  </Box>
-
-                  {/* GIF expandido */}
-                  <Collapse in={gifAberto}>
-                    {gifUrl && (
-                      <Box sx={{ mb: 1.5, borderRadius: 2, overflow: 'hidden', bgcolor: 'action.hover', maxHeight: 240 }}>
-                        <img src={gifUrl} alt={exTreino.exercicio.nome} style={{ width: '100%', maxHeight: 240, objectFit: 'contain', display: 'block' }} />
-                      </Box>
-                    )}
-                  </Collapse>
-
-                  {/* Técnica (Superset/Dropset/Rest-Pause) */}
-                  <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-                    {(Object.entries(TECNICA_LABELS) as [TecnicaTreino, string][]).map(([key, label]) => (
                       <Chip
-                        key={key}
-                        label={label}
-                        size="small"
-                        onClick={() => atualizarTecnica(sessao.id, exTreino.id, key)}
-                        sx={{
-                          height: 22, fontSize: '0.7rem',
-                          bgcolor: exTreino.tecnica === key && key !== 'normal' ? TECNICA_CORES[key] : undefined,
-                          color: exTreino.tecnica === key && key !== 'normal' ? '#fff' : undefined,
-                          border: (!exTreino.tecnica && key === 'normal') || exTreino.tecnica === key ? '2px solid' : undefined,
-                          borderColor: key === 'normal' ? 'text.secondary' : TECNICA_CORES[key],
-                        }}
-                        variant={exTreino.tecnica === key ? 'filled' : 'outlined'}
+                        label={exTreino.exercicio.grupoMuscular}
+                        size="small" variant="outlined"
+                        sx={{ height: 20, fontSize: '0.6rem', mt: 0.2 }}
                       />
-                    ))}
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => removerExercicio(sessao.id, exTreino.id)}>
+                      <Trash2 size={16} />
+                    </IconButton>
                   </Box>
 
-                  {/* Notas */}
-                  <Collapse in={notaAberta}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      multiline
-                      minRows={2}
-                      placeholder="Ex: pegada supinada, focar na descida..."
-                      value={exTreino.notas ?? ''}
-                      onChange={(e) => atualizarNotas(sessao.id, exTreino.id, e.target.value)}
-                      sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                    />
-                  </Collapse>
+                  {/* Technique chips — all yellow */}
+                  <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
+                    {(Object.entries(TECNICA_LABELS) as [TecnicaTreino, string][]).map(([key, label]) => {
+                      const isSelected = exTreino.tecnica === key || (!exTreino.tecnica && key === 'normal');
+                      const isActive = isSelected && key !== 'normal';
+                      return (
+                        <Chip
+                          key={key} label={label} size="small"
+                          onClick={() => atualizarTecnica(sessao.id, exTreino.id, key)}
+                          sx={{
+                            height: 22, fontSize: '0.65rem',
+                            bgcolor: isActive ? TECNICA_COR : undefined,
+                            color: isActive ? '#000' : undefined,
+                            fontWeight: isActive ? 700 : undefined,
+                            border: isSelected ? `1.5px solid ${key === 'normal' ? 'rgba(255,255,255,0.3)' : TECNICA_COR}` : undefined,
+                          }}
+                          variant={isSelected ? 'filled' : 'outlined'}
+                        />
+                      );
+                    })}
+                  </Box>
 
-                  {/* Header da tabela de séries */}
+                  {/* Series header */}
                   <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5, mb: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ width: 36 }}>Série</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>Peso (kg)</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>Reps</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ width: 32, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Série</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Peso</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reps</Typography>
                     <Box sx={{ width: 32 }} />
                   </Box>
 
-                  {/* Séries */}
+                  {/* Series rows */}
                   {exTreino.series.map((serie, idx) => (
                     <Box
                       key={serie.id}
                       sx={{
-                        display: 'flex', alignItems: 'center', px: 0.5, py: 0.5,
-                        borderRadius: 1, '&:hover': { bgcolor: 'action.hover' },
+                        display: 'flex', alignItems: 'center', px: 0.5, py: 0.4,
+                        borderRadius: 1,
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
                       }}
                     >
-                      <Typography variant="body2" color="text.secondary" sx={{ width: 36 }}>{idx + 1}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ width: 32, fontWeight: 600, fontSize: '0.85rem' }}>{idx + 1}</Typography>
                       <TextField
                         size="small" type="number" placeholder="—"
                         value={serie.peso ?? ''}
                         onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { peso: e.target.value ? Number(e.target.value) : undefined })}
-                        sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 1, fontSize: '0.9rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                         slotProps={{ htmlInput: { min: 0, step: 0.5, inputMode: 'decimal' } }}
                       />
                       <TextField
                         size="small" type="number"
                         value={serie.repeticoes}
                         onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { repeticoes: Number(e.target.value) || 0 })}
-                        sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 1, fontSize: '0.9rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                         slotProps={{ htmlInput: { min: 0, inputMode: 'numeric' } }}
                       />
                       <IconButton size="small" onClick={() => removerSerie(sessao.id, exTreino.id, serie.id)} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
-                        <MinusCircle size={20} />
+                        <MinusCircle size={18} />
                       </IconButton>
                     </Box>
                   ))}
 
-                  {/* Botão adicionar série */}
-                  <Button size="small" startIcon={<PlusCircle size={20} />} onClick={() => adicionarSerie(sessao.id, exTreino.id)} sx={{ mt: 0.5 }}>
+                  {/* Add series button */}
+                  <Button size="small" startIcon={<PlusCircle size={18} />} onClick={() => adicionarSerie(sessao.id, exTreino.id)} sx={{ mt: 0.5, fontSize: '0.8rem' }}>
                     Adicionar série
                   </Button>
                 </CardContent>
@@ -240,12 +181,15 @@ export default function SessaoTreino() {
         </Box>
       )}
 
-      {/* Botão adicionar exercício */}
-      <Button variant="outlined" fullWidth startIcon={<Plus />} onClick={() => setPickerOpen(true)} sx={{ py: 1.5 }}>
+      {/* Add exercise button */}
+      <Button
+        variant="outlined" fullWidth startIcon={<Plus size={20} />}
+        onClick={() => setPickerOpen(true)}
+        sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.1)' }}
+      >
         Adicionar Exercício
       </Button>
 
-      {/* Modal de seleção de exercício */}
       <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
     </Box>
   );
