@@ -5,7 +5,7 @@ import { Dumbbell, User, Utensils } from 'lucide-react';
 
 const tabs = [
   { label: 'Treino', icon: <Dumbbell size={22} />, path: '/treino' },
-  { label: 'Dieta', icon: <Utensils size={22} />, path: '/dieta' },
+  { label: 'Refeição', icon: <Utensils size={22} />, path: '/dieta' },
   { label: 'Perfil', icon: <User size={22} />, path: '/perfil' },
 ];
 
