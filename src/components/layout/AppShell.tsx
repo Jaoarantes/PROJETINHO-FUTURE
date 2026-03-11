@@ -32,8 +32,8 @@ export default function AppShell() {
         sx={{
           flex: 1,
           pb: 'calc(72px + env(safe-area-inset-bottom, 0px))',
-          px: 2,
-          pt: 'calc(12px + env(safe-area-inset-top, 0px))',
+          px: 2.5,
+          pt: 'calc(16px + env(safe-area-inset-top, 0px))',
           maxWidth: '500px',
           mx: 'auto',
           width: '100%',

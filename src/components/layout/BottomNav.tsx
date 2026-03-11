@@ -4,9 +4,9 @@ import { useTheme } from '@mui/material/styles';
 import { Dumbbell, User, Utensils } from 'lucide-react';
 
 const tabs = [
-  { label: 'Treino', icon: <Dumbbell />, path: '/treino' },
-  { label: 'Dieta', icon: <Utensils />, path: '/dieta' },
-  { label: 'Perfil', icon: <User />, path: '/perfil' },
+  { label: 'Treino', icon: <Dumbbell size={22} />, path: '/treino' },
+  { label: 'Dieta', icon: <Utensils size={22} />, path: '/dieta' },
+  { label: 'Perfil', icon: <User size={22} />, path: '/perfil' },
 ];
 
 export default function BottomNav() {
@@ -20,15 +20,20 @@ export default function BottomNav() {
   return (
     <Box
       sx={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: '500px', zIndex: 1000,
+        position: 'fixed',
+        bottom: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '100%',
+        maxWidth: '500px',
+        zIndex: 1000,
         background: isDark
-          ? 'rgba(2, 6, 23, 0.95)'
-          : 'rgba(255, 255, 255, 0.9)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
+          ? 'rgba(10, 10, 10, 0.92)'
+          : 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: isDark
-          ? '1px solid rgba(255,255,255,0.08)'
+          ? '1px solid rgba(255,255,255,0.06)'
           : '1px solid rgba(0,0,0,0.06)',
         pb: 'env(safe-area-inset-bottom, 0px)',
       }}
