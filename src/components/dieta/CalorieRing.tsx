@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useTheme } from '@mui/material';
 
 interface Props {
   consumido: number;
@@ -7,6 +7,8 @@ interface Props {
 }
 
 export default function CalorieRing({ consumido, meta, size = 180 }: Props) {
+  const theme = useTheme();
+  const trackColor = theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
   const restante = Math.max(0, meta - consumido);
   const pct = Math.min(consumido / meta, 1);
   const ultrapassou = consumido > meta;
@@ -40,7 +42,7 @@ export default function CalorieRing({ consumido, meta, size = 180 }: Props) {
         {/* Track */}
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke="rgba(255,255,255,0.04)"
+          stroke={trackColor}
           strokeWidth={strokeWidth}
           fill="none"
         />

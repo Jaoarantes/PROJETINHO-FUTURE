@@ -78,7 +78,7 @@ export default function MetasWizard({ open, onClose, perfilInicial, onSalvar }: 
 
     return (
         <Dialog open={open} onClose={handleClose} fullScreen={isMobile} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: isMobile ? 0 : 4 } }}>
-            <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2, minHeight: isMobile ? '100vh' : 'auto', overflow: 'auto' }}>
+            <Box sx={{ p: 3, pt: isMobile ? 'calc(24px + env(safe-area-inset-top, 0px))' : 3, display: 'flex', flexDirection: 'column', gap: 2, minHeight: isMobile ? '100vh' : 'auto', overflow: 'auto' }}>
                 {/* Header */}
                 <Box sx={{ textAlign: 'center' }}>
                     <Box sx={{ width: 48, height: 48, borderRadius: '14px', bgcolor: 'primary.main', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>

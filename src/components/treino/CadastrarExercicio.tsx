@@ -104,7 +104,7 @@ export default function CadastrarExercicio({ open, onClose }: Props) {
         }
       }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 1 }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 1, pt: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px))' : undefined }}>
         <IconButton onClick={handleReset} sx={{ mr: 1 }}>
           <X />
         </IconButton>

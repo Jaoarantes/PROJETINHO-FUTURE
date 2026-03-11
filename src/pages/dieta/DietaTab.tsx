@@ -89,8 +89,8 @@ export default function DietaTab() {
     <Box sx={{ pt: 1, pb: 10 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h4" sx={{ fontSize: '1.8rem' }}>DIETA</Typography>
-        <IconButton size="small" onClick={() => setWizardOpen(true)} sx={{ bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <Typography variant="h4" sx={{ fontSize: '1.8rem' }}>REFEIÇÃO</Typography>
+        <IconButton size="small" onClick={() => setWizardOpen(true)} sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider' }}>
           <Calculator size={18} />
         </IconButton>
       </Box>
@@ -164,7 +164,7 @@ export default function DietaTab() {
             variant="determinate" value={aguaPct}
             sx={{
               height: 8, borderRadius: 4, mb: 1.5,
-              bgcolor: 'rgba(255,255,255,0.04)',
+              bgcolor: 'action.hover',
               '& .MuiLinearProgress-bar': { bgcolor: '#3B82F6', borderRadius: 4 },
             }}
           />
@@ -209,7 +209,7 @@ export default function DietaTab() {
           else setAddRefeicaoOpen(true);
         }}
         disabled={refeicoesFaltantes.length === 0}
-        sx={{ mt: 2, borderStyle: 'dashed', py: 1.5, borderColor: 'rgba(255,255,255,0.1)' }}
+        sx={{ mt: 2, borderStyle: 'dashed', py: 1.5, borderColor: 'divider' }}
       >
         Adicionar Refeição
       </Button>
@@ -365,7 +365,7 @@ function MacroBar({ label, valor, meta, cor }: { label: string; valor: number; m
         variant="determinate" value={pct}
         sx={{
           height: 4, borderRadius: 3, mt: 0.5,
-          bgcolor: 'rgba(255,255,255,0.04)',
+          bgcolor: 'action.hover',
           '& .MuiLinearProgress-bar': { bgcolor: cor, borderRadius: 3 },
         }}
       />

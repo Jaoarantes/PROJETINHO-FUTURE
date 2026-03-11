@@ -185,8 +185,8 @@ export default function Login() {
         sx={{
           py: 1.5,
           gap: 1.5,
-          borderColor: 'rgba(255,255,255,0.1)',
-          '&:hover': { borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.03)' },
+          borderColor: 'divider',
+          '&:hover': { borderColor: 'text.secondary', background: 'action.hover' },
         }}
       >
         {googleLoading ? (

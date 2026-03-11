@@ -99,7 +99,7 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
           }
         }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 1 }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', pb: 1, pt: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px))' : undefined }}>
           <IconButton onClick={step === 'configurar' ? () => setStep('buscar') : handleReset} sx={{ mr: 1 }}>
             <X />
           </IconButton>
