@@ -36,55 +36,75 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: 
     setErro('');
     processandoRef.current = false;
 
-    const scanner = new Html5Qrcode('barcode-reader');
-    scannerRef.current = scanner;
-
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 280, height: 150 },
-          aspectRatio: 1.0,
-        },
-        async (decodedText) => {
-          if (processandoRef.current || !mounted) return;
-          processandoRef.current = true;
-          setStatus('loading');
-
-          try {
-            await scanner.stop();
-          } catch { /* ignore */ }
-
-          try {
-            const alimento = await buscarPorCodigoBarras(decodedText);
-            if (!mounted) return;
-
-            if (alimento) {
-              onAlimentoEncontrado(alimento);
-              onClose();
-            } else {
-              setStatus('not-found');
-              setErro(`Produto não encontrado para o código: ${decodedText}`);
-            }
-          } catch {
-            if (!mounted) return;
-            setStatus('error');
-            setErro('Erro ao buscar produto. Tente novamente.');
-          }
-        },
-        () => { /* ignore scan failures */ },
-      )
-      .catch(() => {
+    const startScanner = async () => {
+      // Request camera permission explicitly before starting scanner
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        // Stop the temporary stream — the scanner will open its own
+        stream.getTracks().forEach((track) => track.stop());
+      } catch {
         if (!mounted) return;
         setStatus('error');
-        setErro('Não foi possível acessar a câmera. Verifique as permissões.');
-      });
+        setErro('Permissão de câmera negada. Vá em Configurações > Apps > future-fit > Permissões e ative a câmera.');
+        return;
+      }
+
+      if (!mounted) return;
+
+      const scanner = new Html5Qrcode('barcode-reader');
+      scannerRef.current = scanner;
+
+      scanner
+        .start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 280, height: 150 },
+            aspectRatio: 1.0,
+          },
+          async (decodedText) => {
+            if (processandoRef.current || !mounted) return;
+            processandoRef.current = true;
+            setStatus('loading');
+
+            try {
+              await scanner.stop();
+            } catch { /* ignore */ }
+
+            try {
+              const alimento = await buscarPorCodigoBarras(decodedText);
+              if (!mounted) return;
+
+              if (alimento) {
+                onAlimentoEncontrado(alimento);
+                onClose();
+              } else {
+                setStatus('not-found');
+                setErro(`Produto não encontrado para o código: ${decodedText}`);
+              }
+            } catch {
+              if (!mounted) return;
+              setStatus('error');
+              setErro('Erro ao buscar produto. Tente novamente.');
+            }
+          },
+          () => { /* ignore scan failures */ },
+        )
+        .catch(() => {
+          if (!mounted) return;
+          setStatus('error');
+          setErro('Não foi possível acessar a câmera. Verifique as permissões.');
+        });
+    };
+
+    startScanner();
 
     return () => {
       mounted = false;
-      scanner.stop().catch(() => {});
-      scanner.clear();
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.clear();
+      }
     };
   }, [open]);
 
@@ -105,7 +125,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: 
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', height: isMobile ? '100%' : 'auto' }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 2, pb: 1, pt: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px))' : 2 }}>
           <Typography variant="h6" sx={{ flex: 1 }}>
             Scanner de Código de Barras
           </Typography>

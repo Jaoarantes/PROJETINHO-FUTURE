@@ -1,29 +1,53 @@
 import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
+import { App as CapApp } from '@capacitor/app';
 import BottomNav from './BottomNav';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useDietaStore } from '../../store/dietaStore';
 
+const TAB_ROUTES = ['/treino', '/dieta', '/perfil'];
+
 export default function AppShell() {
   const { user } = useAuthContext();
-  const { carregar: carregarSessoes, limpar: limparSessoes } = useTreinoStore();
-  const { carregar: carregarExercicios, limpar: limparExercicios } = useExercicioCustomStore();
-  const { carregar: carregarDieta, limpar: limparDieta } = useDietaStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (user) {
-      carregarSessoes(user.uid);
-      carregarExercicios(user.uid);
-      carregarDieta(user.uid);
+      console.log('[AppShell] Carregando dados para uid:', user.uid);
+      useTreinoStore.getState().carregar(user.uid);
+      useTreinoStore.getState().carregarHistorico(user.uid);
+      useExercicioCustomStore.getState().carregar(user.uid);
+      useDietaStore.getState().carregar(user.uid);
     } else {
-      limparSessoes();
-      limparExercicios();
-      limparDieta();
+      useTreinoStore.getState().limpar();
+      useExercicioCustomStore.getState().limpar();
+      useDietaStore.getState().limpar();
     }
   }, [user?.uid]);
+
+  // Handle Android back button
+  useEffect(() => {
+    const listener = CapApp.addListener('backButton', ({ canGoBack }) => {
+      const isOnTab = TAB_ROUTES.includes(location.pathname);
+
+      if (isOnTab) {
+        // On a main tab — minimize app instead of exiting
+        CapApp.minimizeApp();
+      } else if (canGoBack) {
+        navigate(-1);
+      } else {
+        CapApp.minimizeApp();
+      }
+    });
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, [location.pathname, navigate]);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

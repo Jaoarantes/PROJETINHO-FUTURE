@@ -19,7 +19,7 @@ export default function Home() {
         FUTURE FIT
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        Seu app de treino e dieta
+        Seu app de treino e refeição
       </Typography>
     </Box>
   );

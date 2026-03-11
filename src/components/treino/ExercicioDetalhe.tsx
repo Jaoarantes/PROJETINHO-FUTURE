@@ -48,7 +48,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
         },
       }}
     >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1, pt: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px))' : undefined }}>
         <IconButton onClick={onClose} sx={{ mr: 0.5 }}>
           <ArrowLeft />
         </IconButton>

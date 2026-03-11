@@ -12,7 +12,7 @@ export default function Historico() {
           mt: 8,
           p: 4,
           borderRadius: 3,
-          border: '1px dashed rgba(255,255,255,0.08)',
+          border: 1, borderStyle: 'dashed', borderColor: 'divider',
         }}
       >
         <Clock size={48} style={{ opacity: 0.12, marginBottom: 16 }} />
@@ -20,7 +20,7 @@ export default function Historico() {
           Em breve
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
-          Seu histórico de treinos e dieta aparecerá aqui
+          Seu histórico de treinos e refeições aparecerá aqui
         </Typography>
       </Box>
     </Box>

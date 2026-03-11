@@ -144,7 +144,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           {/* Header */}
-          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', p: 2, pb: 1, pt: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px))' : 2 }}>
             <Typography variant="h6" sx={{ flex: 1 }}>
               Adicionar Alimento
             </Typography>
