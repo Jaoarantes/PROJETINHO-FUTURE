@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardActionArea, CardContent,
@@ -6,7 +6,7 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import type { TipoSessao, SessaoTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
@@ -59,9 +59,12 @@ const TIPO_PLACEHOLDERS: Record<TipoSessao, string> = {
   natacao: 'Ex: Natação 1km',
 };
 
-// Ordena por dia da semana (undefined vai pro final)
-function ordenarPorDia(sessoes: SessaoTreino[]): SessaoTreino[] {
+// Ordena por posição (se existir) senão por dia da semana
+function ordenarTreinos(sessoes: SessaoTreino[]): SessaoTreino[] {
   return [...sessoes].sort((a, b) => {
+    if (a.posicao !== undefined && b.posicao !== undefined) {
+      if (a.posicao !== b.posicao) return a.posicao - b.posicao;
+    }
     const ia = a.diaSemana ? diasSemana.indexOf(a.diaSemana) : 99;
     const ib = b.diaSemana ? diasSemana.indexOf(b.diaSemana) : 99;
     return ia - ib;
@@ -97,8 +100,20 @@ function getSessaoSubtitle(sessao: SessaoTreino) {
 
 export default function TreinoTab() {
   const navigate = useNavigate();
-  const { sessoes, historico, carregando, criarSessao, removerSessao, renomearSessao, removerRegistro } = useTreinoStore();
+  const { sessoes, historico, carregando, criarSessao, removerSessao, renomearSessao, reordenarSessoes, removerRegistro, iniciarTreino, treinoAtivo } = useTreinoStore();
   const [tabIndex, setTabIndex] = useState(0);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  // Listen for external tab switch (from ActiveWorkoutBar)
+  const handleTabSwitch = useCallback((e: Event) => {
+    const idx = (e as CustomEvent).detail;
+    setTabIndex(idx);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('switch-treino-tab', handleTabSwitch);
+    return () => window.removeEventListener('switch-treino-tab', handleTabSwitch);
+  }, [handleTabSwitch]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -114,11 +129,52 @@ export default function TreinoTab() {
   const sessoesAgrupadas = useMemo(() => {
     const grupos = agruparPorTipo(sessoes);
     return {
-      musculacao: ordenarPorDia(grupos.musculacao),
-      corrida: ordenarPorDia(grupos.corrida),
-      natacao: ordenarPorDia(grupos.natacao),
+      musculacao: ordenarTreinos(grupos.musculacao),
+      corrida: ordenarTreinos(grupos.corrida),
+      natacao: ordenarTreinos(grupos.natacao),
     };
   }, [sessoes]);
+
+  const handleDragStart = (id: string) => {
+    setDraggedId(id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (targetId: string, tipo: TipoSessao) => {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      return;
+    }
+
+    const currentList = sessoesAgrupadas[tipo];
+    const oldIndex = currentList.findIndex(s => s.id === draggedId);
+    const newIndex = currentList.findIndex(s => s.id === targetId);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      setDraggedId(null);
+      return;
+    }
+
+    const newList = [...currentList];
+    const [movedItem] = newList.splice(oldIndex, 1);
+    newList.splice(newIndex, 0, movedItem);
+
+    // Mapear de volta para o array global mantendo a ordem dos treinos do mesmo tipo
+    const updatedSessoes = sessoes.map(s => {
+      if (s.tipo === tipo || (!s.tipo && tipo === 'musculacao')) {
+        const idx = newList.findIndex(item => item.id === s.id);
+        return { ...s, posicao: idx };
+      }
+      return s;
+    });
+
+    reordenarSessoes(updatedSessoes);
+    setDraggedId(null);
+  };
 
   const handleCriar = () => {
     if (!nome.trim()) return;
@@ -136,8 +192,9 @@ export default function TreinoTab() {
 
   const handleRenomear = () => {
     if (!nome.trim()) return;
-    renomearSessao(editId, nome.trim());
+    renomearSessao(editId, nome.trim(), diaSelecionado);
     setNome('');
+    setDiaSelecionado(undefined);
     setEditDialogOpen(false);
   };
 
@@ -149,7 +206,12 @@ export default function TreinoTab() {
 
   const handleEditar = () => {
     const sessao = sessoes.find((s) => s.id === menuSessaoId);
-    if (sessao) { setEditId(sessao.id); setNome(sessao.nome); setEditDialogOpen(true); }
+    if (sessao) {
+      setEditId(sessao.id);
+      setNome(sessao.nome);
+      setDiaSelecionado(sessao.diaSemana);
+      setEditDialogOpen(true);
+    }
     setMenuAnchor(null);
   };
 
@@ -208,50 +270,88 @@ export default function TreinoTab() {
 
                       {/* Cards */}
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {list.map((sessao, index) => (
-                          <Card key={sessao.id}>
-                            <CardActionArea onClick={() => navigate(`/treino/${sessao.id}`)}>
-                              <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
-                                <Box sx={{
-                                  width: 40, height: 40, borderRadius: '10px',
-                                  background: TIPO_CORES[tipo],
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  mr: 1.5, flexShrink: 0,
-                                }}>
-                                  {tipo === 'musculacao' ? (
-                                    <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
-                                      {String.fromCharCode(65 + index)}
-                                    </Typography>
-                                  ) : (
-                                    <Icon size={20} color="#fff" />
-                                  )}
-                                </Box>
-
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                      {getSessaoSubtitle(sessao)}
-                                    </Typography>
-                                    {sessao.diaSemana && (
-                                      <>
-                                        <Typography variant="caption" color="text.secondary">·</Typography>
-                                        <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
-                                          {sessao.diaSemana}
-                                        </Typography>
-                                      </>
+                        {list.map((sessao, index) => {
+                          const isAtivo = treinoAtivo?.sessaoId === sessao.id;
+                          return (
+                            <Card
+                              key={sessao.id}
+                              draggable
+                              onDragStart={() => handleDragStart(sessao.id)}
+                              onDragOver={handleDragOver}
+                              onDrop={() => handleDrop(sessao.id, tipo)}
+                              onDragEnd={() => setDraggedId(null)}
+                              sx={{
+                                ...(isAtivo && { borderColor: 'primary.main', borderWidth: 2 }),
+                                ...(draggedId === sessao.id && { opacity: 0.5, borderStyle: 'dashed' }),
+                                cursor: 'grab',
+                                '&:active': { cursor: 'grabbing' },
+                              }}
+                            >
+                              <CardActionArea onClick={() => navigate(`/treino/${sessao.id}`)}>
+                                <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
+                                  <Box sx={{
+                                    width: 40, height: 40, borderRadius: '10px',
+                                    background: TIPO_CORES[tipo],
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    mr: 1.5, flexShrink: 0,
+                                  }}>
+                                    {tipo === 'musculacao' ? (
+                                      <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
+                                        {String.fromCharCode(65 + index)}
+                                      </Typography>
+                                    ) : (
+                                      <Icon size={20} color="#fff" />
                                     )}
                                   </Box>
-                                </Box>
 
-                                <IconButton size="small" onClick={(e) => handleMenuOpen(e, sessao.id)} sx={{ mr: -0.5 }}>
-                                  <MoreVertical size={16} />
-                                </IconButton>
-                                <ChevronRight size={16} style={{ opacity: 0.3, marginLeft: 2 }} />
-                              </CardContent>
-                            </CardActionArea>
-                          </Card>
-                        ))}
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                        {getSessaoSubtitle(sessao)}
+                                      </Typography>
+                                      {sessao.diaSemana && (
+                                        <>
+                                          <Typography variant="caption" color="text.secondary">·</Typography>
+                                          <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
+                                            {sessao.diaSemana}
+                                          </Typography>
+                                        </>
+                                      )}
+                                    </Box>
+                                  </Box>
+
+                                  <IconButton size="small" onClick={(e) => handleMenuOpen(e, sessao.id)} sx={{ mr: -0.5 }}>
+                                    <MoreVertical size={16} />
+                                  </IconButton>
+                                  <ChevronRight size={16} style={{ opacity: 0.3, marginLeft: 2 }} />
+                                </CardContent>
+                              </CardActionArea>
+
+                              {/* Começar treino button */}
+                              {!isAtivo && (
+                                <Button
+                                  fullWidth
+                                  size="small"
+                                  startIcon={<Play size={16} />}
+                                  onClick={(e) => { e.stopPropagation(); iniciarTreino(sessao.id); }}
+                                  sx={{
+                                    borderTop: 1,
+                                    borderColor: 'divider',
+                                    borderRadius: 0,
+                                    py: 0.8,
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    color: 'primary.main',
+                                    textTransform: 'none',
+                                  }}
+                                >
+                                  Começar treino
+                                </Button>
+                              )}
+                            </Card>
+                          );
+                        })}
                       </Box>
                     </Box>
                   );
@@ -516,9 +616,12 @@ export default function TreinoTab() {
           onClick={() => setDrawerOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+            bottom: treinoAtivo
+              ? 'calc(122px + env(safe-area-inset-bottom, 0px))'
+              : 'calc(80px + env(safe-area-inset-bottom, 0px))',
             right: { xs: 20, sm: 'calc(50% - 230px)' },
             zIndex: 999,
+            transition: 'bottom 0.3s ease',
           }}
         >
           <Plus />
@@ -571,15 +674,31 @@ export default function TreinoTab() {
         </DialogActions>
       </Dialog>
 
-      {/* Rename dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 4 } }}>
-        <DialogTitle fontWeight={700}>Renomear Treino</DialogTitle>
+        <DialogTitle fontWeight={700}>Editar Treino</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <TextField
             autoFocus label="Nome do treino" fullWidth
             value={nome} onChange={(e) => setNome(e.target.value)}
-            sx={{ mt: 1 }}
+            sx={{ mt: 1, mb: 2 }}
           />
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Alterar dia da semana</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {diasSemana.map((dia) => (
+              <Chip
+                key={dia} label={dia} size="small"
+                onClick={() => setDiaSelecionado(diaSelecionado === dia ? undefined : dia)}
+                sx={{
+                  ...(diaSelecionado === dia && {
+                    bgcolor: '#FF6B2C !important',
+                    color: '#fff !important',
+                    borderColor: '#FF6B2C !important',
+                  }),
+                }}
+                variant={diaSelecionado === dia ? 'filled' : 'outlined'}
+              />
+            ))}
+          </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button onClick={() => setEditDialogOpen(false)} color="inherit">Cancelar</Button>

@@ -122,6 +122,7 @@ export interface SessaoTreino {
   corrida?: TreinoCorrida;
   natacao?: TreinoNatacao;
   criadoEm: string;
+  posicao?: number;
 }
 
 /** Registro de um treino concluído (histórico) */
