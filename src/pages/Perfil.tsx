@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, Avatar, Divider,
   ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
 import { useTreinoStore } from '../store/treinoStore';
@@ -14,11 +15,13 @@ import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '
 import type { RegistroPeso } from '../services/dietaFirestore';
 import { STRAVA_AUTH_URL, getStravaActivities } from '../services/stravaApi';
 import type { StravaAuthData } from '../types/strava';
+import { calcularVolumeSessao } from '../types/treino';
 
 export default function Perfil() {
+  const navigate = useNavigate();
   const { user, signOut } = useAuthContext();
   const { mode, setMode } = useThemeStore();
-  const { sessoes, adicionarRegistro } = useTreinoStore();
+  const { sessoes, historico, adicionarRegistro } = useTreinoStore();
   const { metas } = useDietaStore();
 
   const [stravaAuth, setStravaAuth] = useState<StravaAuthData | null | undefined>(undefined);
@@ -191,6 +194,45 @@ export default function Perfil() {
         <StatCard icon={<Flame size={18} />} label="Exercícios" value={totalExercicios} />
         <StatCard icon={<Utensils size={18} />} label="Meta kcal" value={metas.calorias} />
       </Box>
+
+      {/* Dashboard */}
+      <Card
+        onClick={() => navigate('/dashboard')}
+        sx={{
+          mb: 3,
+          cursor: 'pointer',
+          background: 'linear-gradient(135deg, rgba(255,107,44,0.08) 0%, rgba(239,68,68,0.08) 100%)',
+          border: 1,
+          borderColor: 'rgba(255,107,44,0.2)',
+          '&:hover': { borderColor: 'rgba(255,107,44,0.4)' },
+          transition: 'border-color 0.2s',
+        }}
+      >
+        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+          <Box sx={{
+            width: 44, height: 44, borderRadius: '12px',
+            background: 'linear-gradient(135deg, #FF6B2C 0%, #EF4444 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <BarChart3 size={22} color="#fff" />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ fontSize: '0.95rem', lineHeight: 1.2 }}>
+              Dashboard de Evolução
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              Acompanhe seu progresso em todos os treinos
+            </Typography>
+          </Box>
+          <ChevronRight size={20} style={{ opacity: 0.4 }} />
+        </CardContent>
+      </Card>
+
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Gamificação */}
+      <GamificacaoSection historico={historico} />
 
       <Divider sx={{ mb: 3 }} />
 
@@ -469,5 +511,241 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         </Typography>
       </CardContent>
     </Card>
+  );
+}
+
+// ── Gamificação ──────────────────────────────
+interface Conquista {
+  id: string;
+  icon: React.ReactNode;
+  titulo: string;
+  desc: string;
+  desbloqueada: boolean;
+  cor: string;
+}
+
+function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['historico']): number {
+  if (historico.length === 0) return 0;
+
+  const semanas = new Set<string>();
+  historico.forEach((r) => {
+    const d = new Date(r.concluidoEm);
+    const inicio = new Date(d);
+    inicio.setDate(inicio.getDate() - inicio.getDay());
+    semanas.add(inicio.toISOString().slice(0, 10));
+  });
+
+  const sorted = Array.from(semanas).sort().reverse();
+  let streak = 0;
+
+  const agora = new Date();
+  agora.setDate(agora.getDate() - agora.getDay());
+  const semanaAtual = agora.toISOString().slice(0, 10);
+
+  for (let i = 0; i < sorted.length; i++) {
+    const esperada = new Date(agora);
+    esperada.setDate(esperada.getDate() - i * 7);
+    const esperadaStr = esperada.toISOString().slice(0, 10);
+
+    if (sorted[i] === esperadaStr || (i === 0 && sorted[0] <= semanaAtual)) {
+      if (i === 0 && sorted[0] !== semanaAtual) {
+        // Semana passada conta se a diferença for de apenas 1 semana
+        const diff = (agora.getTime() - new Date(sorted[0]).getTime()) / (1000 * 60 * 60 * 24);
+        if (diff > 14) break;
+      }
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+function GamificacaoSection({ historico }: {
+  historico: ReturnType<typeof useTreinoStore.getState>['historico'];
+}) {
+  const stats = useMemo(() => {
+    const totalTreinos = historico.length;
+    const xpPorTreino = 100;
+    const totalXP = totalTreinos * xpPorTreino;
+    const level = Math.floor(Math.sqrt(totalXP / 100));
+    const xpParaLevel = level * level * 100;
+    const xpProximoLevel = (level + 1) * (level + 1) * 100;
+    const xpNoLevel = totalXP - xpParaLevel;
+    const xpNecessario = xpProximoLevel - xpParaLevel;
+    const progresso = xpNecessario > 0 ? xpNoLevel / xpNecessario : 0;
+
+    const volumeTotal = historico.reduce((acc, r) => {
+      if (r.tipo !== 'musculacao') return acc;
+      return acc + calcularVolumeSessao(r.exercicios);
+    }, 0);
+
+    const exerciciosUnicos = new Set<string>();
+    historico.forEach((r) => {
+      r.exercicios.forEach((ex) => exerciciosUnicos.add(ex.exercicio.nome));
+    });
+
+    const streak = calcularStreak(historico);
+
+    const tempoTotal = historico.reduce((acc, r) => acc + (r.duracaoTotalSegundos || 0), 0);
+
+    return { totalTreinos, totalXP, level, progresso, xpNoLevel, xpNecessario, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
+  }, [historico]);
+
+  const conquistas: Conquista[] = useMemo(() => [
+    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700' },
+    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C' },
+    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6' },
+    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444' },
+    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B' },
+    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981' },
+    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316' },
+    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9' },
+    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444' },
+    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6' },
+  ], [stats]);
+
+  const desbloqueadas = conquistas.filter((c) => c.desbloqueada).length;
+
+  return (
+    <>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Trophy size={14} />
+          Gamificação
+        </Box>
+      </Typography>
+
+      {/* Level + XP */}
+      <Card sx={{ mb: 1.5, overflow: 'visible' }}>
+        <CardContent sx={{ py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 4px 16px rgba(255,107,44,0.3)',
+            }}>
+              <Typography sx={{
+                fontFamily: '"Oswald", sans-serif',
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color: '#fff',
+                lineHeight: 1,
+              }}>
+                {stats.level}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.3 }}>
+                <Typography variant="subtitle1" fontWeight={700} sx={{ fontSize: '1rem' }}>
+                  Nível {stats.level}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  {stats.totalXP} XP
+                </Typography>
+              </Box>
+              {/* XP Bar */}
+              <Box sx={{ width: '100%', height: 8, borderRadius: 4, bgcolor: 'action.hover', overflow: 'hidden' }}>
+                <Box sx={{
+                  width: `${Math.min(stats.progresso * 100, 100)}%`,
+                  height: '100%',
+                  borderRadius: 4,
+                  background: 'linear-gradient(90deg, #FF6B2C, #E55A1B)',
+                  transition: 'width 0.5s ease',
+                }} />
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', mt: 0.3, display: 'block' }}>
+                {stats.xpNoLevel} / {stats.xpNecessario} XP para nível {stats.level + 1}
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Stats row */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
+            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#F97316', lineHeight: 1 }}>
+              {stats.streak}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Sem. Streak
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
+            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#FF6B2C', lineHeight: 1 }}>
+              {stats.volumeTotal > 1000 ? `${(stats.volumeTotal / 1000).toFixed(1)}t` : `${stats.volumeTotal}kg`}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Volume Total
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: 1 }}>
+          <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
+            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#10B981', lineHeight: 1 }}>
+              {desbloqueadas}/{conquistas.length}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Conquistas
+            </Typography>
+          </CardContent>
+        </Card>
+      </Box>
+
+      {/* Conquistas */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ py: 1.5 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {conquistas.map((c) => (
+              <Box
+                key={c.id}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.8,
+                  px: 1.2,
+                  py: 0.8,
+                  borderRadius: 2,
+                  border: 1,
+                  borderColor: c.desbloqueada ? `${c.cor}60` : 'divider',
+                  bgcolor: c.desbloqueada ? `${c.cor}10` : 'transparent',
+                  opacity: c.desbloqueada ? 1 : 0.4,
+                  minWidth: 'calc(50% - 4px)',
+                  flex: '1 1 calc(50% - 4px)',
+                }}
+              >
+                <Box sx={{
+                  width: 32, height: 32, borderRadius: '8px',
+                  bgcolor: c.desbloqueada ? c.cor : 'action.hover',
+                  color: c.desbloqueada ? '#fff' : 'text.disabled',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {c.icon}
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" fontWeight={700} noWrap sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2 }}>
+                    {c.titulo}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                    {c.desc}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
+    </>
   );
 }

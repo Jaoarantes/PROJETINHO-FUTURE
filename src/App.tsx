@@ -10,6 +10,7 @@ import SessaoTreino from './pages/treino/SessaoTreino';
 import DietaTab from './pages/dieta/DietaTab';
 import Historico from './pages/Historico';
 import Perfil from './pages/Perfil';
+import Dashboard from './pages/Dashboard';
 import StravaCallback from './pages/treino/StravaCallback';
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/dieta" element={<DietaTab />} />
           <Route path="/historico" element={<Historico />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/strava/callback" element={<StravaCallback />} />
         </Route>
 

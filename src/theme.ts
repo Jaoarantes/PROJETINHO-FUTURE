@@ -1,18 +1,18 @@
 import { createTheme, alpha } from '@mui/material/styles';
 
-// ─── MIDNIGHT FORGE PALETTE ─────────────────────────────────────────────────
-const EMBER       = '#FF6B2C';
+// ─── PREMIUM DARK PALETTE (Slate & Onyx) ──────────────────────────────────
+const EMBER = '#FF6B2C';
 const EMBER_LIGHT = '#FF8A50';
-const EMBER_DARK  = '#E55A1B';
-const NEON_GREEN  = '#00E676';
-const CHARCOAL    = '#0A0A0A';
-const SURFACE     = '#141414';
-const SURFACE_2   = '#1C1C1C';
-const ZINC_400    = '#A1A1AA';
-const ZINC_600    = '#52525B';
+const EMBER_DARK = '#E55A1B';
+const NEON_GREEN = '#00E676';
+const ONYX_950 = '#050505'; // Fundo profundo
+const ONYX_900 = '#0D0D0D'; // Cards principais
+const SLATE_400 = '#94A3B8';
+const SLATE_600 = '#475569';
+const GLASS_BG = 'rgba(15, 15, 15, 0.85)';
 
 const headingFont = '"Oswald", sans-serif';
-const bodyFont    = '"DM Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+const bodyFont = '"DM Sans", -apple-system, BlinkMacSystemFont, sans-serif';
 
 const typography = {
   fontFamily: bodyFont,
@@ -42,9 +42,9 @@ export const darkTheme = createTheme({
     mode: 'dark',
     primary: { main: EMBER, light: EMBER_LIGHT, dark: EMBER_DARK, contrastText: '#000' },
     secondary: { main: '#7C3AED', light: '#A78BFA', dark: '#6D28D9' },
-    background: { default: CHARCOAL, paper: SURFACE },
-    text: { primary: '#FAFAFA', secondary: ZINC_400 },
-    divider: 'rgba(255,255,255,0.06)',
+    background: { default: ONYX_950, paper: ONYX_900 },
+    text: { primary: '#F8FAFC', secondary: SLATE_400 },
+    divider: 'rgba(255,255,255,0.04)',
     error: { main: '#EF4444' },
     success: { main: NEON_GREEN },
     warning: { main: '#FBBF24' },
@@ -55,9 +55,9 @@ export const darkTheme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        html: { backgroundColor: CHARCOAL },
+        html: { backgroundColor: ONYX_950 },
         body: {
-          backgroundColor: CHARCOAL,
+          backgroundColor: ONYX_950,
           maxWidth: '500px',
           margin: '0 auto',
           minHeight: '100vh',
@@ -65,7 +65,7 @@ export const darkTheme = createTheme({
           overflowX: 'hidden',
           '&::-webkit-scrollbar': { width: 3 },
           '&::-webkit-scrollbar-track': { background: 'transparent' },
-          '&::-webkit-scrollbar-thumb': { background: '#333', borderRadius: 3 },
+          '&::-webkit-scrollbar-thumb': { background: '#222', borderRadius: 3 },
         },
         '#root': {
           minHeight: '100vh',
@@ -80,19 +80,20 @@ export const darkTheme = createTheme({
           borderRadius: 12,
           padding: '12px 24px',
           boxShadow: 'none',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          textTransform: 'none',
         },
         containedPrimary: {
           background: `linear-gradient(135deg, ${EMBER} 0%, ${EMBER_DARK} 100%)`,
           color: '#000',
           fontWeight: 700,
-          boxShadow: `0 4px 20px ${alpha(EMBER, 0.3)}`,
+          boxShadow: `0 4px 20px ${alpha(EMBER, 0.35)}`,
           '&:hover': {
             background: `linear-gradient(135deg, ${EMBER_LIGHT} 0%, ${EMBER} 100%)`,
-            boxShadow: `0 8px 32px ${alpha(EMBER, 0.45)}`,
-            transform: 'translateY(-1px)',
+            boxShadow: `0 8px 32px ${alpha(EMBER, 0.5)}`,
+            transform: 'translateY(-1.5px)',
           },
-          '&:active': { transform: 'scale(0.98)' },
+          '&:active': { transform: 'scale(0.97)' },
           '&.Mui-disabled': {
             background: alpha(EMBER, 0.12),
             color: 'rgba(255,255,255,0.25)',
@@ -100,25 +101,27 @@ export const darkTheme = createTheme({
           },
         },
         outlinedPrimary: {
-          borderColor: alpha(EMBER, 0.4),
+          borderColor: alpha(EMBER, 0.35),
           borderWidth: 1.5,
           color: EMBER_LIGHT,
           '&:hover': {
             borderColor: EMBER,
-            background: alpha(EMBER, 0.06),
+            background: alpha(EMBER, 0.08),
             borderWidth: 1.5,
           },
         },
         outlined: {
-          borderColor: 'rgba(255,255,255,0.1)',
+          borderColor: alpha('#fff', 0.1),
           borderWidth: 1.5,
           '&:hover': {
-            borderColor: 'rgba(255,255,255,0.2)',
-            background: 'rgba(255,255,255,0.03)',
+            borderColor: alpha('#fff', 0.2),
+            background: alpha('#fff', 0.03),
             borderWidth: 1.5,
           },
         },
-        text: { '&:hover': { background: alpha(EMBER, 0.06) } },
+        text: {
+          '&:hover': { borderRadius: 12, background: alpha(EMBER, 0.08) }
+        },
       },
     },
     MuiTextField: {
@@ -126,37 +129,41 @@ export const darkTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 12,
-            background: alpha('#fff', 0.03),
+            background: alpha('#fff', 0.02),
             transition: 'all 0.2s ease',
-            '& fieldset': { borderColor: alpha('#fff', 0.08) },
+            '& fieldset': { borderColor: alpha('#fff', 0.06) },
             '&:hover fieldset': { borderColor: alpha(EMBER, 0.3) },
-            '&.Mui-focused fieldset': { borderColor: EMBER, borderWidth: 2 },
+            '&.Mui-focused fieldset': { borderColor: EMBER, borderWidth: 1.5 },
             '&.Mui-focused': { background: alpha(EMBER, 0.04) },
           },
-          '& .MuiInputLabel-root': { color: ZINC_400 },
+          '& .MuiInputLabel-root': { color: SLATE_400 },
           '& .MuiInputLabel-root.Mui-focused': { color: EMBER_LIGHT },
-          '& .MuiInputBase-input': { color: '#FAFAFA' },
+          '& .MuiInputBase-input': { color: '#F8FAFC' },
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          background: SURFACE,
-          border: `1px solid ${alpha('#fff', 0.06)}`,
+          borderRadius: 20,
+          background: ONYX_900,
+          border: `1px solid ${alpha('#fff', 0.045)}`,
           backgroundImage: 'none',
-          boxShadow: 'none',
-          transition: 'border-color 0.2s ease',
-          '&:hover': { borderColor: alpha(EMBER, 0.2) },
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            borderColor: alpha(EMBER, 0.15),
+            transform: 'translateY(-2px)',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+          },
         },
       },
     },
     MuiChip: {
       styleOverrides: {
-        root: { borderRadius: 8, fontWeight: 600, fontSize: '0.75rem' },
+        root: { borderRadius: 10, fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.02em' },
         colorPrimary: {
-          background: alpha(EMBER, 0.12),
+          background: alpha(EMBER, 0.1),
           color: EMBER_LIGHT,
           border: `1px solid ${alpha(EMBER, 0.2)}`,
         },
@@ -166,33 +173,41 @@ export const darkTheme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          background: SURFACE,
+          background: ONYX_900,
           backgroundImage: 'none',
-          border: `1px solid ${alpha('#fff', 0.08)}`,
-          boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
-          borderRadius: 20,
+          border: `1px solid ${alpha('#fff', 0.06)}`,
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          borderRadius: 24,
+          padding: 8,
         },
       },
     },
     MuiBottomNavigation: {
-      styleOverrides: { root: { background: 'transparent', height: 64 } },
+      styleOverrides: {
+        root: {
+          background: GLASS_BG,
+          backdropFilter: 'blur(16px)',
+          borderTop: `1px solid ${alpha('#fff', 0.05)}`,
+          height: 72,
+        }
+      },
     },
     MuiBottomNavigationAction: {
       styleOverrides: {
         root: {
-          color: ZINC_600,
+          color: SLATE_600,
           minWidth: 0,
-          padding: '6px 0',
-          transition: 'color 0.2s',
-          '&.Mui-selected': { color: EMBER },
+          padding: '8px 0',
+          transition: 'all 0.2s',
+          '&.Mui-selected': { color: EMBER, transform: 'translateY(-2px)' },
         },
         label: {
           fontFamily: headingFont,
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-          fontSize: '0.6rem',
-          fontWeight: 600,
-          marginTop: '2px',
+          letterSpacing: '0.08em',
+          fontSize: '0.58rem',
+          fontWeight: 700,
+          marginTop: '4px',
           '&.Mui-selected': { fontSize: '0.62rem' },
         },
       },
@@ -202,10 +217,12 @@ export const darkTheme = createTheme({
         primary: {
           background: `linear-gradient(135deg, ${EMBER} 0%, ${EMBER_DARK} 100%)`,
           color: '#000',
-          boxShadow: `0 6px 24px ${alpha(EMBER, 0.35)}`,
+          boxShadow: `0 8px 24px ${alpha(EMBER, 0.45)}`,
+          transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           '&:hover': {
             background: `linear-gradient(135deg, ${EMBER_LIGHT} 0%, ${EMBER} 100%)`,
-            boxShadow: `0 10px 36px ${alpha(EMBER, 0.5)}`,
+            boxShadow: `0 12px 32px ${alpha(EMBER, 0.6)}`,
+            transform: 'scale(1.1) rotate(5deg)',
           },
         },
       },
@@ -215,9 +232,11 @@ export const darkTheme = createTheme({
         root: { color: EMBER },
         rail: { background: alpha(EMBER, 0.15) },
         thumb: {
-          boxShadow: `0 0 8px ${alpha(EMBER, 0.4)}`,
+          width: 14,
+          height: 14,
+          boxShadow: `0 0 10px ${alpha(EMBER, 0.5)}`,
           '&:hover, &.Mui-focusVisible': {
-            boxShadow: `0 0 0 8px ${alpha(EMBER, 0.12)}`,
+            boxShadow: `0 0 0 8px ${alpha(EMBER, 0.15)}`,
           },
         },
       },
@@ -225,74 +244,97 @@ export const darkTheme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          margin: '2px 0',
-          transition: 'all 0.15s',
-          '&:hover': { background: alpha('#fff', 0.04) },
+          borderRadius: 14,
+          margin: '4px 8px',
+          transition: 'all 0.2s',
+          border: '1px solid transparent',
+          '&:hover': {
+            background: alpha('#fff', 0.035),
+            borderColor: alpha('#fff', 0.05),
+          },
           '&.Mui-selected': {
-            background: alpha(EMBER, 0.1),
-            '&:hover': { background: alpha(EMBER, 0.14) },
+            background: alpha(EMBER, 0.08),
+            borderColor: alpha(EMBER, 0.15),
+            '&:hover': { background: alpha(EMBER, 0.12) },
           },
         },
       },
     },
     MuiAlert: {
       styleOverrides: {
-        root: { borderRadius: 12, border: `1px solid ${alpha('#fff', 0.05)}` },
-        standardError: { background: alpha('#EF4444', 0.12), color: '#FCA5A5' },
-        standardSuccess: { background: alpha(NEON_GREEN, 0.12), color: '#6EE7B7' },
+        root: {
+          borderRadius: 16,
+          border: `1px solid ${alpha('#fff', 0.05)}`,
+          fontSize: '0.85rem',
+          fontWeight: 500,
+        },
+        standardError: {
+          background: alpha('#EF4444', 0.08),
+          color: '#FCA5A5',
+          borderColor: alpha('#EF4444', 0.15),
+        },
+        standardSuccess: {
+          background: alpha(NEON_GREEN, 0.08),
+          color: '#6EE7B7',
+          borderColor: alpha(NEON_GREEN, 0.15),
+        },
       },
     },
-    MuiDivider: { styleOverrides: { root: { borderColor: alpha('#fff', 0.06) } } },
+    MuiDivider: { styleOverrides: { root: { borderColor: alpha('#fff', 0.04) } } },
     MuiMenu: {
       styleOverrides: {
         paper: {
-          background: SURFACE_2,
-          backdropFilter: 'blur(24px)',
+          background: alpha(ONYX_900, 0.95),
+          backdropFilter: 'blur(20px)',
           border: `1px solid ${alpha('#fff', 0.08)}`,
-          borderRadius: 14,
-          boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          borderRadius: 18,
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
         },
       },
     },
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          margin: '2px 6px',
-          fontSize: '0.9rem',
-          '&:hover': { background: alpha(EMBER, 0.08) },
+          borderRadius: 10,
+          margin: '4px 8px',
+          padding: '10px 14px',
+          fontSize: '0.88rem',
+          fontWeight: 500,
+          transition: 'all 0.15s',
+          '&:hover': { background: alpha(EMBER, 0.1), color: EMBER_LIGHT },
         },
       },
     },
     MuiLinearProgress: {
       styleOverrides: {
-        root: { borderRadius: 6, height: 6, backgroundColor: alpha('#fff', 0.06) },
-        bar: { borderRadius: 6 },
+        root: { borderRadius: 10, height: 8, backgroundColor: alpha('#fff', 0.04) },
+        bar: { borderRadius: 10, background: `linear-gradient(90deg, ${EMBER_DARK}, ${EMBER})` },
       },
     },
     MuiToggleButton: {
       styleOverrides: {
         root: {
-          borderRadius: '10px !important',
-          border: `1px solid ${alpha('#fff', 0.1)}`,
-          color: ZINC_400,
+          borderRadius: '12px !important',
+          border: `1px solid ${alpha('#fff', 0.08)}`,
+          color: SLATE_400,
           fontFamily: headingFont,
           textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          fontWeight: 600,
+          letterSpacing: '0.06em',
+          fontWeight: 700,
+          fontSize: '0.7rem',
+          padding: '8px 16px',
           '&.Mui-selected': {
-            background: alpha(EMBER, 0.15),
+            background: `linear-gradient(135deg, ${alpha(EMBER, 0.2)} 0%, ${alpha(EMBER, 0.1)} 100%)`,
             color: EMBER_LIGHT,
-            borderColor: alpha(EMBER, 0.3),
-            '&:hover': { background: alpha(EMBER, 0.2) },
+            borderColor: alpha(EMBER, 0.4),
+            '&:hover': { background: alpha(EMBER, 0.25) },
           },
         },
       },
     },
     MuiTabs: {
       styleOverrides: {
-        indicator: { backgroundColor: EMBER, height: 3, borderRadius: 3 },
+        indicator: { backgroundColor: EMBER, height: 4, borderRadius: '4px 4px 0 0' },
       },
     },
     MuiTab: {
@@ -300,9 +342,13 @@ export const darkTheme = createTheme({
         root: {
           fontFamily: headingFont,
           textTransform: 'uppercase',
-          fontWeight: 600,
-          letterSpacing: '0.04em',
-          '&.Mui-selected': { color: EMBER_LIGHT },
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          fontSize: '0.8rem',
+          padding: '16px 12px',
+          transition: 'all 0.2s',
+          '&.Mui-selected': { color: '#fff' },
+          '&:hover': { color: EMBER_LIGHT },
         },
       },
     },

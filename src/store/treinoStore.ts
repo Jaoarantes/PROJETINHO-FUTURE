@@ -26,6 +26,7 @@ interface TreinoState {
   sessoes: SessaoTreino[];
   historico: RegistroTreino[];
   carregando: boolean;
+  treinoAtivo: { sessaoId: string; iniciadoEm: number } | null;
 
   setUid: (uid: string | null) => void;
   carregar: (uid: string) => Promise<void>;
@@ -33,7 +34,10 @@ interface TreinoState {
 
   criarSessao: (nome: string, tipo: TipoSessao, diaSemana?: string) => string;
   removerSessao: (id: string) => void;
-  renomearSessao: (id: string, nome: string) => void;
+  renomearSessao: (id: string, nome: string, diaSemana?: string) => void;
+  reordenarSessoes: (novasSessoes: SessaoTreino[]) => void;
+  iniciarTreino: (sessaoId: string) => void;
+  cancelarTreino: () => void;
 
   adicionarExercicio: (sessaoId: string, exercicio: Exercicio, seriesCount: number, repsCount: number) => void;
   removerExercicio: (sessaoId: string, exercicioTreinoId: string) => void;
@@ -62,6 +66,7 @@ export const useTreinoStore = create<TreinoState>()((set, get) => ({
   sessoes: [],
   historico: [],
   carregando: true,
+  treinoAtivo: null,
 
   setUid: (uid) => set({ uid }),
 
@@ -83,7 +88,10 @@ export const useTreinoStore = create<TreinoState>()((set, get) => ({
     }
   },
 
-  limpar: () => set({ sessoes: [], historico: [], uid: null, carregando: false }),
+  limpar: () => set({ sessoes: [], historico: [], uid: null, carregando: false, treinoAtivo: null }),
+
+  iniciarTreino: (sessaoId) => set({ treinoAtivo: { sessaoId, iniciadoEm: Date.now() } }),
+  cancelarTreino: () => set({ treinoAtivo: null }),
 
   criarSessao: (nome, tipo, diaSemana) => {
     const nova: SessaoTreino = {
@@ -115,11 +123,20 @@ export const useTreinoStore = create<TreinoState>()((set, get) => ({
     if (uid) deletarSessao(uid, id).catch(console.error);
   },
 
-  renomearSessao: (id, nome) => {
-    set((state) => updateSessao(state, id, (s) => ({ ...s, nome })));
+  renomearSessao: (id: string, nome: string, diaSemana?: string) => {
+    set((state) => updateSessao(state, id, (s) => ({ ...s, nome, diaSemana })));
     const { uid, sessoes } = get();
     const sessao = sessoes.find((s) => s.id === id);
     if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+  },
+
+  reordenarSessoes: (novasSessoes: SessaoTreino[]) => {
+    set({ sessoes: novasSessoes });
+    const { uid } = get();
+    if (uid) {
+      // Salva a nova ordem no Firestore (pode ser otimizado salvando apenas as sessões alteradas)
+      Promise.all(novasSessoes.map(s => salvarSessao(uid, s))).catch(console.error);
+    }
   },
 
   adicionarExercicio: (sessaoId, exercicio, seriesCount, repsCount) => {
@@ -278,9 +295,13 @@ export const useTreinoStore = create<TreinoState>()((set, get) => ({
   },
 
   concluirTreino: (sessaoId) => {
-    const { uid, sessoes } = get();
+    const { uid, sessoes, treinoAtivo } = get();
     const sessao = sessoes.find((s) => s.id === sessaoId);
     if (!uid || !sessao) return;
+
+    const duracaoTotalSegundos = treinoAtivo && treinoAtivo.sessaoId === sessaoId
+      ? Math.round((Date.now() - treinoAtivo.iniciadoEm) / 1000)
+      : undefined;
 
     const registro: RegistroTreino = {
       id: gerarId(),
@@ -291,9 +312,10 @@ export const useTreinoStore = create<TreinoState>()((set, get) => ({
       corrida: sessao.corrida,
       natacao: sessao.natacao,
       concluidoEm: new Date().toISOString(),
+      duracaoTotalSegundos,
     };
 
-    set((state) => ({ historico: [registro, ...state.historico] }));
+    set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
     salvarRegistro(uid, registro).catch(console.error);
   },
 
