@@ -1,6 +1,6 @@
-import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { DiarioDieta, MetasDieta, PerfilCorporal } from '../types/dieta';
+import type { Alimento, DiarioDieta, MetasDieta, PerfilCorporal } from '../types/dieta';
 
 function limpar<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
@@ -43,4 +43,48 @@ export async function carregarPerfil(uid: string): Promise<PerfilCorporal | null
 
 export async function salvarPerfil(uid: string, perfil: PerfilCorporal): Promise<void> {
   await setDoc(doc(collection(db, 'users', uid, 'dieta-config'), 'perfil'), limpar(perfil));
+}
+
+// Alimentos personalizados do usuário
+function colAlimentosCustom(uid: string) {
+  return collection(db, 'users', uid, 'alimentos-custom');
+}
+
+export async function carregarAlimentosCustom(uid: string): Promise<Alimento[]> {
+  const q = query(colAlimentosCustom(uid), orderBy('nome'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as Alimento);
+}
+
+export async function salvarAlimentoCustom(uid: string, alimento: Alimento): Promise<void> {
+  await setDoc(doc(colAlimentosCustom(uid), alimento.id), limpar({ ...alimento, isCustom: true }));
+}
+
+export async function deletarAlimentoCustom(uid: string, id: string): Promise<void> {
+  await deleteDoc(doc(colAlimentosCustom(uid), id));
+}
+
+// Histórico de peso corporal
+export interface RegistroPeso {
+  id: string;
+  data: string; // YYYY-MM-DD
+  peso: number; // kg
+}
+
+function colPeso(uid: string) {
+  return collection(db, 'users', uid, 'peso-historico');
+}
+
+export async function carregarPesoHistorico(uid: string): Promise<RegistroPeso[]> {
+  const q = query(colPeso(uid), orderBy('data', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as RegistroPeso);
+}
+
+export async function salvarRegistroPeso(uid: string, registro: RegistroPeso): Promise<void> {
+  await setDoc(doc(colPeso(uid), registro.id), limpar(registro));
+}
+
+export async function deletarRegistroPeso(uid: string, id: string): Promise<void> {
+  await deleteDoc(doc(colPeso(uid), id));
 }

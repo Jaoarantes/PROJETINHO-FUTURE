@@ -13,13 +13,16 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  Button,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { X, Search, Plus, Minus, ScanBarcode } from 'lucide-react';
+import { X, Search, Plus, Minus, ScanBarcode, Trash2 } from 'lucide-react';
 import { alimentosPadrao } from '../../constants/alimentos-padrao';
 import { buscarAlimentos } from '../../services/openFoodFacts';
+import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaFirestore';
 import { useDietaStore } from '../../store/dietaStore';
+import { useAuthContext } from '../../contexts/AuthContext';
 import BarcodeScanner from './BarcodeScanner';
 import type { Alimento, TipoRefeicao } from '../../types/dieta';
 
@@ -57,6 +60,15 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const adicionarItem = useDietaStore((s) => s.adicionarItem);
+  const { user } = useAuthContext();
+
+  const [alimentosCustom, setAlimentosCustom] = useState<Alimento[]>([]);
+
+  useEffect(() => {
+    if (open && user?.uid) {
+      carregarAlimentosCustom(user.uid).then(setAlimentosCustom).catch(console.error);
+    }
+  }, [open, user?.uid]);
 
   const [aba, setAba] = useState(0); // 0 = local, 1 = online
   const [busca, setBusca] = useState('');
@@ -71,6 +83,17 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
 
   // Barcode scanner
   const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Cadastro manual
+  const [formOpen, setFormOpen] = useState(false);
+  const [formCodigo, setFormCodigo] = useState('');
+  const [formNome, setFormNome] = useState('');
+  const [formMarca, setFormMarca] = useState('');
+  const [formPorcao, setFormPorcao] = useState('100');
+  const [formCal, setFormCal] = useState('');
+  const [formProt, setFormProt] = useState('');
+  const [formCarb, setFormCarb] = useState('');
+  const [formGord, setFormGord] = useState('');
 
   // Debounced online search
   useEffect(() => {
@@ -89,6 +112,12 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [busca, aba]);
+
+  const alimentosCustomFiltrados = useMemo(() => {
+    if (!busca.trim()) return alimentosCustom;
+    const termo = busca.toLowerCase().trim();
+    return alimentosCustom.filter((a) => a.nome.toLowerCase().includes(termo) || a.marca?.toLowerCase().includes(termo));
+  }, [busca, alimentosCustom]);
 
   const alimentosLocais = useMemo(() => {
     let lista = alimentosPadrao;
@@ -118,6 +147,47 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
     setScannerOpen(false);
     setSelecionado(alimento);
     setQuantidade(1);
+  };
+
+  const handleCadastrarManualmente = (codigo: string) => {
+    setFormCodigo(codigo);
+    setFormNome('');
+    setFormMarca('');
+    setFormPorcao('100');
+    setFormCal('');
+    setFormProt('');
+    setFormCarb('');
+    setFormGord('');
+    setFormOpen(true);
+  };
+
+  const handleSalvarManual = async () => {
+    const alimento: Alimento = {
+      id: `manual_${formCodigo || Date.now()}`,
+      nome: formNome.trim(),
+      marca: formMarca.trim() || undefined,
+      porcao: parseFloat(formPorcao) || 100,
+      unidade: 'g',
+      calorias: parseFloat(formCal) || 0,
+      proteinas: parseFloat(formProt) || 0,
+      carboidratos: parseFloat(formCarb) || 0,
+      gorduras: parseFloat(formGord) || 0,
+      isCustom: true,
+    };
+    if (user?.uid) {
+      await salvarAlimentoCustom(user.uid, alimento).catch(console.error);
+      setAlimentosCustom((prev) => [...prev.filter((a) => a.id !== alimento.id), alimento].sort((a, b) => a.nome.localeCompare(b.nome)));
+    }
+    setFormOpen(false);
+    setSelecionado(alimento);
+    setQuantidade(1);
+  };
+
+  const handleDeletarCustom = async (id: string) => {
+    if (!user?.uid) return;
+    await deletarAlimentoCustom(user.uid, id).catch(console.error);
+    setAlimentosCustom((prev) => prev.filter((a) => a.id !== id));
+    if (selecionado?.id === id) setSelecionado(null);
   };
 
   const handleClose = () => {
@@ -265,6 +335,47 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
 
           {/* Food list */}
           <List sx={{ flex: 1, overflow: 'auto', pt: 0 }}>
+            {/* Seção: Meus Alimentos (aba local) */}
+            {aba === 0 && alimentosCustomFiltrados.length > 0 && (
+              <>
+                <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                    Meus Alimentos
+                  </Typography>
+                </Box>
+                {alimentosCustomFiltrados.map((alimento) => (
+                  <ListItemButton
+                    key={alimento.id}
+                    onClick={() => handleSelecionar(alimento)}
+                    selected={selecionado?.id === alimento.id}
+                    sx={{ py: 1 }}
+                  >
+                    <ListItemText
+                      primary={alimento.marca ? `${alimento.nome} — ${alimento.marca}` : alimento.nome}
+                      secondary={`${alimento.porcao}${alimento.unidade} · ${alimento.calorias} kcal · P${alimento.proteinas}g C${alimento.carboidratos}g G${alimento.gorduras}g`}
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      onClick={(e) => { e.stopPropagation(); handleDeletarCustom(alimento.id); }}
+                      sx={{ opacity: 0.4, ml: 0.5 }}
+                    >
+                      <Trash2 size={14} />
+                    </IconButton>
+                  </ListItemButton>
+                ))}
+                {alimentosLocais.length > 0 && (
+                  <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                      Alimentos Comuns
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            )}
+
             {listaAtual.map((alimento) => (
               <ListItemButton
                 key={alimento.id}
@@ -286,7 +397,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
             ))}
 
             {/* Empty states */}
-            {aba === 0 && alimentosLocais.length === 0 && (
+            {aba === 0 && alimentosLocais.length === 0 && alimentosCustomFiltrados.length === 0 && (
               <Box sx={{ textAlign: 'center', py: 4 }}>
                 <Typography variant="body2" color="text.secondary">
                   Nenhum alimento encontrado
@@ -322,7 +433,80 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onAlimentoEncontrado={handleBarcodeResult}
+        onCadastrarManualmente={handleCadastrarManualmente}
       />
+
+      {/* Form de cadastro manual */}
+      <Dialog
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        fullScreen={isMobile}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: isMobile ? 0 : 4 } }}
+      >
+        <Box sx={{ p: 2.5, pt: isMobile ? 'calc(20px + env(safe-area-inset-top, 0px))' : 2.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>
+              Cadastrar Produto
+            </Typography>
+            <IconButton size="small" onClick={() => setFormOpen(false)}>
+              <X size={20} />
+            </IconButton>
+          </Box>
+
+          {formCodigo && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+              Código: {formCodigo}
+            </Typography>
+          )}
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <TextField
+              label="Nome do produto *"
+              value={formNome}
+              onChange={(e) => setFormNome(e.target.value)}
+              fullWidth size="small"
+            />
+            <TextField
+              label="Marca (opcional)"
+              value={formMarca}
+              onChange={(e) => setFormMarca(e.target.value)}
+              fullWidth size="small"
+            />
+            <TextField
+              label="Porção (g)"
+              value={formPorcao}
+              onChange={(e) => setFormPorcao(e.target.value)}
+              fullWidth size="small"
+              type="number"
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+              Valores por porção:
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+              <TextField label="Calorias (kcal)" value={formCal} onChange={(e) => setFormCal(e.target.value)} size="small" type="number" />
+              <TextField label="Proteínas (g)" value={formProt} onChange={(e) => setFormProt(e.target.value)} size="small" type="number" />
+              <TextField label="Carboidratos (g)" value={formCarb} onChange={(e) => setFormCarb(e.target.value)} size="small" type="number" />
+              <TextField label="Gorduras (g)" value={formGord} onChange={(e) => setFormGord(e.target.value)} size="small" type="number" />
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1, mt: 2.5 }}>
+            <Button variant="outlined" color="inherit" fullWidth onClick={() => setFormOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={!formNome.trim()}
+              onClick={handleSalvarManual}
+            >
+              Adicionar
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
     </>
   );
 }

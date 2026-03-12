@@ -1,12 +1,14 @@
 import type { Alimento } from '../types/dieta';
 
-const BASE_URL = 'https://world.openfoodfacts.org';
-const FIELDS = 'code,product_name,product_name_pt,brands,serving_quantity,serving_size,nutriments';
+// ─── Open Food Facts ────────────────────────────────────────────────────────
+
+const OFF_FIELDS = 'code,product_name,product_name_pt,generic_name,brands,serving_quantity,serving_size,nutriments';
 
 interface OFFProduct {
   code: string;
   product_name?: string;
   product_name_pt?: string;
+  generic_name?: string;
   brands?: string;
   serving_quantity?: number;
   serving_size?: string;
@@ -35,8 +37,8 @@ function parsePorcao(product: OFFProduct): { porcao: number; unidade: string } {
   return { porcao: 100, unidade: 'g' };
 }
 
-function converterProduto(product: OFFProduct): Alimento | null {
-  const nome = product.product_name_pt || product.product_name;
+function converterProdutoOFF(product: OFFProduct): Alimento | null {
+  const nome = product.product_name_pt || product.product_name || product.generic_name;
   if (!nome) return null;
 
   const n = product.nutriments;
@@ -62,7 +64,6 @@ function converterProduto(product: OFFProduct): Alimento | null {
     gorduras = +((n.fat_100g ?? 0) * fator).toFixed(1);
   }
 
-  // Keep products that have at least SOME nutrition data
   if (calorias === 0 && proteinas === 0 && carboidratos === 0 && gorduras === 0) return null;
 
   return {
@@ -78,18 +79,94 @@ function converterProduto(product: OFFProduct): Alimento | null {
   };
 }
 
+// ─── USDA FoodData Central ────────────────────────────────────────────────────
+// Gratuito, sem cadastro necessário (DEMO_KEY: 30 req/hora)
+
+const USDA_KEY = import.meta.env.VITE_USDA_API_KEY || 'DEMO_KEY';
+
+interface USDAFood {
+  fdcId: number;
+  description: string;
+  brandOwner?: string;
+  gtinUpc?: string;
+  servingSize?: number;
+  servingSizeUnit?: string;
+  foodNutrients: { nutrientId: number; value: number }[];
+}
+
+function converterUSDA(food: USDAFood): Alimento | null {
+  const nome = food.description;
+  if (!nome) return null;
+
+  const getNutrient = (id: number) =>
+    food.foodNutrients.find((n) => n.nutrientId === id)?.value ?? 0;
+
+  // USDA retorna valores por 100g
+  const porcao = food.servingSize && food.servingSize > 0 ? food.servingSize : 100;
+  const unidade = (food.servingSizeUnit || 'g').toLowerCase();
+  const fator = porcao / 100;
+
+  const calorias = Math.round(getNutrient(1008) * fator);
+  const proteinas = +(getNutrient(1003) * fator).toFixed(1);
+  const carboidratos = +(getNutrient(1005) * fator).toFixed(1);
+  const gorduras = +(getNutrient(1004) * fator).toFixed(1);
+
+  if (calorias === 0 && proteinas === 0 && carboidratos === 0 && gorduras === 0) return null;
+
+  return {
+    id: `usda_${food.fdcId}`,
+    nome: nome.length > 60 ? nome.slice(0, 57) + '...' : nome,
+    marca: food.brandOwner || undefined,
+    porcao,
+    unidade,
+    calorias,
+    proteinas,
+    carboidratos,
+    gorduras,
+  };
+}
+
+async function buscarUSDABarcode(codigo: string): Promise<Alimento | null> {
+  try {
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?` + new URLSearchParams({
+      query: codigo,
+      dataType: 'Branded',
+      api_key: USDA_KEY,
+      pageSize: '5',
+    });
+
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const foods: USDAFood[] = data.foods ?? [];
+
+    // Prioriza resultado onde o código bate exatamente
+    const exato = foods.find((f) => f.gtinUpc === codigo);
+    const candidato = exato ?? foods[0];
+
+    if (!candidato) return null;
+    return converterUSDA(candidato);
+  } catch (err) {
+    console.error('Erro busca USDA:', err);
+    return null;
+  }
+}
+
+// ─── Exports públicos ─────────────────────────────────────────────────────────
+
 export async function buscarAlimentos(termo: string, page = 1): Promise<Alimento[]> {
   if (!termo.trim()) return [];
 
   try {
-    const url = `${BASE_URL}/cgi/search.pl?` + new URLSearchParams({
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?` + new URLSearchParams({
       search_terms: termo,
       search_simple: '1',
       action: 'process',
       json: '1',
       page_size: '30',
       page: String(page),
-      fields: FIELDS,
+      fields: OFF_FIELDS,
     });
 
     const res = await fetch(url, { mode: 'cors' });
@@ -99,7 +176,7 @@ export async function buscarAlimentos(termo: string, page = 1): Promise<Alimento
     const products: OFFProduct[] = data.products ?? [];
 
     return products
-      .map(converterProduto)
+      .map(converterProdutoOFF)
       .filter((a): a is Alimento => a !== null);
   } catch (err) {
     console.error('Erro busca Open Food Facts:', err);
@@ -108,19 +185,30 @@ export async function buscarAlimentos(termo: string, page = 1): Promise<Alimento
 }
 
 export async function buscarPorCodigoBarras(codigo: string): Promise<Alimento | null> {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/api/v2/product/${encodeURIComponent(codigo)}.json?fields=${FIELDS}`,
-      { mode: 'cors' }
-    );
-    if (!res.ok) return null;
+  // 1. Open Food Facts — world e br (melhor cobertura de produtos brasileiros)
+  const offEndpoints = [
+    `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(codigo)}.json?fields=${OFF_FIELDS}`,
+    `https://br.openfoodfacts.org/api/v2/product/${encodeURIComponent(codigo)}.json?fields=${OFF_FIELDS}`,
+  ];
 
-    const data = await res.json();
-    if (data.status !== 1 || !data.product) return null;
+  for (const url of offEndpoints) {
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) continue;
 
-    return converterProduto(data.product);
-  } catch (err) {
-    console.error('Erro busca código de barras:', err);
-    return null;
+      const data = await res.json();
+      if (data.status !== 1 || !data.product) continue;
+
+      const alimento = converterProdutoOFF(data.product);
+      if (alimento) return alimento;
+    } catch (err) {
+      console.error('Erro busca OFF:', err);
+    }
   }
+
+  // 2. USDA FoodData Central (sem cadastro, cobertura global)
+  const usda = await buscarUSDABarcode(codigo);
+  if (usda) return usda;
+
+  return null;
 }
