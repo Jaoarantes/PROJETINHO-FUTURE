@@ -4,9 +4,10 @@ import {
   Box, Typography, IconButton, Button, Card, CardContent,
   TextField, Chip, MenuItem as SelectItem, Snackbar, Alert, Menu, MenuItem,
 } from '@mui/material';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle } from 'lucide-react';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Timer } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
+import TimerDescanso from '../../components/treino/TimerDescanso';
 import type { TipoCorridaTreino, EstiloNatacao, TipoSerie } from '../../types/treino';
 import {
   TIPO_SESSAO_LABELS, TIPO_CORRIDA_LABELS, ESTILO_NATACAO_LABELS,
@@ -22,6 +23,7 @@ export default function SessaoTreino() {
   const { sessoes, concluirTreino } = store;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [snackOpen, setSnackOpen] = useState(false);
+  const [timerOpen, setTimerOpen] = useState(false);
   const sessao = sessoes.find((s) => s.id === id);
 
   if (!sessao) {
@@ -59,7 +61,7 @@ export default function SessaoTreino() {
 
       {/* Render based on type */}
       {tipo === 'musculacao' && (
-        <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} />
+        <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} onAbrirTimer={() => setTimerOpen(true)} />
       )}
       {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} />}
       {tipo === 'natacao' && <NatacaoView sessaoId={sessao.id} natacao={sessao.natacao} store={store} />}
@@ -82,16 +84,22 @@ export default function SessaoTreino() {
           Treino concluído e salvo no histórico! 🌟
         </Alert>
       </Snackbar>
+
+      {/* Timer de descanso (só musculação) */}
+      {tipo === 'musculacao' && (
+        <TimerDescanso open={timerOpen} onClose={() => setTimerOpen(false)} />
+      )}
     </Box>
   );
 }
 
 /* ── Musculação View ────────────────── */
-function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
+function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, onAbrirTimer }: {
   sessao: ReturnType<typeof useTreinoStore.getState>['sessoes'][0];
   store: ReturnType<typeof useTreinoStore.getState>;
   pickerOpen: boolean;
   setPickerOpen: (v: boolean) => void;
+  onAbrirTimer: () => void;
 }) {
   const { removerExercicio, atualizarSerie, adicionarSerie, removerSerie } = store;
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -232,13 +240,23 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
         ))}
       </Menu>
 
-      <Button
-        variant="outlined" fullWidth startIcon={<Plus size={20} />}
-        onClick={() => setPickerOpen(true)}
-        sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider' }}
-      >
-        Adicionar Exercício
-      </Button>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button
+          variant="outlined" fullWidth startIcon={<Plus size={20} />}
+          onClick={() => setPickerOpen(true)}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', flex: 1 }}
+        >
+          Adicionar Exercício
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={onAbrirTimer}
+          startIcon={<Timer size={20} />}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', px: 2, whiteSpace: 'nowrap' }}
+        >
+          Descanso
+        </Button>
+      </Box>
 
       <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
     </>

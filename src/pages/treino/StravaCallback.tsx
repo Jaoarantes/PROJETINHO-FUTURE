@@ -32,6 +32,9 @@ export default function StravaCallback() {
         // Processar autenticação
         authenticateStrava(code)
             .then(async (data) => {
+                if (!data.access_token) {
+                    throw new Error('Resposta do Strava não contém access_token');
+                }
                 await salvarStravaAuth(user.uid, {
                     accessToken: data.access_token,
                     refreshToken: data.refresh_token,
@@ -46,8 +49,8 @@ export default function StravaCallback() {
             })
             .catch((err) => {
                 setStatus('error');
-                setErrorMsg('Erro ao conectar com o Strava: Verifique as credenciais no .env');
-                console.error(err);
+                setErrorMsg(err.message || 'Erro ao conectar com o Strava: Verifique as credenciais no .env');
+                console.error('Erro Strava:', err);
             });
     }, [searchParams, user, navigate]);
 

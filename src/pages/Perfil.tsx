@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Avatar, Divider,
-  ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert
+  ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
+  Dialog, TextField, IconButton,
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
 import { useTreinoStore } from '../store/treinoStore';
 import { useDietaStore } from '../store/dietaStore';
 import { carregarStravaAuth, desconectarStrava } from '../services/stravaFirestore';
+import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '../services/dietaFirestore';
+import type { RegistroPeso } from '../services/dietaFirestore';
 import { STRAVA_AUTH_URL, getStravaActivities } from '../services/stravaApi';
 import type { StravaAuthData } from '../types/strava';
 
@@ -22,11 +25,40 @@ export default function Perfil() {
   const [syncing, setSyncing] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
+  // Peso corporal
+  const [pesoHistorico, setPesoHistorico] = useState<RegistroPeso[]>([]);
+  const [pesoDialogOpen, setPesoDialogOpen] = useState(false);
+  const [novoPeso, setNovoPeso] = useState('');
+  const [novaDataPeso, setNovaDataPeso] = useState(new Date().toISOString().slice(0, 10));
+
   useEffect(() => {
     if (user?.uid) {
       carregarStravaAuth(user.uid).then(setStravaAuth).catch(console.error);
+      carregarPesoHistorico(user.uid).then(setPesoHistorico).catch(console.error);
     }
   }, [user?.uid]);
+
+  const handleSalvarPeso = async () => {
+    if (!user?.uid || !novoPeso) return;
+    const registro: RegistroPeso = {
+      id: novaDataPeso,
+      data: novaDataPeso,
+      peso: parseFloat(novoPeso),
+    };
+    await salvarRegistroPeso(user.uid, registro).catch(console.error);
+    setPesoHistorico((prev) => {
+      const sem = prev.filter((r) => r.id !== registro.id);
+      return [...sem, registro].sort((a, b) => b.data.localeCompare(a.data));
+    });
+    setPesoDialogOpen(false);
+    setNovoPeso('');
+  };
+
+  const handleDeletarPeso = async (id: string) => {
+    if (!user?.uid) return;
+    await deletarRegistroPeso(user.uid, id).catch(console.error);
+    setPesoHistorico((prev) => prev.filter((r) => r.id !== id));
+  };
 
   const totalExercicios = sessoes.reduce((acc, s) => acc + s.exercicios.length, 0);
 
@@ -162,6 +194,112 @@ export default function Perfil() {
 
       <Divider sx={{ mb: 3 }} />
 
+      {/* Peso Corporal */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ flex: 1, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}
+        >
+          Peso Corporal
+        </Typography>
+        <Button
+          size="small"
+          startIcon={<Plus size={14} />}
+          onClick={() => {
+            setNovaDataPeso(new Date().toISOString().slice(0, 10));
+            setNovoPeso('');
+            setPesoDialogOpen(true);
+          }}
+          sx={{ fontSize: '0.75rem', py: 0.3 }}
+        >
+          Registrar
+        </Button>
+      </Box>
+
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ py: 2 }}>
+          {pesoHistorico.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <Scale size={32} style={{ opacity: 0.15, marginBottom: 8 }} />
+              <Typography variant="body2" color="text.secondary">Nenhum registro ainda</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7 }}>
+                Registre seu peso para acompanhar a evolução
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {/* Peso atual + variação */}
+              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1.5 }}>
+                <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                  {pesoHistorico[0].peso.toFixed(1)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">kg</Typography>
+                {pesoHistorico.length >= 2 && (() => {
+                  const diff = pesoHistorico[0].peso - pesoHistorico[1].peso;
+                  const cor = diff < 0 ? 'success.main' : diff > 0 ? 'error.main' : 'text.secondary';
+                  return (
+                    <Typography variant="body2" color={cor} fontWeight={600} sx={{ ml: 'auto' }}>
+                      {diff > 0 ? '+' : ''}{diff.toFixed(1)} kg
+                    </Typography>
+                  );
+                })()}
+              </Box>
+
+              {/* Gráfico SVG */}
+              {pesoHistorico.length >= 2 && (
+                <PesoChart dados={pesoHistorico} />
+              )}
+
+              {/* Lista últimos registros */}
+              <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                {pesoHistorico.slice(0, 5).map((r) => (
+                  <Box key={r.id} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                      {new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600}>{r.peso.toFixed(1)} kg</Typography>
+                    <IconButton size="small" onClick={() => handleDeletarPeso(r.id)} sx={{ ml: 0.5, opacity: 0.4 }}>
+                      <Trash2 size={12} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog registrar peso */}
+      <Dialog open={pesoDialogOpen} onClose={() => setPesoDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, p: 1 } }}>
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>Registrar Peso</Typography>
+            <IconButton size="small" onClick={() => setPesoDialogOpen(false)}><X size={18} /></IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1.5, mb: 2 }}>
+            <TextField
+              label="Peso (kg)" type="number" size="small" fullWidth
+              value={novoPeso}
+              onChange={(e) => setNovoPeso(e.target.value)}
+              slotProps={{ htmlInput: { min: 30, max: 250, step: 0.1, inputMode: 'decimal' } }}
+              autoFocus
+            />
+            <TextField
+              label="Data" type="date" size="small" fullWidth
+              value={novaDataPeso}
+              onChange={(e) => setNovaDataPeso(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+          <Button variant="contained" fullWidth disabled={!novoPeso} onClick={handleSalvarPeso}>
+            Salvar
+          </Button>
+        </Box>
+      </Dialog>
+
+      <Divider sx={{ mb: 3 }} />
+
       {/* Theme */}
       <Typography
         variant="caption"
@@ -270,6 +408,47 @@ export default function Perfil() {
           {snackMsg}
         </Alert>
       </Snackbar>
+    </Box>
+  );
+}
+
+function PesoChart({ dados }: { dados: RegistroPeso[] }) {
+  const sorted = [...dados].sort((a, b) => a.data.localeCompare(b.data)).slice(-10);
+  if (sorted.length < 2) return null;
+
+  const pesos = sorted.map((d) => d.peso);
+  const minP = Math.min(...pesos);
+  const maxP = Math.max(...pesos);
+  const range = maxP - minP || 1;
+
+  const W = 280, H = 60, PAD = 8;
+
+  const pts = sorted.map((d, i) => {
+    const x = PAD + (i / (sorted.length - 1)) * (W - PAD * 2);
+    const y = H - PAD - ((d.peso - minP) / range) * (H - PAD * 2);
+    return { x, y, peso: d.peso };
+  });
+
+  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+
+  return (
+    <Box sx={{ width: '100%', overflow: 'hidden' }}>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+        {/* Area fill */}
+        <path
+          d={`${path} L${pts[pts.length - 1].x},${H} L${pts[0].x},${H} Z`}
+          fill="rgba(255,107,44,0.08)"
+        />
+        {/* Line */}
+        <path d={path} fill="none" stroke="#FF6B2C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Dots */}
+        {pts.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#FF6B2C" />
+        ))}
+        {/* Min/Max labels */}
+        <text x={PAD} y={H - 1} fontSize="9" fill="rgba(128,128,128,0.7)">{minP.toFixed(1)}</text>
+        <text x={W - PAD} y={H - 1} fontSize="9" fill="rgba(128,128,128,0.7)" textAnchor="end">{maxP.toFixed(1)}</text>
+      </svg>
     </Box>
   );
 }

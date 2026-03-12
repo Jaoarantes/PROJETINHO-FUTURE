@@ -6,6 +6,7 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Button,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -18,102 +19,111 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onAlimentoEncontrado: (alimento: Alimento) => void;
+  onCadastrarManualmente?: (codigo: string) => void;
 }
 
-export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: Props) {
+export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, onCadastrarManualmente }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const activeRef = useRef(false);
+  const processandoRef = useRef(false);
   const [status, setStatus] = useState<'scanning' | 'loading' | 'error' | 'not-found'>('scanning');
   const [erro, setErro] = useState('');
-  const processandoRef = useRef(false);
+  const codigoNaoEncontradoRef = useRef('');
 
-  useEffect(() => {
-    if (!open) return;
+  const pararScanner = async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch { /* já parado */ }
+      try { scannerRef.current.clear(); } catch { /* ignora */ }
+      scannerRef.current = null;
+    }
+  };
 
-    let mounted = true;
+  const iniciarScanner = async () => {
+    activeRef.current = true;
+    processandoRef.current = false;
     setStatus('scanning');
     setErro('');
-    processandoRef.current = false;
 
-    const startScanner = async () => {
-      // Request camera permission explicitly before starting scanner
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        // Stop the temporary stream — the scanner will open its own
-        stream.getTracks().forEach((track) => track.stop());
-      } catch {
-        if (!mounted) return;
-        setStatus('error');
-        setErro('Permissão de câmera negada. Vá em Configurações > Apps > future-fit > Permissões e ative a câmera.');
-        return;
-      }
+    // Pede permissão de câmera explicitamente
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      if (!activeRef.current) return;
+      setStatus('error');
+      setErro('Permissão de câmera negada. Vá em Configurações > Apps > future-fit > Permissões e ative a câmera.');
+      return;
+    }
 
-      if (!mounted) return;
+    if (!activeRef.current) return;
 
-      const scanner = new Html5Qrcode('barcode-reader');
-      scannerRef.current = scanner;
+    // Garante que o elemento está limpo antes de inicializar
+    const el = document.getElementById('barcode-reader');
+    if (el) el.innerHTML = '';
 
-      scanner
-        .start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 280, height: 150 },
-            aspectRatio: 1.0,
-          },
-          async (decodedText) => {
-            if (processandoRef.current || !mounted) return;
-            processandoRef.current = true;
-            setStatus('loading');
+    const scanner = new Html5Qrcode('barcode-reader');
+    scannerRef.current = scanner;
 
-            try {
-              await scanner.stop();
-            } catch { /* ignore */ }
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 280, height: 150 }, aspectRatio: 1.0 },
+        async (decodedText) => {
+          if (processandoRef.current || !activeRef.current) return;
+          processandoRef.current = true;
+          setStatus('loading');
 
-            try {
-              const alimento = await buscarPorCodigoBarras(decodedText);
-              if (!mounted) return;
+          try { await scanner.stop(); } catch { /* ignora */ }
 
-              if (alimento) {
-                onAlimentoEncontrado(alimento);
-                onClose();
-              } else {
-                setStatus('not-found');
-                setErro(`Produto não encontrado para o código: ${decodedText}`);
-              }
-            } catch {
-              if (!mounted) return;
-              setStatus('error');
-              setErro('Erro ao buscar produto. Tente novamente.');
+          try {
+            const alimento = await buscarPorCodigoBarras(decodedText);
+            if (!activeRef.current) return;
+
+            if (alimento) {
+              onAlimentoEncontrado(alimento);
+              onClose();
+            } else {
+              codigoNaoEncontradoRef.current = decodedText;
+              setStatus('not-found');
+              setErro(`Produto não encontrado para o código: ${decodedText}`);
             }
-          },
-          () => { /* ignore scan failures */ },
-        )
-        .catch(() => {
-          if (!mounted) return;
-          setStatus('error');
-          setErro('Não foi possível acessar a câmera. Verifique as permissões.');
-        });
-    };
+          } catch {
+            if (!activeRef.current) return;
+            setStatus('error');
+            setErro('Erro ao buscar produto. Tente novamente.');
+          }
+        },
+        () => { /* falhas de leitura são normais, ignora */ },
+      )
+      .catch(() => {
+        if (!activeRef.current) return;
+        setStatus('error');
+        setErro('Não foi possível acessar a câmera. Verifique as permissões.');
+      });
+  };
 
-    startScanner();
-
-    return () => {
-      mounted = false;
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current.clear();
-      }
-    };
-  }, [open]);
+  const reiniciarScanner = async () => {
+    await pararScanner();
+    iniciarScanner();
+  };
 
   const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-    }
+    activeRef.current = false;
+    pararScanner();
     onClose();
   };
+
+  // Limpa ao fechar
+  useEffect(() => {
+    if (!open) {
+      activeRef.current = false;
+      pararScanner();
+      setStatus('scanning');
+      setErro('');
+    }
+  }, [open]);
 
   return (
     <Dialog
@@ -122,6 +132,11 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: 
       fullScreen={isMobile}
       maxWidth="xs"
       fullWidth
+      TransitionProps={{
+        unmountOnExit: true,
+        // Só inicia a câmera depois que o dialog está 100% visível
+        onEntered: iniciarScanner,
+      }}
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', height: isMobile ? '100%' : 'auto' }}>
         {/* Header */}
@@ -134,7 +149,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: 
           </IconButton>
         </Box>
 
-        {/* Scanner area */}
+        {/* Área do scanner */}
         <Box sx={{ px: 2, pb: 2 }}>
           <Box
             id="barcode-reader"
@@ -161,9 +176,29 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado }: 
           )}
 
           {(status === 'error' || status === 'not-found') && (
-            <Alert severity={status === 'not-found' ? 'warning' : 'error'} sx={{ mt: 1.5 }}>
-              {erro}
-            </Alert>
+            <Box sx={{ mt: 1.5 }}>
+              <Alert severity={status === 'not-found' ? 'warning' : 'error'}>
+                {erro}
+              </Alert>
+              <Button fullWidth variant="outlined" sx={{ mt: 1.5 }} onClick={reiniciarScanner}>
+                Tentar novamente
+              </Button>
+              {status === 'not-found' && onCadastrarManualmente && (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  sx={{ mt: 1 }}
+                  onClick={() => {
+                    activeRef.current = false;
+                    pararScanner();
+                    onClose();
+                    onCadastrarManualmente(codigoNaoEncontradoRef.current);
+                  }}
+                >
+                  Cadastrar manualmente
+                </Button>
+              )}
+            </Box>
           )}
         </Box>
       </Box>
