@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, IconButton, Button, Card, CardContent,
   TextField, Chip, MenuItem as SelectItem, Snackbar, Alert, Menu, MenuItem,
 } from '@mui/material';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Timer } from 'lucide-react';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Timer, Play } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
 import TimerDescanso from '../../components/treino/TimerDescanso';
@@ -16,15 +16,35 @@ import {
   calcularDistanciaNatacao, calcularDuracaoNatacao,
 } from '../../types/treino';
 
+function formatTimer(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export default function SessaoTreino() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const store = useTreinoStore();
-  const { sessoes, concluirTreino } = store;
+  const { sessoes, concluirTreino, treinoAtivo } = store;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [snackOpen, setSnackOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const sessao = sessoes.find((s) => s.id === id);
+
+  const isAtivo = treinoAtivo?.sessaoId === id;
+
+  // Timer do treino ativo
+  useEffect(() => {
+    if (!isAtivo || !treinoAtivo) { setElapsed(0); return; }
+    const update = () => setElapsed(Math.floor((Date.now() - treinoAtivo.iniciadoEm) / 1000));
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [isAtivo, treinoAtivo]);
 
   if (!sessao) {
     return (
@@ -36,6 +56,14 @@ export default function SessaoTreino() {
   }
 
   const tipo = sessao.tipo || 'musculacao';
+
+  const handleConcluir = () => {
+    concluirTreino(sessao.id);
+    navigate('/treino');
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
+    }, 100);
+  };
 
   return (
     <Box sx={{ pt: 1, pb: 10 }}>
@@ -55,6 +83,21 @@ export default function SessaoTreino() {
                 {sessao.diaSemana}
               </Typography>
             )}
+            {isAtivo && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, ml: 0.5 }}>
+                <Play size={12} fill="#FF6B2C" color="#FF6B2C" />
+                <Typography
+                  sx={{
+                    fontFamily: '"Oswald", sans-serif',
+                    color: 'primary.main',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {formatTimer(elapsed)}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Box>
       </Box>
@@ -63,32 +106,43 @@ export default function SessaoTreino() {
       {tipo === 'musculacao' && (
         <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} onAbrirTimer={() => setTimerOpen(true)} />
       )}
-      {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} />}
-      {tipo === 'natacao' && <NatacaoView sessaoId={sessao.id} natacao={sessao.natacao} store={store} />}
+      {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} onAbrirTimer={() => setTimerOpen(true)} />}
+      {tipo === 'natacao' && <NatacaoView sessaoId={sessao.id} natacao={sessao.natacao} store={store} onAbrirTimer={() => setTimerOpen(true)} />}
 
       {/* Botão Concluir Treino */}
-      <Button
-        variant="contained"
-        color="success"
-        fullWidth
-        startIcon={<CheckCircle size={20} />}
-        onClick={() => { concluirTreino(sessao.id); setSnackOpen(true); }}
-        sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 3 }}
-      >
-        Concluir Treino
-      </Button>
+      {isAtivo ? (
+        <Button
+          variant="contained"
+          color="success"
+          fullWidth
+          startIcon={<CheckCircle size={20} />}
+          onClick={handleConcluir}
+          sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 3 }}
+        >
+          Concluir Treino
+        </Button>
+      ) : (
+        <Button
+          variant="contained"
+          color="success"
+          fullWidth
+          startIcon={<CheckCircle size={20} />}
+          onClick={() => { concluirTreino(sessao.id); setSnackOpen(true); }}
+          sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 3 }}
+        >
+          Concluir Treino
+        </Button>
+      )}
 
       {/* Snackbar de sucesso */}
       <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert onClose={() => setSnackOpen(false)} severity="success" variant="filled" sx={{ width: '100%' }}>
-          Treino concluído e salvo no histórico! 🌟
+          Treino concluído e salvo no histórico!
         </Alert>
       </Snackbar>
 
-      {/* Timer de descanso (só musculação) */}
-      {tipo === 'musculacao' && (
-        <TimerDescanso open={timerOpen} onClose={() => setTimerOpen(false)} />
-      )}
+      {/* Timer de descanso */}
+      <TimerDescanso open={timerOpen} onClose={() => setTimerOpen(false)} />
     </Box>
   );
 }
@@ -264,10 +318,11 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, onAbrirTimer
 }
 
 /* ── Corrida View ────────────────── */
-function CorridaView({ sessaoId, corrida, store }: {
+function CorridaView({ sessaoId, corrida, store, onAbrirTimer }: {
   sessaoId: string;
   corrida: ReturnType<typeof useTreinoStore.getState>['sessoes'][0]['corrida'];
   store: ReturnType<typeof useTreinoStore.getState>;
+  onAbrirTimer: () => void;
 }) {
   const { adicionarEtapaCorrida, removerEtapaCorrida, atualizarEtapaCorrida } = store;
   const etapas = corrida?.etapas ?? [];
@@ -347,22 +402,33 @@ function CorridaView({ sessaoId, corrida, store }: {
         ))}
       </Box>
 
-      <Button
-        variant="outlined" fullWidth startIcon={<Plus size={20} />}
-        onClick={() => adicionarEtapaCorrida(sessaoId)}
-        sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider' }}
-      >
-        Adicionar Etapa
-      </Button>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button
+          variant="outlined" fullWidth startIcon={<Plus size={20} />}
+          onClick={() => adicionarEtapaCorrida(sessaoId)}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', flex: 1 }}
+        >
+          Adicionar Etapa
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={onAbrirTimer}
+          startIcon={<Timer size={20} />}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', px: 2, whiteSpace: 'nowrap' }}
+        >
+          Descanso
+        </Button>
+      </Box>
     </>
   );
 }
 
 /* ── Natação View ────────────────── */
-function NatacaoView({ sessaoId, natacao, store }: {
+function NatacaoView({ sessaoId, natacao, store, onAbrirTimer }: {
   sessaoId: string;
   natacao: ReturnType<typeof useTreinoStore.getState>['sessoes'][0]['natacao'];
   store: ReturnType<typeof useTreinoStore.getState>;
+  onAbrirTimer: () => void;
 }) {
   const { adicionarEtapaNatacao, removerEtapaNatacao, atualizarEtapaNatacao } = store;
   const etapas = natacao?.etapas ?? [];
@@ -442,13 +508,23 @@ function NatacaoView({ sessaoId, natacao, store }: {
         ))}
       </Box>
 
-      <Button
-        variant="outlined" fullWidth startIcon={<Plus size={20} />}
-        onClick={() => adicionarEtapaNatacao(sessaoId)}
-        sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider' }}
-      >
-        Adicionar Etapa
-      </Button>
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button
+          variant="outlined" fullWidth startIcon={<Plus size={20} />}
+          onClick={() => adicionarEtapaNatacao(sessaoId)}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', flex: 1 }}
+        >
+          Adicionar Etapa
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={onAbrirTimer}
+          startIcon={<Timer size={20} />}
+          sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', px: 2, whiteSpace: 'nowrap' }}
+        >
+          Descanso
+        </Button>
+      </Box>
     </>
   );
 }

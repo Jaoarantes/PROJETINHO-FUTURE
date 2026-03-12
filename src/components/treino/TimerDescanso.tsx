@@ -2,6 +2,30 @@ import { useEffect, useState } from 'react';
 import { Box, Typography, IconButton, Drawer, Chip } from '@mui/material';
 import { X, Play, Square, RotateCcw } from 'lucide-react';
 
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const beeps = [
+      { freq: 880, start: 0, dur: 0.15 },
+      { freq: 880, start: 0.25, dur: 0.15 },
+      { freq: 1100, start: 0.5, dur: 0.3 },
+    ];
+    beeps.forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
+    });
+    setTimeout(() => ctx.close(), 2000);
+  } catch { /* ignora */ }
+}
+
 const PRESETS = [
   { label: '30s', seg: 30 },
   { label: '1min', seg: 60 },
@@ -29,6 +53,7 @@ export default function TimerDescanso({ open, onClose }: Props) {
           setAtivo(false);
           setConcluido(true);
           try { navigator.vibrate?.([200, 100, 200, 100, 400]); } catch { /* ignora */ }
+          playBeep();
           return 0;
         }
         return r - 1;

@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { App as CapApp } from '@capacitor/app';
 import BottomNav from './BottomNav';
+import ActiveWorkoutBar from '../treino/ActiveWorkoutBar';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
@@ -65,6 +66,7 @@ export default function AppShell() {
       >
         <Outlet />
       </Box>
+      <ActiveWorkoutBar />
       <BottomNav />
     </Box>
   );
