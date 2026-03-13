@@ -12,13 +12,14 @@ import { useDietaStore } from '../../store/dietaStore';
 const TAB_ROUTES = ['/treino', '/dieta', '/perfil'];
 
 export default function AppShell() {
-  const { user } = useAuthContext();
+  const { user, refreshUser } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     if (user) {
       console.log('[AppShell] Carregando dados para uid:', user.uid);
+      refreshUser().catch(console.error); // Forçar atualização de metadados (ex: foto)
       useTreinoStore.getState().carregar(user.uid);
       useTreinoStore.getState().carregarHistorico(user.uid);
       useExercicioCustomStore.getState().carregar(user.uid);

@@ -1,22 +1,21 @@
 import { Box, Typography } from '@mui/material';
-import { Dumbbell } from 'lucide-react';
 
 export default function Home() {
   return (
     <Box sx={{ textAlign: 'center', pt: 6 }}>
       <Box
         sx={{
-          width: 80, height: 80, borderRadius: '22px',
-          background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+          width: 100, height: 100, borderRadius: '24px',
+          overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           mx: 'auto', mb: 3,
-          boxShadow: '0 8px 32px rgba(255,107,44,0.25)',
+          boxShadow: '0 10px 35px rgba(255,107,44,0.3)',
         }}
       >
-        <Dumbbell size={40} color="#000" strokeWidth={2.5} />
+        <img src="/img/logo.png" alt="Valere Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </Box>
-      <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: '0.06em' }}>
-        FUTURE FIT
+      <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '0.05em', fontFamily: '"Oswald", sans-serif' }}>
+        VALERE
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
         Seu app de treino e refeição

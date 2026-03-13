@@ -170,14 +170,38 @@ function injectKeyframes() {
       100% { background-position: 200% 0; }
     }
     .recharts-wrapper,
-    .recharts-wrapper > svg,
+    .recharts-wrapper *,
+    .recharts-wrapper svg,
     .recharts-surface,
     .recharts-tooltip-wrapper,
-    .recharts-responsive-container {
+    .recharts-responsive-container,
+    .recharts-responsive-container * {
       overflow: visible !important;
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
     }
     .recharts-tooltip-wrapper {
       z-index: 9999 !important;
+      pointer-events: none !important;
+    }
+    /* Reduzir ou remover bordas de foco e estados ativos */
+    .recharts-rectangle,
+    .recharts-bar-rectangle,
+    .recharts-bar-rectangle-active,
+    .recharts-active-dot,
+    .recharts-dot {
+      stroke: none !important;
+      outline: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+      border: none !important;
+    }
+    .recharts-bar-cursor {
+      fill: transparent !important;
+      stroke: none !important;
     }
     @keyframes dash-countUp {
       from { opacity: 0; transform: scale(0.7); }
@@ -189,25 +213,45 @@ function injectKeyframes() {
 
 // ── Shared tooltip style ────────────────────────
 const tooltipStyle = {
-  borderRadius: 14,
+  borderRadius: '0 !important',
   fontSize: 12,
-  backgroundColor: 'rgba(15, 15, 15, 0.96)',
-  border: '1px solid rgba(255,107,44,0.15)',
+  backgroundColor: 'rgba(15, 15, 15, 0.98)',
+  border: '1px solid rgba(255,255,255,0.15)',
   color: '#fff',
-  boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
   backdropFilter: 'blur(12px)',
+  pointerEvents: 'none' as const,
 };
 
 // Portal-based custom tooltip: renders at body level, impossible to clip
 function PortalTooltipWrapper(props: any) {
   const { active, payload, label, coordinate, renderContent } = props;
-  if (!active || !payload?.length || !coordinate) return null;
+  const [localActive, setLocalActive] = useState(false);
+
+  useEffect(() => {
+    if (active) setLocalActive(true);
+    else setLocalActive(false);
+  }, [active]);
+
+  // Force hide on touch outside or next touch
+  useEffect(() => {
+    if (!localActive) return;
+    const handleGlobalTouch = () => {
+      // Small delay to let the chart process its own touch first
+      setTimeout(() => setLocalActive(false), 50);
+    };
+    window.addEventListener('touchstart', handleGlobalTouch, { passive: true });
+    return () => window.removeEventListener('touchstart', handleGlobalTouch);
+  }, [localActive]);
+
+  if (!active || !localActive || !payload?.length || !coordinate) return null;
 
   // Find the closest chart container to calculate absolute position
   // Recharts provides coordinate relative to the chart surface
   // We need to convert this to fixed position
   const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
-    document.querySelector('.recharts-wrapper:hover');
+    document.querySelector('.recharts-wrapper:hover') ||
+    document.querySelector('.recharts-responsive-container');
 
   let left = coordinate.x;
   let top = coordinate.y;
@@ -218,11 +262,12 @@ function PortalTooltipWrapper(props: any) {
     top = rect.top + coordinate.y - 10;
 
     // Safety bounds
-    const tooltipWidth = 160;
+    const tooltipWidth = 180; // Increased width
     if (left + tooltipWidth > window.innerWidth) {
       left = rect.left + coordinate.x - tooltipWidth - 15;
     }
     if (top < 10) top = 10;
+    if (top + 100 > window.innerHeight) top = window.innerHeight - 100;
   }
 
   return createPortal(
@@ -232,7 +277,7 @@ function PortalTooltipWrapper(props: any) {
       top,
       zIndex: 99999,
       pointerEvents: 'none',
-      transition: 'left 0.1s ease-out, top 0.1s ease-out',
+      transition: 'left 0.05s ease-out, top 0.05s ease-out',
     }}>
       {renderContent(payload, label)}
     </div>,
@@ -544,7 +589,10 @@ export default function Dashboard() {
   const firstName = user?.displayName?.split(' ')[0] || '';
 
   return (
-    <Box sx={{ pb: 4, position: 'relative' }}>
+    <Box sx={{
+      pb: 4, position: 'relative',
+      "& *": { outline: 'none !important', WebkitTapHighlightColor: 'transparent !important' }
+    }}>
       {/* ═══ HERO HEADER ═══ */}
       <Box sx={{
         position: 'relative',
@@ -830,7 +878,7 @@ export default function Dashboard() {
           badge={periodo === 'tudo' ? 'Histórico completo' : `${heatmapConfig.semanas} semanas`}
           isDark={isDark}
         />
-        <Card sx={{ mb: 1, overflow: 'visible' }}>
+        <Card sx={{ mb: 1, overflow: 'visible', borderRadius: '8px' }}>
           <CardContent sx={{ py: 2, px: 1.5 }}>
             <HeatmapCalendar data={heatmap} totalSemanas={heatmapConfig.semanas} isDark={isDark} />
           </CardContent>
@@ -845,11 +893,11 @@ export default function Dashboard() {
       {/* ═══ FREQUENCIA SEMANAL ═══ */}
       <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.3s both' }}>
         <SectionHeader icon={<TrendingUp size={15} />} title="Frequência Semanal" isDark={isDark} />
-        <Card sx={{ mb: 3, overflow: 'visible', position: 'relative' }}>
+        <Card sx={{ mb: 3, overflow: 'visible', position: 'relative', borderRadius: '8px' }}>
           <CardContent sx={{ py: 2, px: 0.5, overflow: 'visible' }}>
             {stats.frequenciaFormatada.some((d) => d.musculacao + d.corrida + d.natacao > 0) ? (
               <Box sx={{ overflow: 'visible', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height={200} style={{ overflow: 'visible' }}>
+                <ResponsiveContainer width="100%" height={200} style={{ overflow: 'visible', outline: 'none' }}>
                   <BarChart data={stats.frequenciaFormatada} barCategoryGap="20%" style={{ overflow: 'visible' }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
                     <XAxis
@@ -870,9 +918,9 @@ export default function Dashboard() {
                       {...tooltipProps}
                       content={<PortalTooltipWrapper renderContent={(payload: any) => <FreqTooltip active={true} payload={payload} />} />}
                     />
-                    <Bar dataKey="musculacao" stackId="a" fill={CORES.musculacao} name="musculacao" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" />
-                    <Bar dataKey="natacao" stackId="a" fill={CORES.natacao} radius={[3, 3, 0, 0]} name="natacao" />
+                    <Bar dataKey="musculacao" stackId="a" fill={CORES.musculacao} name="musculacao" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
+                    <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
+                    <Bar dataKey="natacao" stackId="a" fill={CORES.natacao} radius={[0, 0, 0, 0]} name="natacao" stroke="none" activeBar={{ stroke: 'none' }} />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -912,7 +960,7 @@ export default function Dashboard() {
 
           {/* Volume bar chart */}
           <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Treino" badge="kg" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible' }}>
+          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.volumeData.length >= 1 ? (
                 <ResponsiveContainer width="100%" height={160}>
@@ -942,7 +990,7 @@ export default function Dashboard() {
                         );
                       }} />}
                     />
-                    <Bar dataKey="volume" fill="url(#gradBarVol)" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="volume" fill="url(#gradBarVol)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -955,7 +1003,7 @@ export default function Dashboard() {
           {stats.volumeData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Tendência de Volume" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible' }}>
+              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={stats.volumeData}>
@@ -1000,7 +1048,7 @@ export default function Dashboard() {
 
           {/* Carga max */}
           <SectionHeader icon={<Zap size={15} />} title="Carga Máxima" badge="kg" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible' }}>
+          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.cargaMaxData.length >= 1 ? (
                 <ResponsiveContainer width="100%" height={150}>
@@ -1035,7 +1083,7 @@ export default function Dashboard() {
                         );
                       }} />}
                     />
-                    <Bar dataKey="cargaMax" fill="url(#gradCarga)" radius={[5, 5, 0, 0]} />
+                    <Bar dataKey="cargaMax" fill="url(#gradCarga)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -1106,7 +1154,7 @@ export default function Dashboard() {
           )}
 
           <SectionHeader icon={<Footprints size={15} />} title="Evolução de Pace" badge="min/km" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible' }}>
+          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.paceData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={180}>
@@ -1157,7 +1205,7 @@ export default function Dashboard() {
           {stats.corridaDistData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Distância por Corrida" badge="km" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible' }}>
+              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={150}>
                     <BarChart data={stats.corridaDistData} barCategoryGap="15%">
@@ -1186,7 +1234,7 @@ export default function Dashboard() {
                           );
                         }} />}
                       />
-                      <Bar dataKey="distancia" fill="url(#gradDistCorr)" radius={[5, 5, 0, 0]} />
+                      <Bar dataKey="distancia" fill="url(#gradDistCorr)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -1224,7 +1272,7 @@ export default function Dashboard() {
           )}
 
           <SectionHeader icon={<Waves size={15} />} title="Evolução Natação" badge="metros" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible' }}>
+          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.natacaoData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={180}>
@@ -1273,7 +1321,7 @@ export default function Dashboard() {
           {stats.natacaoPaceData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Pace Natação" badge="min/100m" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible' }}>
+              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={150}>
                     <AreaChart data={stats.natacaoPaceData}>
@@ -1331,13 +1379,13 @@ function GlowStat({ icon, value, label, color, isDark }: {
   return (
     <Box sx={{
       position: 'relative',
-      borderRadius: '14px',
+      borderRadius: '5px',
       p: '1px',
       background: `linear-gradient(135deg, ${alpha(color, 0.3)} 0%, ${alpha(color, 0.05)} 100%)`,
       overflow: 'visible',
     }}>
       <Box sx={{
-        borderRadius: '13px',
+        borderRadius: '5px',
         bgcolor: isDark ? 'rgba(10,10,10,0.9)' : 'rgba(255,255,255,0.95)',
         py: 1.5,
         px: 1.2,
@@ -1395,7 +1443,7 @@ function TypePill({ icon, count, color, isDark }: {
       gap: 0.7,
       py: 0.8,
       px: 1,
-      borderRadius: '10px',
+      borderRadius: '5px',
       bgcolor: alpha(color, isDark ? 0.08 : 0.06),
       border: `1px solid ${alpha(color, isDark ? 0.12 : 0.1)}`,
       justifyContent: 'center',
@@ -1420,12 +1468,12 @@ function RecordBadge({ icon, label, value, color, isDark }: {
   return (
     <Box sx={{
       flex: 1,
-      borderRadius: '14px',
+      borderRadius: '6px',
       p: '1px',
       background: `linear-gradient(135deg, ${alpha(color, 0.35)} 0%, ${alpha(color, 0.08)} 100%)`,
     }}>
       <Box sx={{
-        borderRadius: '13px',
+        borderRadius: '5px',
         bgcolor: isDark ? 'rgba(10,10,10,0.92)' : 'rgba(255,255,255,0.96)',
         py: 1.5,
         px: 1.5,
@@ -1436,7 +1484,7 @@ function RecordBadge({ icon, label, value, color, isDark }: {
         <Box sx={{
           width: 36,
           height: 36,
-          borderRadius: '10px',
+          borderRadius: '4px',
           background: `linear-gradient(135deg, ${alpha(color, 0.2)} 0%, ${alpha(color, 0.08)} 100%)`,
           display: 'flex',
           alignItems: 'center',
@@ -1510,7 +1558,7 @@ function SectionHeader({ icon, title, badge, isDark }: {
           bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
           px: 0.8,
           py: 0.2,
-          borderRadius: '6px',
+          borderRadius: '4px',
         }}>
           {badge}
         </Typography>
@@ -1525,14 +1573,14 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
   const bestReps = Math.max(...ex.dados.map((d: any) => d.repsMax));
 
   return (
-    <Card sx={{ mb: 2, overflow: 'visible' }}>
+    <Card sx={{ mb: 2, overflow: 'visible', borderRadius: '8px' }}>
       <CardContent sx={{ py: 1.5, px: 1.2 }}>
         {/* Header row */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Box sx={{
             width: 32,
             height: 32,
-            borderRadius: '8px',
+            borderRadius: '4px',
             background: `linear-gradient(135deg, ${alpha(CORES.musculacao, 0.15)} 0%, ${alpha(CORES.musculacao, 0.05)} 100%)`,
             display: 'flex',
             alignItems: 'center',
@@ -1702,8 +1750,9 @@ function FreqTooltip(props: any) {
   return (
     <Box sx={{
       ...tooltipStyle,
-      p: 1.5,
-      minWidth: 130,
+      p: 2,
+      minWidth: 160,
+      borderRadius: '0 !important',
     }}>
       <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mb: 0.8, fontWeight: 600 }}>
         Semana {weekLabel}
@@ -1713,7 +1762,7 @@ function FreqTooltip(props: any) {
         const lbl = entry.name === 'musculacao' ? 'Musculação' : entry.name === 'corrida' ? 'Corrida' : 'Natação';
         return (
           <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.4 }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: entry.color, boxShadow: `0 0 4px ${entry.color}` }} />
+            <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: entry.color, boxShadow: `0 0 4px ${entry.color}` }} />
             <Typography sx={{ color: '#fff', fontSize: '0.75rem', flex: 1 }}>{lbl}</Typography>
             <Typography sx={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>{entry.value}</Typography>
           </Box>
@@ -1799,7 +1848,7 @@ function HeatmapCalendar({ data, totalSemanas, isDark }: { data: HeatmapCell[]; 
                   sx={{
                     width: cellSize,
                     height: cellSize,
-                    borderRadius: '3px',
+                    borderRadius: '2px',
                     bgcolor: bg,
                     boxShadow: shadow,
                     transition: 'all 0.2s ease',

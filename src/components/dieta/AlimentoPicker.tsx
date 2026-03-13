@@ -290,21 +290,46 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
                 {selecionado.marca && ` · ${selecionado.marca}`}
               </Typography>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, gap: 1 }}>
-                <Typography variant="body2" sx={{ mr: 'auto' }}>Porções:</Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => setQuantidade(Math.max(0.5, quantidade - 0.5))}
-                  disabled={quantidade <= 0.5}
-                >
-                  <Minus size={18} />
-                </IconButton>
-                <Typography variant="body1" fontWeight={600} sx={{ minWidth: 32, textAlign: 'center' }}>
-                  {quantidade}
-                </Typography>
-                <IconButton size="small" onClick={() => setQuantidade(quantidade + 0.5)}>
-                  <Plus size={18} />
-                </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5, gap: 2 }}>
+                {selecionado.unidade === 'g' ? (
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Peso (g)</Typography>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      type="number"
+                      value={Math.round(quantidade * selecionado.porcao)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setQuantidade(val / selecionado.porcao);
+                      }}
+                      slotProps={{ htmlInput: { min: 0 } }}
+                    />
+                  </Box>
+                ) : (
+                  <Typography variant="body2" sx={{ mr: 'auto' }}>Quantidade:</Typography>
+                )}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Porções</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => setQuantidade(Math.max(0.25, Math.round((quantidade - 0.25) * 100) / 100))}
+                        disabled={quantidade <= 0.25}
+                      >
+                        <Minus size={18} />
+                      </IconButton>
+                      <Typography variant="body1" fontWeight={600} sx={{ minWidth: 40, textAlign: 'center' }}>
+                        {+(quantidade.toFixed(2))}
+                      </Typography>
+                      <IconButton size="small" onClick={() => setQuantidade(Math.round((quantidade + 0.25) * 100) / 100)}>
+                        <Plus size={18} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
               </Box>
 
               <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>

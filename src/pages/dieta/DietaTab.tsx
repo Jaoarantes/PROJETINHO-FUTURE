@@ -299,10 +299,7 @@ function RefeicaoCard({
               {macros.calorias} kcal · {refeicao.itens.length} {refeicao.itens.length === 1 ? 'item' : 'itens'}
             </Typography>
           </Box>
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onAdicionar(); }}>
-            <Plus size={18} />
-          </IconButton>
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onRemoverRefeicao(); }} sx={{ ml: -0.5 }}>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onRemoverRefeicao(); }} sx={{ ml: 0.5 }}>
             <Trash2 size={14} />
           </IconButton>
         </Box>
@@ -329,7 +326,9 @@ function RefeicaoCard({
                       {item.alimento.nome}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                      {item.quantidade}x {item.alimento.porcao}{item.alimento.unidade} · {m.calorias} kcal
+                      {item.alimento.unidade === 'g'
+                        ? `${Math.round(item.quantidade * item.alimento.porcao)}g`
+                        : `${item.quantidade}x ${item.alimento.porcao}${item.alimento.unidade}`} · {m.calorias} kcal
                     </Typography>
                   </Box>
                   <IconButton size="small" onClick={() => onRemoverItem(item.id)}>
@@ -339,11 +338,15 @@ function RefeicaoCard({
               );
             })
           )}
-          {refeicao.itens.length === 0 && (
-            <Button size="small" startIcon={<Plus size={14} />} onClick={onAdicionar} sx={{ mt: 0.5, fontSize: '0.8rem' }}>
-              Adicionar alimento
-            </Button>
-          )}
+          <Button
+            size="small"
+            fullWidth
+            startIcon={<Plus size={14} />}
+            onClick={onAdicionar}
+            sx={{ mt: 1, py: 1, fontSize: '0.8rem', border: '1px dashed', borderColor: 'divider' }}
+          >
+            Adicionar alimento
+          </Button>
         </Collapse>
       </CardContent>
     </Card>

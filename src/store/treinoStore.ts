@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, TipoSessao, EtapaCorrida, EtapaNatacao } from '../types/treino';
-import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro } from '../services/treinoFirestore';
+import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro, carregarTreinoAtivo, salvarTreinoAtivo } from '../services/treinoFirestore';
 
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function syncDebounced(uid: string, sessao: SessaoTreino) {
@@ -15,6 +16,15 @@ function syncDebounced(uid: string, sessao: SessaoTreino) {
   );
 }
 
+let activeWorkoutTimer: ReturnType<typeof setTimeout> | null = null;
+function syncTreinoAtivoDebounced(uid: string, dados: any | null) {
+  if (activeWorkoutTimer) clearTimeout(activeWorkoutTimer);
+  activeWorkoutTimer = setTimeout(() => {
+    salvarTreinoAtivo(uid, dados).catch(console.error);
+    activeWorkoutTimer = null;
+  }, 1000);
+}
+
 const gerarId = () => crypto.randomUUID();
 
 function updateSessao(state: { sessoes: SessaoTreino[] }, id: string, updater: (s: SessaoTreino) => SessaoTreino) {
@@ -26,7 +36,14 @@ interface TreinoState {
   sessoes: SessaoTreino[];
   historico: RegistroTreino[];
   carregando: boolean;
-  treinoAtivo: { sessaoId: string; iniciadoEm: number } | null;
+  treinoAtivo: {
+    sessaoId: string;
+    iniciadoEm: number;
+    pausadoEm: number | null;
+    tempoPausadoTotal: number;
+    distanceKm?: number;
+    coordinates?: { latitude: number; longitude: number; timestamp: number }[];
+  } | null;
 
   setUid: (uid: string | null) => void;
   carregar: (uid: string) => Promise<void>;
@@ -37,6 +54,8 @@ interface TreinoState {
   renomearSessao: (id: string, nome: string, diaSemana?: string) => void;
   reordenarSessoes: (novasSessoes: SessaoTreino[]) => void;
   iniciarTreino: (sessaoId: string) => void;
+  pausarTreino: () => void;
+  retomarTreino: () => void;
   cancelarTreino: () => void;
 
   adicionarExercicio: (sessaoId: string, exercicio: Exercicio, seriesCount: number, repsCount: number) => void;
@@ -56,283 +75,365 @@ interface TreinoState {
   atualizarEtapaNatacao: (sessaoId: string, etapaId: string, dados: Partial<EtapaNatacao>) => void;
 
   carregarHistorico: (uid: string) => Promise<void>;
-  concluirTreino: (sessaoId: string) => void;
+  concluirTreino: (sessaoId: string, dadosExtras?: { distanciaKm?: number; duracaoTotalSegundos?: number }) => Promise<void>;
+  atualizarGPSAtivo: (distanciaKm: number, coordenadas: { latitude: number; longitude: number; timestamp: number }[]) => void;
   removerRegistro: (id: string) => void;
   adicionarRegistro: (registro: RegistroTreino) => void;
 }
 
-export const useTreinoStore = create<TreinoState>()((set, get) => ({
-  uid: null,
-  sessoes: [],
-  historico: [],
-  carregando: true,
-  treinoAtivo: null,
+export const useTreinoStore = create<TreinoState>()(
+  persist(
+    (set, get) => ({
+      uid: null,
+      sessoes: [],
+      historico: [],
+      carregando: true,
+      treinoAtivo: null,
 
-  setUid: (uid) => set({ uid }),
+      setUid: (uid) => set({ uid }),
 
-  carregar: async (uid) => {
-    set({ carregando: true, uid });
-    try {
-      const sessoes = await carregarSessoes(uid);
-      console.log('[treinoStore] Sessões carregadas do Firestore:', sessoes.length, sessoes.map((s) => ({ id: s.id, nome: s.nome, tipo: s.tipo })));
-      const migrated = sessoes.map((s) => ({
-        ...s,
-        tipo: s.tipo || ('musculacao' as TipoSessao),
-        exercicios: s.exercicios || [],
-      }));
-      set({ sessoes: migrated });
-    } catch (err) {
-      console.error('[treinoStore] Erro ao carregar sessões:', err);
-    } finally {
-      set({ carregando: false });
-    }
-  },
+      carregar: async (uid) => {
+        set({ carregando: true, uid });
+        try {
+          const [sessoes, treinoAtivoFirestore] = await Promise.all([
+            carregarSessoes(uid),
+            carregarTreinoAtivo(uid)
+          ]);
 
-  limpar: () => set({ sessoes: [], historico: [], uid: null, carregando: false, treinoAtivo: null }),
+          console.log('[treinoStore] Sessões carregadas do Firestore:', sessoes.length);
+          const migrated = sessoes.map((s) => ({
+            ...s,
+            tipo: s.tipo || ('musculacao' as TipoSessao),
+            exercicios: s.exercicios || [],
+          }));
 
-  iniciarTreino: (sessaoId) => set({ treinoAtivo: { sessaoId, iniciadoEm: Date.now() } }),
-  cancelarTreino: () => set({ treinoAtivo: null }),
+          set({
+            sessoes: migrated,
+            treinoAtivo: treinoAtivoFirestore || get().treinoAtivo
+          });
+        } catch (err) {
+          console.error('[treinoStore] Erro ao carregar dados:', err);
+        } finally {
+          set({ carregando: false });
+        }
+      },
 
-  criarSessao: (nome, tipo, diaSemana) => {
-    const nova: SessaoTreino = {
-      id: gerarId(),
-      nome,
-      tipo,
-      diaSemana,
-      exercicios: [],
-      corrida: tipo === 'corrida' ? { id: gerarId(), etapas: [{ id: gerarId(), tipo: 'moderado' }] } : undefined,
-      natacao: tipo === 'natacao' ? { id: gerarId(), etapas: [{ id: gerarId(), estilo: 'crawl' }] } : undefined,
-      criadoEm: new Date().toISOString(),
-    };
-    set((state) => ({ sessoes: [...state.sessoes, nova] }));
-    const { uid } = get();
-    if (uid) {
-      console.log('[treinoStore] Salvando nova sessão no Firestore:', { id: nova.id, nome: nova.nome, tipo: nova.tipo });
-      salvarSessao(uid, nova)
-        .then(() => console.log('[treinoStore] Sessão salva com sucesso:', nova.id))
-        .catch((err) => console.error('[treinoStore] Erro ao salvar sessão:', err));
-    } else {
-      console.warn('[treinoStore] UID não disponível! Sessão NÃO foi salva no Firestore:', nova.id);
-    }
-    return nova.id;
-  },
+      limpar: () => set({ sessoes: [], historico: [], uid: null, carregando: false, treinoAtivo: null }),
 
-  removerSessao: (id) => {
-    set((state) => ({ sessoes: state.sessoes.filter((s) => s.id !== id) }));
-    const { uid } = get();
-    if (uid) deletarSessao(uid, id).catch(console.error);
-  },
+      iniciarTreino: (sessaoId) => {
+        const dados = { sessaoId, iniciadoEm: Date.now(), pausadoEm: null, tempoPausadoTotal: 0, distanceKm: 0, coordinates: [] };
+        set({ treinoAtivo: dados });
+        const { uid } = get();
+        if (uid) syncTreinoAtivoDebounced(uid, dados);
+      },
 
-  renomearSessao: (id: string, nome: string, diaSemana?: string) => {
-    set((state) => updateSessao(state, id, (s) => ({ ...s, nome, diaSemana })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === id);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      pausarTreino: () => {
+        const { treinoAtivo, uid } = get();
+        if (!treinoAtivo || treinoAtivo.pausadoEm) return;
+        const novo = { ...treinoAtivo, pausadoEm: Date.now() };
+        set({ treinoAtivo: novo });
+        if (uid) syncTreinoAtivoDebounced(uid, novo);
+      },
 
-  reordenarSessoes: (novasSessoes: SessaoTreino[]) => {
-    set({ sessoes: novasSessoes });
-    const { uid } = get();
-    if (uid) {
-      // Salva a nova ordem no Firestore (pode ser otimizado salvando apenas as sessões alteradas)
-      Promise.all(novasSessoes.map(s => salvarSessao(uid, s))).catch(console.error);
-    }
-  },
+      retomarTreino: () => {
+        const { treinoAtivo, uid } = get();
+        if (!treinoAtivo || !treinoAtivo.pausadoEm) return;
+        const pauseDuration = Date.now() - treinoAtivo.pausadoEm;
+        const novo = {
+          ...treinoAtivo,
+          pausadoEm: null,
+          tempoPausadoTotal: treinoAtivo.tempoPausadoTotal + pauseDuration,
+        };
+        set({ treinoAtivo: novo });
+        if (uid) syncTreinoAtivoDebounced(uid, novo);
+      },
 
-  adicionarExercicio: (sessaoId, exercicio, seriesCount, repsCount) => {
-    set((state) => updateSessao(state, sessaoId, (s) => {
-      const series: SerieConfig[] = Array.from({ length: seriesCount }, () => ({
-        id: gerarId(), repeticoes: repsCount, concluida: false,
-      }));
-      return { ...s, exercicios: [...s.exercicios, { id: gerarId(), exercicio, series }] };
-    }));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      cancelarTreino: () => {
+        set({ treinoAtivo: null });
+        const { uid } = get();
+        if (uid) syncTreinoAtivoDebounced(uid, null);
+      },
 
-  removerExercicio: (sessaoId, exercicioTreinoId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s, exercicios: s.exercicios.filter((e) => e.id !== exercicioTreinoId),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      atualizarGPSAtivo: (distanciaKm, coordenadas) => {
+        const { treinoAtivo, uid } = get();
+        if (!treinoAtivo) return;
+        const novo = { ...treinoAtivo, distanceKm: distanciaKm, coordinates: coordenadas };
+        set({ treinoAtivo: novo });
+        if (uid) syncTreinoAtivoDebounced(uid, novo);
+      },
 
-  atualizarSerie: (sessaoId, exercicioTreinoId, serieId, dados) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      exercicios: s.exercicios.map((e) => {
-        if (e.id !== exercicioTreinoId) return e;
-        return { ...e, series: e.series.map((sr) => (sr.id === serieId ? { ...sr, ...dados } : sr)) };
-      }),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) syncDebounced(uid, sessao);
-  },
+      criarSessao: (nome, tipo, diaSemana) => {
+        const nova: SessaoTreino = {
+          id: gerarId(),
+          nome,
+          tipo,
+          diaSemana,
+          exercicios: [],
+          corrida: tipo === 'corrida' ? { id: gerarId(), etapas: [{ id: gerarId(), tipo: 'moderado' }] } : undefined,
+          natacao: tipo === 'natacao' ? { id: gerarId(), etapas: [{ id: gerarId(), estilo: 'crawl' }] } : undefined,
+          criadoEm: new Date().toISOString(),
+        };
+        set((state) => ({ sessoes: [...state.sessoes, nova] }));
+        const { uid } = get();
+        if (uid) {
+          console.log('[treinoStore] Salvando nova sessão no Firestore:', { id: nova.id, nome: nova.nome, tipo: nova.tipo });
+          salvarSessao(uid, nova)
+            .then(() => console.log('[treinoStore] Sessão salva com sucesso:', nova.id))
+            .catch((err) => console.error('[treinoStore] Erro ao salvar sessão:', err));
+        } else {
+          console.warn('[treinoStore] UID não disponível! Sessão NÃO foi salva no Firestore:', nova.id);
+        }
+        return nova.id;
+      },
 
-  adicionarSerie: (sessaoId, exercicioTreinoId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      exercicios: s.exercicios.map((e) => {
-        if (e.id !== exercicioTreinoId) return e;
-        const last = e.series[e.series.length - 1];
-        return { ...e, series: [...e.series, { id: gerarId(), repeticoes: last?.repeticoes ?? 12, peso: last?.peso, concluida: false }] };
-      }),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      removerSessao: (id) => {
+        set((state) => ({ sessoes: state.sessoes.filter((s) => s.id !== id) }));
+        const { uid } = get();
+        if (uid) deletarSessao(uid, id).catch(console.error);
+      },
 
-  removerSerie: (sessaoId, exercicioTreinoId, serieId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      exercicios: s.exercicios.map((e) => {
-        if (e.id !== exercicioTreinoId) return e;
-        return { ...e, series: e.series.filter((sr) => sr.id !== serieId) };
-      }),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      renomearSessao: (id: string, nome: string, diaSemana?: string) => {
+        set((state) => updateSessao(state, id, (s) => ({ ...s, nome, diaSemana })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === id);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  atualizarNotas: (sessaoId, exercicioTreinoId, notas) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s, exercicios: s.exercicios.map((e) => (e.id === exercicioTreinoId ? { ...e, notas } : e)),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) syncDebounced(uid, sessao);
-  },
+      reordenarSessoes: (novasSessoes: SessaoTreino[]) => {
+        set({ sessoes: novasSessoes });
+        const { uid } = get();
+        if (uid) {
+          // Salva a nova ordem no Firestore (pode ser otimizado salvando apenas as sessões alteradas)
+          Promise.all(novasSessoes.map(s => salvarSessao(uid, s))).catch(console.error);
+        }
+      },
 
-  atualizarTecnica: (sessaoId, exercicioTreinoId, tecnica) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s, exercicios: s.exercicios.map((e) => (e.id === exercicioTreinoId ? { ...e, tecnica } : e)),
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      adicionarExercicio: (sessaoId, exercicio, seriesCount, repsCount) => {
+        set((state) => updateSessao(state, sessaoId, (s) => {
+          const series: SerieConfig[] = Array.from({ length: seriesCount }, () => ({
+            id: gerarId(), repeticoes: repsCount, concluida: false,
+          }));
+          return { ...s, exercicios: [...s.exercicios, { id: gerarId(), exercicio, series }] };
+        }));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  // ── Corrida ──
-  adicionarEtapaCorrida: (sessaoId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      corrida: s.corrida
-        ? { ...s.corrida, etapas: [...s.corrida.etapas, { id: gerarId(), tipo: 'moderado' }] }
-        : { id: gerarId(), etapas: [{ id: gerarId(), tipo: 'moderado' }] },
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      removerExercicio: (sessaoId, exercicioTreinoId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s, exercicios: s.exercicios.filter((e) => e.id !== exercicioTreinoId),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  removerEtapaCorrida: (sessaoId, etapaId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      corrida: s.corrida ? { ...s.corrida, etapas: s.corrida.etapas.filter((e) => e.id !== etapaId) } : s.corrida,
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      atualizarSerie: (sessaoId, exercicioTreinoId, serieId, dados) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          exercicios: s.exercicios.map((e) => {
+            if (e.id !== exercicioTreinoId) return e;
+            return { ...e, series: e.series.map((sr) => (sr.id === serieId ? { ...sr, ...dados } : sr)) };
+          }),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) syncDebounced(uid, sessao);
+      },
 
-  atualizarEtapaCorrida: (sessaoId, etapaId, dados) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      corrida: s.corrida ? { ...s.corrida, etapas: s.corrida.etapas.map((e) => (e.id === etapaId ? { ...e, ...dados } : e)) } : s.corrida,
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) syncDebounced(uid, sessao);
-  },
+      adicionarSerie: (sessaoId, exercicioTreinoId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          exercicios: s.exercicios.map((e) => {
+            if (e.id !== exercicioTreinoId) return e;
+            const last = e.series[e.series.length - 1];
+            return { ...e, series: [...e.series, { id: gerarId(), repeticoes: last?.repeticoes ?? 12, peso: last?.peso, concluida: false }] };
+          }),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  // ── Natação ──
-  adicionarEtapaNatacao: (sessaoId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      natacao: s.natacao
-        ? { ...s.natacao, etapas: [...s.natacao.etapas, { id: gerarId(), estilo: 'crawl' }] }
-        : { id: gerarId(), etapas: [{ id: gerarId(), estilo: 'crawl' }] },
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      removerSerie: (sessaoId, exercicioTreinoId, serieId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          exercicios: s.exercicios.map((e) => {
+            if (e.id !== exercicioTreinoId) return e;
+            return { ...e, series: e.series.filter((sr) => sr.id !== serieId) };
+          }),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  removerEtapaNatacao: (sessaoId, etapaId) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      natacao: s.natacao ? { ...s.natacao, etapas: s.natacao.etapas.filter((e) => e.id !== etapaId) } : s.natacao,
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
-  },
+      atualizarNotas: (sessaoId, exercicioTreinoId, notas) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s, exercicios: s.exercicios.map((e) => (e.id === exercicioTreinoId ? { ...e, notas } : e)),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) syncDebounced(uid, sessao);
+      },
 
-  atualizarEtapaNatacao: (sessaoId, etapaId, dados) => {
-    set((state) => updateSessao(state, sessaoId, (s) => ({
-      ...s,
-      natacao: s.natacao ? { ...s.natacao, etapas: s.natacao.etapas.map((e) => (e.id === etapaId ? { ...e, ...dados } : e)) } : s.natacao,
-    })));
-    const { uid, sessoes } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (uid && sessao) syncDebounced(uid, sessao);
-  },
+      atualizarTecnica: (sessaoId, exercicioTreinoId, tecnica) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s, exercicios: s.exercicios.map((e) => (e.id === exercicioTreinoId ? { ...e, tecnica } : e)),
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  // ── Histórico ──
-  carregarHistorico: async (uid) => {
-    try {
-      const historico = await loadHistorico(uid);
-      set({ historico });
-    } catch (err) {
-      console.error('[treinoStore] Erro ao carregar histórico:', err);
-    }
-  },
+      // ── Corrida ──
+      adicionarEtapaCorrida: (sessaoId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          corrida: s.corrida
+            ? { ...s.corrida, etapas: [...s.corrida.etapas, { id: gerarId(), tipo: 'moderado' }] }
+            : { id: gerarId(), etapas: [{ id: gerarId(), tipo: 'moderado' }] },
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  concluirTreino: (sessaoId) => {
-    const { uid, sessoes, treinoAtivo } = get();
-    const sessao = sessoes.find((s) => s.id === sessaoId);
-    if (!uid || !sessao) return;
+      removerEtapaCorrida: (sessaoId, etapaId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          corrida: s.corrida ? { ...s.corrida, etapas: s.corrida.etapas.filter((e) => e.id !== etapaId) } : s.corrida,
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-    const duracaoTotalSegundos = treinoAtivo && treinoAtivo.sessaoId === sessaoId
-      ? Math.round((Date.now() - treinoAtivo.iniciadoEm) / 1000)
-      : undefined;
+      atualizarEtapaCorrida: (sessaoId, etapaId, dados) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          corrida: s.corrida ? { ...s.corrida, etapas: s.corrida.etapas.map((e) => (e.id === etapaId ? { ...e, ...dados } : e)) } : s.corrida,
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) syncDebounced(uid, sessao);
+      },
 
-    const registro: RegistroTreino = {
-      id: gerarId(),
-      sessaoId: sessao.id,
-      nome: sessao.nome,
-      tipo: sessao.tipo || 'musculacao',
-      exercicios: sessao.exercicios,
-      corrida: sessao.corrida,
-      natacao: sessao.natacao,
-      concluidoEm: new Date().toISOString(),
-      duracaoTotalSegundos,
-    };
+      // ── Natação ──
+      adicionarEtapaNatacao: (sessaoId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          natacao: s.natacao
+            ? { ...s.natacao, etapas: [...s.natacao.etapas, { id: gerarId(), estilo: 'crawl' }] }
+            : { id: gerarId(), etapas: [{ id: gerarId(), estilo: 'crawl' }] },
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-    set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
-    salvarRegistro(uid, registro).catch(console.error);
-  },
+      removerEtapaNatacao: (sessaoId, etapaId) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          natacao: s.natacao ? { ...s.natacao, etapas: s.natacao.etapas.filter((e) => e.id !== etapaId) } : s.natacao,
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) salvarSessao(uid, sessao).catch(console.error);
+      },
 
-  removerRegistro: (id) => {
-    set((state) => ({ historico: state.historico.filter((r) => r.id !== id) }));
-    const { uid } = get();
-    if (uid) deletarRegistro(uid, id).catch(console.error);
-  },
+      atualizarEtapaNatacao: (sessaoId, etapaId, dados) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          natacao: s.natacao ? { ...s.natacao, etapas: s.natacao.etapas.map((e) => (e.id === etapaId ? { ...e, ...dados } : e)) } : s.natacao,
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) syncDebounced(uid, sessao);
+      },
 
-  adicionarRegistro: (registro) => {
-    const { uid, historico } = get();
-    if (!uid) return;
+      // ── Histórico ──
+      carregarHistorico: async (uid) => {
+        try {
+          const historico = await loadHistorico(uid);
+          set({ historico });
+        } catch (err) {
+          console.error('[treinoStore] Erro ao carregar histórico:', err);
+        }
+      },
 
-    // Evitar duplicatas
-    if (historico.some((r) => r.id === registro.id)) return;
+      concluirTreino: async (sessaoId, dadosExtras) => {
+        const { uid, sessoes, treinoAtivo } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (!uid || !sessao) return;
 
-    set((state) => ({ historico: [registro, ...state.historico].sort((a, b) => new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()) }));
-    salvarRegistro(uid, registro).catch(console.error);
-  },
-}));
+        let duracaoTotalSegundos = dadosExtras?.duracaoTotalSegundos;
+        if (duracaoTotalSegundos === undefined && treinoAtivo && treinoAtivo.sessaoId === sessaoId) {
+          const agora = treinoAtivo.pausadoEm || Date.now();
+          const msBruto = agora - treinoAtivo.iniciadoEm;
+          duracaoTotalSegundos = Math.round((msBruto - treinoAtivo.tempoPausadoTotal) / 1000);
+        }
+
+        let corridaClone = sessao.corrida;
+        if (dadosExtras?.distanciaKm !== undefined && corridaClone) {
+          // Se for uma corrida com GPS, limpamos as 'etapas' pré-existentes que possam ter durações/distâncias de template
+          // e criamos uma única etapa consolidada com os dados reais.
+          corridaClone = {
+            ...corridaClone,
+            etapas: [{
+              id: gerarId(),
+              distanciaKm: Number(dadosExtras.distanciaKm.toFixed(2)),
+              duracaoSegundos: duracaoTotalSegundos || 0,
+              duracaoMin: Math.round((duracaoTotalSegundos || 0) / 60),
+              tipo: 'moderado'
+            }]
+          };
+        }
+
+        const registro: RegistroTreino = {
+          id: gerarId(),
+          sessaoId: sessao.id,
+          nome: sessao.nome,
+          tipo: sessao.tipo || 'musculacao',
+          exercicios: sessao.exercicios,
+          corrida: corridaClone,
+          natacao: sessao.natacao,
+          concluidoEm: new Date().toISOString(),
+          duracaoTotalSegundos,
+        };
+
+        try {
+          await salvarRegistro(uid, registro);
+          // IMPORTANTE: Limpar o treino ativo no Firestore ao concluir
+          await salvarTreinoAtivo(uid, null);
+          set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
+        } catch (err) {
+          console.error('[treinoStore] Erro ao salvar registro no Firestore:', err);
+          throw err;
+        }
+      },
+
+      removerRegistro: (id) => {
+        set((state) => ({ historico: state.historico.filter((r) => r.id !== id) }));
+        const { uid } = get();
+        if (uid) deletarRegistro(uid, id).catch(console.error);
+      },
+
+      adicionarRegistro: (registro) => {
+        const { uid, historico } = get();
+        if (!uid) return;
+
+        // Evitar duplicatas
+        if (historico.some((r) => r.id === registro.id)) return;
+
+        set((state) => ({ historico: [registro, ...state.historico].sort((a, b) => new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()) }));
+        salvarRegistro(uid, registro).catch(console.error);
+      },
+    }),
+    {
+      name: 'treino-storage',
+      partialize: (state) => ({ treinoAtivo: state.treinoAtivo }),
+    },
+  ),
+);
