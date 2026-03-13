@@ -6,7 +6,7 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, MapPin } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import type { TipoSessao, SessaoTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
