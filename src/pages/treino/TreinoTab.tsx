@@ -6,11 +6,29 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, MapPin } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import type { TipoSessao, SessaoTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
 import type { TipoSerie } from '../../types/treino';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
 
 const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
@@ -98,11 +116,151 @@ function getSessaoSubtitle(sessao: SessaoTreino) {
   return `${count} exercício${count !== 1 ? 's' : ''}`;
 }
 
+interface SortableTreinoCardProps {
+  sessao: SessaoTreino;
+  index: number;
+  tipo: TipoSessao;
+  isAtivo: boolean;
+  onNavigate: (id: string) => void;
+  onMenuOpen: (e: React.MouseEvent<HTMLElement>, id: string) => void;
+  onIniciar: (id: string) => void;
+  isOverlay?: boolean;
+  isDragging?: boolean; // Add isDragging prop
+}
+
+// Estilo para o overlay de arrastar
+const overlayStyle = {
+  opacity: 1,
+  cursor: 'grabbing',
+  zIndex: 2000,
+  transform: 'scale(1.02)',
+  boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+};
+
+function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOpen, onIniciar, isOverlay, isDragging: propIsDragging }: SortableTreinoCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: dndIsDragging,
+  } = useSortable({ id: sessao.id, disabled: isOverlay });
+
+  const isDragging = propIsDragging || dndIsDragging;
+
+  const style = isOverlay ? overlayStyle : {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 0 : 1,
+    position: 'relative' as const,
+  };
+
+  const Icon = TIPO_ICONS[tipo];
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        ...(isAtivo && { borderColor: 'primary.main', borderWidth: 2, borderStyle: 'solid' }),
+        ...(isDragging && !isOverlay && { visibility: 'hidden' }),
+        ...(isOverlay && { boxShadow: '0 8px 30px rgba(0,0,0,0.2)', transform: 'scale(1.02)' }),
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {/* Drag Handle */}
+        <Box
+          {...attributes}
+          {...listeners}
+          sx={{
+            p: 1.5,
+            pl: 1,
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'grab',
+            touchAction: 'none',
+            '&:active': { cursor: 'grabbing' },
+            opacity: 0.3,
+            '&:hover': { opacity: 0.7 },
+          }}
+        >
+          <GripVertical size={20} />
+        </Box>
+
+        <CardActionArea onClick={() => onNavigate(sessao.id)} sx={{ flex: 1 }}>
+          <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 1, pl: 0 }}>
+            <Box sx={{
+              width: 40, height: 40, borderRadius: '10px',
+              background: TIPO_CORES[tipo],
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              mr: 1.5, flexShrink: 0,
+            }}>
+              {tipo === 'musculacao' ? (
+                <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
+                  {String.fromCharCode(65 + index)}
+                </Typography>
+              ) : (
+                <Icon size={20} color="#fff" />
+              )}
+            </Box>
+
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                  {getSessaoSubtitle(sessao)}
+                </Typography>
+                {sessao.diaSemana && (
+                  <>
+                    <Typography variant="caption" color="text.secondary">·</Typography>
+                    <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
+                      {sessao.diaSemana}
+                    </Typography>
+                  </>
+                )}
+              </Box>
+            </Box>
+
+            <IconButton size="small" onClick={(e) => onMenuOpen(e, sessao.id)} sx={{ mr: -0.5 }}>
+              <MoreVertical size={16} />
+            </IconButton>
+            <ChevronRight size={16} style={{ opacity: 0.3, marginLeft: 2 }} />
+          </CardContent>
+        </CardActionArea>
+      </Box>
+
+      {/* Começar treino button */}
+      {!isAtivo && (
+        <Button
+          fullWidth
+          size="small"
+          startIcon={<Play size={16} />}
+          onClick={(e) => { e.stopPropagation(); onIniciar(sessao.id); }}
+          sx={{
+            borderTop: 1,
+            borderColor: 'divider',
+            borderRadius: 0,
+            py: 0.8,
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            color: 'primary.main',
+            textTransform: 'none',
+          }}
+        >
+          Começar treino
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 export default function TreinoTab() {
   const navigate = useNavigate();
   const { sessoes, historico, carregando, criarSessao, removerSessao, renomearSessao, reordenarSessoes, removerRegistro, iniciarTreino, treinoAtivo } = useTreinoStore();
   const [tabIndex, setTabIndex] = useState(0);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   // Listen for external tab switch (from ActiveWorkoutBar)
   const handleTabSwitch = useCallback((e: Event) => {
@@ -124,6 +282,7 @@ export default function TreinoTab() {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuSessaoId, setMenuSessaoId] = useState('');
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Agrupamento + ordenação
   const sessoesAgrupadas = useMemo(() => {
@@ -135,46 +294,52 @@ export default function TreinoTab() {
     };
   }, [sessoes]);
 
-  const handleDragStart = (id: string) => {
-    setDraggedId(id);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null); // Clear activeId when drag ends
 
-  const handleDrop = (targetId: string, tipo: TipoSessao) => {
-    if (!draggedId || draggedId === targetId) {
-      setDraggedId(null);
-      return;
+    if (over && active.id !== over.id) {
+      const activeSessao = sessoes.find(s => s.id === active.id);
+      if (!activeSessao) return;
+
+      const tipo = activeSessao.tipo || 'musculacao';
+      const currentList = sessoesAgrupadas[tipo];
+
+      const oldIndex = currentList.findIndex((s) => s.id === active.id);
+      const newIndex = currentList.findIndex((s) => s.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newList = arrayMove(currentList, oldIndex, newIndex);
+
+      // Mapear de volta para o array global
+      const updatedSessoes = sessoes.map((s) => {
+        const isTargetType = (s.tipo === tipo || (!s.tipo && tipo === 'musculacao'));
+        if (isTargetType) {
+          const idx = newList.findIndex((item) => item.id === s.id);
+          return { ...s, posicao: idx };
+        }
+        return s;
+      });
+
+      reordenarSessoes(updatedSessoes);
     }
-
-    const currentList = sessoesAgrupadas[tipo];
-    const oldIndex = currentList.findIndex(s => s.id === draggedId);
-    const newIndex = currentList.findIndex(s => s.id === targetId);
-
-    if (oldIndex === -1 || newIndex === -1) {
-      setDraggedId(null);
-      return;
-    }
-
-    const newList = [...currentList];
-    const [movedItem] = newList.splice(oldIndex, 1);
-    newList.splice(newIndex, 0, movedItem);
-
-    // Mapear de volta para o array global mantendo a ordem dos treinos do mesmo tipo
-    const updatedSessoes = sessoes.map(s => {
-      if (s.tipo === tipo || (!s.tipo && tipo === 'musculacao')) {
-        const idx = newList.findIndex(item => item.id === s.id);
-        return { ...s, posicao: idx };
-      }
-      return s;
-    });
-
-    reordenarSessoes(updatedSessoes);
-    setDraggedId(null);
   };
+
+  const activeSessao = useMemo(() => sessoes.find(s => s.id === activeId), [sessoes, activeId]); // Added activeSessao memoization
 
   const handleCriar = () => {
     if (!nome.trim()) return;
@@ -252,111 +417,68 @@ export default function TreinoTab() {
               <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Toque no + para criar seu primeiro treino</Typography>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {(Object.entries(sessoesAgrupadas) as [TipoSessao, SessaoTreino[]][])
-                .filter(([, list]) => list.length > 0)
-                .map(([tipo, list]) => {
-                  const Icon = TIPO_ICONS[tipo];
-                  return (
-                    <Box key={tipo}>
-                      {/* Título da seção (modalidade) */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                        <Icon size={18} />
-                        <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
-                          {TIPO_SESSAO_LABELS[tipo]}
-                        </Typography>
-                        <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {(Object.entries(sessoesAgrupadas) as [TipoSessao, SessaoTreino[]][])
+                  .filter(([, list]) => list.length > 0)
+                  .map(([tipo, list]) => {
+                    const Icon = TIPO_ICONS[tipo];
+                    return (
+                      <Box key={tipo}>
+                        {/* Título da seção (modalidade) */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                          <Icon size={18} />
+                          <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
+                            {TIPO_SESSAO_LABELS[tipo]}
+                          </Typography>
+                          <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
+                        </Box>
+
+                        {/* Cards */}
+                        <SortableContext
+                          items={list.map((s) => s.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {list.map((sessao, index) => (
+                              <SortableTreinoCard
+                                key={sessao.id}
+                                sessao={sessao}
+                                index={index}
+                                tipo={tipo}
+                                isAtivo={treinoAtivo?.sessaoId === sessao.id}
+                                onNavigate={(id) => navigate(`/treino/${id}`)}
+                                onMenuOpen={handleMenuOpen}
+                                onIniciar={iniciarTreino}
+                              />
+                            ))}
+                          </Box>
+                        </SortableContext>
                       </Box>
-
-                      {/* Cards */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {list.map((sessao, index) => {
-                          const isAtivo = treinoAtivo?.sessaoId === sessao.id;
-                          return (
-                            <Card
-                              key={sessao.id}
-                              draggable
-                              onDragStart={() => handleDragStart(sessao.id)}
-                              onDragOver={handleDragOver}
-                              onDrop={() => handleDrop(sessao.id, tipo)}
-                              onDragEnd={() => setDraggedId(null)}
-                              sx={{
-                                ...(isAtivo && { borderColor: 'primary.main', borderWidth: 2 }),
-                                ...(draggedId === sessao.id && { opacity: 0.5, borderStyle: 'dashed' }),
-                                cursor: 'grab',
-                                '&:active': { cursor: 'grabbing' },
-                              }}
-                            >
-                              <CardActionArea onClick={() => navigate(`/treino/${sessao.id}`)}>
-                                <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
-                                  <Box sx={{
-                                    width: 40, height: 40, borderRadius: '10px',
-                                    background: TIPO_CORES[tipo],
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    mr: 1.5, flexShrink: 0,
-                                  }}>
-                                    {tipo === 'musculacao' ? (
-                                      <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
-                                        {String.fromCharCode(65 + index)}
-                                      </Typography>
-                                    ) : (
-                                      <Icon size={20} color="#fff" />
-                                    )}
-                                  </Box>
-
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                        {getSessaoSubtitle(sessao)}
-                                      </Typography>
-                                      {sessao.diaSemana && (
-                                        <>
-                                          <Typography variant="caption" color="text.secondary">·</Typography>
-                                          <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
-                                            {sessao.diaSemana}
-                                          </Typography>
-                                        </>
-                                      )}
-                                    </Box>
-                                  </Box>
-
-                                  <IconButton size="small" onClick={(e) => handleMenuOpen(e, sessao.id)} sx={{ mr: -0.5 }}>
-                                    <MoreVertical size={16} />
-                                  </IconButton>
-                                  <ChevronRight size={16} style={{ opacity: 0.3, marginLeft: 2 }} />
-                                </CardContent>
-                              </CardActionArea>
-
-                              {/* Começar treino button */}
-                              {!isAtivo && (
-                                <Button
-                                  fullWidth
-                                  size="small"
-                                  startIcon={<Play size={16} />}
-                                  onClick={(e) => { e.stopPropagation(); iniciarTreino(sessao.id); }}
-                                  sx={{
-                                    borderTop: 1,
-                                    borderColor: 'divider',
-                                    borderRadius: 0,
-                                    py: 0.8,
-                                    fontSize: '0.78rem',
-                                    fontWeight: 600,
-                                    color: 'primary.main',
-                                    textTransform: 'none',
-                                  }}
-                                >
-                                  Começar treino
-                                </Button>
-                              )}
-                            </Card>
-                          );
-                        })}
-                      </Box>
-                    </Box>
-                  );
-                })}
-            </Box>
+                    );
+                  })}
+              </Box>
+              <DragOverlay>
+                {activeSessao ? (
+                  <SortableTreinoCard
+                    sessao={activeSessao}
+                    index={0} // Index doesn't matter for overlay
+                    tipo={activeSessao.tipo || 'musculacao'}
+                    isAtivo={treinoAtivo?.sessaoId === activeSessao.id}
+                    onNavigate={() => { }} // No navigation on overlay
+                    onMenuOpen={() => { }} // No menu on overlay
+                    onIniciar={() => { }} // No start on overlay
+                    isOverlay // Prop to style overlay if needed
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
         </>
       )}
@@ -478,18 +600,42 @@ export default function TreinoTab() {
                           <Typography variant="caption" color="text.secondary">Nenhum exercício registrado</Typography>
                         )}
 
-                        {/* Etapas de corrida */}
-                        {tipo === 'corrida' && reg.corrida?.etapas && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            {reg.corrida.etapas.map((et, i) => (
-                              <Typography key={et.id} variant="body2" sx={{ fontSize: '0.82rem' }}>
-                                <Footprints size={14} style={{ verticalAlign: 'middle', opacity: 0.4, marginRight: 6 }} />
-                                Etapa {i + 1}
-                                {et.distanciaKm ? ` · ${et.distanciaKm} km` : ''}
-                                {et.duracaoSegundos ? ` · ${formatarSegundos(et.duracaoSegundos)}` : et.duracaoMin ? ` · ${et.duracaoMin} min` : ''}
-                                {et.tipo ? ` · ${et.tipo}` : ''}
-                              </Typography>
-                            ))}
+                        {/* Etapas de corrida - PREMIUM VIEW */}
+                        {tipo === 'corrida' && (
+                          <Box sx={{ mt: 1 }}>
+                            {/* Stats Rack similar to Historico.tsx */}
+                            <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
+                              {(() => {
+                                const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
+                                const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
+                                  ? (reg.duracaoTotalSegundos / 60) / distTotal
+                                  : 0;
+
+                                return (
+                                  <>
+                                    <Box sx={{ flex: 1 }}>
+                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                                        <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
+                                        <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                                      </Box>
+                                    </Box>
+                                    <Box sx={{ flex: 1 }}>
+                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Gauge size={14} color="#FF6B2C" />
+                                        <Typography variant="body2" fontWeight={800}>{formatarPace(1000 / (paceMedio * 60))}</Typography>
+                                      </Box>
+                                    </Box>
+                                    {reg.stravaData && (
+                                      <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
+                                        <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.6rem' }}>STRAVA</Typography>
+                                      </Box>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </Box>
                           </Box>
                         )}
 
