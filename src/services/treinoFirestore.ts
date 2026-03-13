@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { SessaoTreino, RegistroTreino } from '../types/treino';
 
@@ -13,6 +13,23 @@ function colecao(uid: string) {
 
 function colecaoHistorico(uid: string) {
   return collection(db, 'users', uid, 'historico');
+}
+
+function docTreinoAtivo(uid: string) {
+  return doc(db, 'users', uid, 'config', 'treinoAtivo');
+}
+
+export async function carregarTreinoAtivo(uid: string): Promise<any | null> {
+  const snap = await getDoc(docTreinoAtivo(uid));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function salvarTreinoAtivo(uid: string, dados: any | null): Promise<void> {
+  if (dados === null) {
+    await deleteDoc(docTreinoAtivo(uid));
+  } else {
+    await setDoc(docTreinoAtivo(uid), limpar(dados));
+  }
 }
 
 export async function carregarSessoes(uid: string): Promise<SessaoTreino[]> {

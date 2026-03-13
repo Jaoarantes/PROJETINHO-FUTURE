@@ -4,7 +4,7 @@ import type { StravaTokenResponse, StravaActivity } from '../types/strava';
 const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
 const CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
 // Ex: http://localhost:5173/strava/callback
-const REDIRECT_URI = import.meta.env.VITE_STRAVA_REDIRECT_URI || `${window.location.origin}/strava/callback`;
+const REDIRECT_URI = `${window.location.origin}/strava/callback`;
 
 export const STRAVA_AUTH_URL = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&approval_prompt=force&scope=activity:read_all,activity:write`;
 

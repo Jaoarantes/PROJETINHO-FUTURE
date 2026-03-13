@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, Avatar, Divider,
   ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
@@ -17,15 +17,20 @@ import { STRAVA_AUTH_URL, getStravaActivities } from '../services/stravaApi';
 import type { StravaAuthData } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 
+import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
+
 export default function Perfil() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuthContext();
+  const { user, profile, signOut, refreshUser } = useAuthContext();
   const { mode, setMode } = useThemeStore();
   const { sessoes, historico, adicionarRegistro } = useTreinoStore();
   const { metas } = useDietaStore();
 
   const [stravaAuth, setStravaAuth] = useState<StravaAuthData | null | undefined>(undefined);
   const [syncing, setSyncing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [tempPhotoURL, setTempPhotoURL] = useState<string | null>(null);
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
   // Peso corporal
@@ -40,6 +45,10 @@ export default function Perfil() {
       carregarPesoHistorico(user.uid).then(setPesoHistorico).catch(console.error);
     }
   }, [user?.uid]);
+
+  useEffect(() => {
+    // Foto do auth só é usada como fallback extremo
+  }, [user?.photoURL]);
 
   const handleSalvarPeso = async () => {
     if (!user?.uid || !novoPeso) return;
@@ -86,9 +95,9 @@ export default function Perfil() {
         const isSwim = t.type === 'Swim';
         const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout';
 
-        // Cálculo estimado de calorias usando METs (Equivalente Metabólico de Tarefa) caso a API do Strava não retorne `calories`
-        // Peso médio estimado de 75kg caso não tenhamos o peso do usário no momento.
-        // Fórmula: Calorias = MET * Peso * (Tempo_em_minutos / 60)
+        // Cálculo estimado de calorias usando METs (Equivalente Metabí³lico de Tarefa) caso a API do Strava ní£o retorne `calories`
+        // Peso mí©dio estimado de 75kg caso ní£o tenhamos o peso do usário no momento.
+        // Fí³rmula: Calorias = MET * Peso * (Tempo_em_minutos / 60)
         let calorias = t.calories;
         if (!calorias) {
           if (t.kilojoules) {
@@ -96,7 +105,7 @@ export default function Perfil() {
           } else {
             const minutos = t.moving_time / 60;
             const pesoEstimado = 75; // kg
-            let mets = 7.0; // Padrão
+            let mets = 7.0; // Padrí£o
 
             if (isRun) mets = t.type === 'Ride' ? 8.0 : 9.8;
             if (isSwim) mets = 8.0;
@@ -159,34 +168,144 @@ export default function Perfil() {
     }
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.uid) return;
+
+    // Preview local imediato para o usuário não ficar esperando
+    const localURL = URL.createObjectURL(file);
+    setTempPhotoURL(localURL);
+
+    setUploadingPhoto(true);
+
+    // Timeout de segurança para não travar o loader
+    const timeout = setTimeout(() => {
+      setUploadingPhoto(false);
+    }, 15000);
+
+    try {
+      await uploadProfilePicture(user.uid, file);
+      await refreshUser();
+      setSnackMsg('Foto de perfil atualizada!');
+    } catch (err) {
+      console.error(err);
+      setSnackMsg('Erro ao atualizar foto.');
+      // Opcional: reverter para a foto original em caso de erro
+      setTempPhotoURL(user.photoURL || null);
+    } finally {
+      clearTimeout(timeout);
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!user?.uid) return;
+    setPhotoMenuOpen(false);
+    setUploadingPhoto(true);
+    try {
+      await removeProfilePicture(user.uid);
+      setTempPhotoURL(null);
+      await refreshUser();
+      setSnackMsg('Foto de perfil removida.');
+    } catch (err) {
+      console.error(err);
+      setSnackMsg('Erro ao remover foto.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   return (
     <Box sx={{ pt: 2, pb: 4 }}>
       <Typography variant="h4" sx={{ fontSize: '1.8rem', mb: 3 }}>PERFIL</Typography>
 
       {/* User card */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, borderRadius: '8px' }}>
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2.5 }}>
-          <Avatar
-            sx={{
-              width: 60, height: 60,
-              background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
-              fontFamily: '"Oswald", sans-serif',
-              fontSize: '1.5rem',
-              fontWeight: 700,
-            }}
-          >
-            {user?.displayName?.charAt(0).toUpperCase() || 'U'}
-          </Avatar>
+          <Box sx={{ position: 'relative' }}>
+            <input
+              type="file"
+              accept="image/*"
+              id="photo-upload"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                handlePhotoChange(e);
+                setPhotoMenuOpen(false);
+              }}
+              disabled={uploadingPhoto}
+            />
+            <Box onClick={() => !uploadingPhoto && setPhotoMenuOpen(true)}>
+              <Avatar
+                src={tempPhotoURL || profile?.photoURL || user?.photoURL || undefined}
+                sx={{
+                  width: 65, height: 65,
+                  background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+                  fontFamily: '"Oswald", sans-serif',
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: '2px solid',
+                  borderColor: 'background.paper',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  '&:hover': { opacity: 0.9 }
+                }}
+              >
+                {user?.displayName?.charAt(0).toUpperCase() || 'U'}
+              </Avatar>
+              {uploadingPhoto && (
+                <Box sx={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  bgcolor: 'rgba(0,0,0,0.3)',
+                  borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <CircularProgress size={24} color="inherit" />
+                </Box>
+              )}
+            </Box>
+          </Box>
           <Box>
             <Typography variant="h6" sx={{ fontSize: '1.1rem', lineHeight: 1.2 }}>
-              {user?.displayName || 'Usuário'}
+              {user?.displayName || profile?.displayName || 'Usuário'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {user?.email}
+              {user?.email || profile?.email}
             </Typography>
           </Box>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={photoMenuOpen}
+        onClose={() => setPhotoMenuOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3, maxWidth: 280, width: '100%' } }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, textAlign: 'center' }}>
+            Foto de Perfil
+          </Typography>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() => document.getElementById('photo-upload')?.click()}
+            startIcon={<Plus size={18} />}
+            sx={{ mb: 1, py: 1.2, borderRadius: 2 }}
+          >
+            Escolher uma foto
+          </Button>
+          <Button
+            variant="text"
+            fullWidth
+            color="error"
+            onClick={handleRemovePhoto}
+            disabled={!tempPhotoURL && !profile?.photoURL && !user?.photoURL}
+            sx={{ py: 1.2, borderRadius: 2 }}
+          >
+            Ficar sem foto
+          </Button>
+        </Box>
+      </Dialog>
 
       {/* Quick stats */}
       <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
@@ -259,7 +378,7 @@ export default function Perfil() {
         </Button>
       </Box>
 
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, borderRadius: '8px' }}>
         <CardContent sx={{ py: 2 }}>
           {pesoHistorico.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 2 }}>
@@ -293,7 +412,7 @@ export default function Perfil() {
                 <PesoChart dados={pesoHistorico} />
               )}
 
-              {/* Lista últimos registros */}
+              {/* Lista íºltimos registros */}
               <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {pesoHistorico.slice(0, 5).map((r) => (
                   <Box key={r.id} sx={{ display: 'flex', alignItems: 'center' }}>
@@ -313,7 +432,7 @@ export default function Perfil() {
       </Card>
 
       {/* Dialog registrar peso */}
-      <Dialog open={pesoDialogOpen} onClose={() => setPesoDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, p: 1 } }}>
+      <Dialog open={pesoDialogOpen} onClose={() => setPesoDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '2px', p: 1 } }}>
         <Box sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>Registrar Peso</Typography>
@@ -348,14 +467,27 @@ export default function Perfil() {
         color="text.secondary"
         sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}
       >
-        Aparência
+        Aparíªncia
       </Typography>
       <ToggleButtonGroup
         value={mode}
         exclusive
         onChange={(_, value) => { if (value) setMode(value); }}
         fullWidth
-        sx={{ mb: 3 }}
+        sx={{
+          mb: 3,
+          gap: 1.5,
+          '& .MuiToggleButtonGroup-grouped': {
+            border: '1px solid !important',
+            borderColor: 'divider !important',
+            borderRadius: '12px !important',
+            '&.Mui-selected': {
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+              '&:hover': { bgcolor: 'primary.dark' }
+            }
+          }
+        }}
       >
         <ToggleButton value="light">
           <Sun size={18} style={{ marginRight: 8 }} />
@@ -391,7 +523,7 @@ export default function Perfil() {
               <Typography variant="subtitle1" fontWeight={700}>Strava</Typography>
               <Typography variant="caption" color="text.secondary">
                 {stravaAuth === undefined ? 'Carregando status...' :
-                  stravaAuth ? 'Conectado — Sincronizando atividades' : 'Conecte para importar treinos'}
+                  stravaAuth ? 'Conectado  Sincronizando atividades' : 'Conecte para importar treinos'}
               </Typography>
             </Box>
           </Box>
@@ -497,7 +629,7 @@ function PesoChart({ dados }: { dados: RegistroPeso[] }) {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <Card sx={{ flex: 1 }}>
+    <Card sx={{ flex: 1, borderRadius: '8px' }}>
       <CardContent sx={{ textAlign: 'center', py: 2, px: 1 }}>
         <Box sx={{ color: 'primary.main', mb: 0.5 }}>{icon}</Box>
         <Typography
@@ -514,7 +646,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-// ── Gamificação ──────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Gamificação Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 interface Conquista {
   id: string;
   icon: React.ReactNode;
@@ -549,7 +681,7 @@ function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['h
 
     if (sorted[i] === esperadaStr || (i === 0 && sorted[0] <= semanaAtual)) {
       if (i === 0 && sorted[0] !== semanaAtual) {
-        // Semana passada conta se a diferença for de apenas 1 semana
+        // Semana passada conta se a diferení§a for de apenas 1 semana
         const diff = (agora.getTime() - new Date(sorted[0]).getTime()) / (1000 * 60 * 60 * 24);
         if (diff > 14) break;
       }
@@ -568,11 +700,17 @@ function GamificacaoSection({ historico }: {
     const totalTreinos = historico.length;
     const xpPorTreino = 100;
     const totalXP = totalTreinos * xpPorTreino;
-    const level = Math.floor(Math.sqrt(totalXP / 100));
-    const xpParaLevel = level * level * 100;
-    const xpProximoLevel = (level + 1) * (level + 1) * 100;
-    const xpNoLevel = totalXP - xpParaLevel;
-    const xpNecessario = xpProximoLevel - xpParaLevel;
+    // Fórmula Não-linear: exigência de XP cresce com o nível
+    // Nível 1: 0-99 XP
+    // Nível 2: 100-399 XP
+    // Nível 3: 400-899 XP
+    const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
+
+    const xpParaEsteLevel = (level - 1) * (level - 1) * 100;
+    const xpParaProximoLevel = level * level * 100;
+
+    const xpNoLevel = totalXP - xpParaEsteLevel;
+    const xpNecessario = xpParaProximoLevel - xpParaEsteLevel;
     const progresso = xpNecessario > 0 ? xpNoLevel / xpNecessario : 0;
 
     const volumeTotal = historico.reduce((acc, r) => {
@@ -589,7 +727,7 @@ function GamificacaoSection({ historico }: {
 
     const tempoTotal = historico.reduce((acc, r) => acc + (r.duracaoTotalSegundos || 0), 0);
 
-    return { totalTreinos, totalXP, level, progresso, xpNoLevel, xpNecessario, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
+    return { totalTreinos, totalXP, level, progresso, xpNoLevel, xpParaEsteLevel, xpParaProximoLevel, xpNecessario, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
   }, [historico]);
 
   const conquistas: Conquista[] = useMemo(() => [
@@ -625,7 +763,7 @@ function GamificacaoSection({ historico }: {
         <CardContent sx={{ py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box sx={{
-              width: 56, height: 56, borderRadius: '50%',
+              width: 56, height: 56, borderRadius: '6px',
               background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
@@ -651,17 +789,17 @@ function GamificacaoSection({ historico }: {
                 </Typography>
               </Box>
               {/* XP Bar */}
-              <Box sx={{ width: '100%', height: 8, borderRadius: 4, bgcolor: 'action.hover', overflow: 'hidden' }}>
+              <Box sx={{ width: '100%', height: 8, borderRadius: '2px', bgcolor: 'action.hover', overflow: 'hidden' }}>
                 <Box sx={{
                   width: `${Math.min(stats.progresso * 100, 100)}%`,
                   height: '100%',
-                  borderRadius: 4,
+                  borderRadius: '2px',
                   background: 'linear-gradient(90deg, #FF6B2C, #E55A1B)',
                   transition: 'width 0.5s ease',
                 }} />
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', mt: 0.3, display: 'block' }}>
-                {stats.xpNoLevel} / {stats.xpNecessario} XP para nível {stats.level + 1}
+                {stats.totalXP} / {stats.xpParaProximoLevel} XP para nível {stats.level + 1}
               </Typography>
             </Box>
           </Box>
@@ -670,7 +808,7 @@ function GamificacaoSection({ historico }: {
 
       {/* Stats row */}
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ flex: 1, borderRadius: '8px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
             <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#F97316', lineHeight: 1 }}>
               {stats.streak}
@@ -680,7 +818,7 @@ function GamificacaoSection({ historico }: {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ flex: 1, borderRadius: '8px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
             <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#FF6B2C', lineHeight: 1 }}>
               {stats.volumeTotal > 1000 ? `${(stats.volumeTotal / 1000).toFixed(1)}t` : `${stats.volumeTotal}kg`}
@@ -690,7 +828,7 @@ function GamificacaoSection({ historico }: {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ flex: 1, borderRadius: '8px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
             <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#10B981', lineHeight: 1 }}>
               {desbloqueadas}/{conquistas.length}
@@ -703,7 +841,7 @@ function GamificacaoSection({ historico }: {
       </Box>
 
       {/* Conquistas */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, borderRadius: '8px' }}>
         <CardContent sx={{ py: 1.5 }}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {conquistas.map((c) => (
@@ -734,10 +872,10 @@ function GamificacaoSection({ historico }: {
                   {c.icon}
                 </Box>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" fontWeight={700} noWrap sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2 }}>
+                  <Typography variant="caption" fontWeight={700} sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2 }}>
                     {c.titulo}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
                     {c.desc}
                   </Typography>
                 </Box>

@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, IconButton } from '@mui/material';
-import { Trash2, Play, Timer } from 'lucide-react';
+import { Square, Play, Pause, CheckCircle2 } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
-import TimerDescanso from './TimerDescanso';
 
 function formatTimer(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -15,9 +14,8 @@ function formatTimer(seconds: number): string {
 
 export default function ActiveWorkoutBar() {
   const navigate = useNavigate();
-  const { treinoAtivo, sessoes, cancelarTreino } = useTreinoStore();
+  const { treinoAtivo, sessoes, cancelarTreino, pausarTreino, retomarTreino, concluirTreino } = useTreinoStore();
   const [elapsed, setElapsed] = useState(0);
-  const [timerOpen, setTimerOpen] = useState(false);
 
   const sessao = useMemo(
     () => treinoAtivo ? sessoes.find((s) => s.id === treinoAtivo.sessaoId) : null,
@@ -26,7 +24,11 @@ export default function ActiveWorkoutBar() {
 
   useEffect(() => {
     if (!treinoAtivo) { setElapsed(0); return; }
-    const update = () => setElapsed(Math.floor((Date.now() - treinoAtivo.iniciadoEm) / 1000));
+    const update = () => {
+      const agora = treinoAtivo.pausadoEm || Date.now();
+      const msBruto = agora - treinoAtivo.iniciadoEm;
+      setElapsed(Math.floor((msBruto - treinoAtivo.tempoPausadoTotal) / 1000));
+    };
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
@@ -39,11 +41,24 @@ export default function ActiveWorkoutBar() {
     cancelarTreino();
   };
 
-  const handleTimer = (e: React.MouseEvent) => {
+  const handlePauseResume = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setTimerOpen(true);
+    if (treinoAtivo.pausadoEm) {
+      retomarTreino();
+    } else {
+      pausarTreino();
+    }
   };
 
+  const handleConcluir = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!treinoAtivo) return;
+    try {
+      await concluirTreino(treinoAtivo.sessaoId);
+    } catch (err) {
+      console.error('Erro ao concluir treino pela barra:', err);
+    }
+  };
   const handleOpen = () => {
     navigate(`/treino/${sessao.id}`);
   };
@@ -94,23 +109,32 @@ export default function ActiveWorkoutBar() {
         >
           {formatTimer(elapsed)}
         </Typography>
+
         <IconButton
           size="small"
-          onClick={handleTimer}
+          onClick={handlePauseResume}
           sx={{ color: '#fff', p: 0.5 }}
         >
-          <Timer size={18} />
+          {treinoAtivo.pausadoEm ? <Play size={18} fill="#fff" /> : <Pause size={18} fill="#fff" />}
         </IconButton>
+
+        <IconButton
+          size="small"
+          onClick={handleConcluir}
+          sx={{ color: '#fff', p: 0.5 }}
+        >
+          <CheckCircle2 size={18} />
+        </IconButton>
+
         <IconButton
           size="small"
           onClick={handleCancelar}
           sx={{ color: '#fff', p: 0.5 }}
         >
-          <Trash2 size={18} />
+          <Square size={16} fill="#fff" />
         </IconButton>
       </Box>
-
-      <TimerDescanso open={timerOpen} onClose={() => setTimerOpen(false)} />
     </Box>
   );
 }
+
