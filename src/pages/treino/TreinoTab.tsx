@@ -411,7 +411,7 @@ export default function TreinoTab() {
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Carregando treinos...</Typography>
             </Box>
           ) : sessoes.length === 0 ? (
-            <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 3, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
+            <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
               <Dumbbell size={56} style={{ opacity: 0.15, marginBottom: 16 }} />
               <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum treino criado</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Toque no + para criar seu primeiro treino</Typography>
@@ -487,7 +487,7 @@ export default function TreinoTab() {
       {tabIndex === 1 && (
         <>
           {historico.length === 0 ? (
-            <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 3, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
+            <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
               <Clock size={56} style={{ opacity: 0.15, marginBottom: 16 }} />
               <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum treino concluído</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
@@ -775,7 +775,7 @@ export default function TreinoTab() {
       )}
 
       {/* Create dialog (Nome e Data) */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 1.5 } }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box sx={{
             width: 28, height: 28, borderRadius: 1.5,
@@ -820,7 +820,7 @@ export default function TreinoTab() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 4 } }}>
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="xs" PaperProps={{ sx: { borderRadius: 1.5 } }}>
         <DialogTitle fontWeight={700}>Editar Treino</DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
           <TextField
@@ -883,7 +883,7 @@ export default function TreinoTab() {
                 }
                 sx={{
                   justifyContent: 'flex-start', py: 1.5, px: 2,
-                  borderRadius: 3, textTransform: 'none', fontSize: '1.05rem', fontWeight: 600,
+                  borderRadius: 1.5, textTransform: 'none', fontSize: '1.05rem', fontWeight: 600,
                   borderColor: 'divider', color: 'text.primary',
                   '&:hover': { bgcolor: 'action.hover' }
                 }}

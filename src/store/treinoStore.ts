@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, TipoSessao, EtapaCorrida, EtapaNatacao } from '../types/treino';
 import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro, carregarTreinoAtivo, salvarTreinoAtivo } from '../services/treinoFirestore';
+import { calcularVolumeSessao } from '../types/treino';
 
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function syncDebounced(uid: string, sessao: SessaoTreino) {
@@ -364,7 +365,7 @@ export const useTreinoStore = create<TreinoState>()(
       },
 
       concluirTreino: async (sessaoId, dadosExtras) => {
-        const { uid, sessoes, treinoAtivo } = get();
+        const { uid, sessoes, treinoAtivo, historico } = get();
         const sessao = sessoes.find((s) => s.id === sessaoId);
         if (!uid || !sessao) return;
 
@@ -375,10 +376,41 @@ export const useTreinoStore = create<TreinoState>()(
           duracaoTotalSegundos = Math.round((msBruto - treinoAtivo.tempoPausadoTotal) / 1000);
         }
 
+        // --- Lógica Anti-Farm de XP ---
+        const TEMPO_MINIMO_SEGUNDOS = 1200; // 20 minutos
+        const MINIMO_EXERCICIOS = 3;
+        const LIMITE_XP_DIARIO = 500;
+
+        let xpParaGanhar = 0;
+        
+        // Regra 1: Tempo Mínimo (20 min) e Mínimo de Exercícios (3)
+        // Nota: Corrida/Natação contam como 1 exercício, então checamos o tipo
+        const isMusculacao = sessao.tipo === 'musculacao';
+        const temTempoMinimo = (duracaoTotalSegundos || 0) >= TEMPO_MINIMO_SEGUNDOS;
+        const temExerciciosMinimos = isMusculacao ? sessao.exercicios.length >= MINIMO_EXERCICIOS : true;
+
+        if (temTempoMinimo && temExerciciosMinimos) {
+          xpParaGanhar = 100;
+          
+          // Adicional por volume (opcional, mas incentiva treino pesado)
+          if (isMusculacao) {
+            const volume = calcularVolumeSessao(sessao.exercicios);
+            if (volume > 5000) xpParaGanhar += 20; // Bônus por volume alto
+          }
+        }
+
+        // Regra 3: Limite Diário de 500 XP
+        const hoje = new Date().toISOString().slice(0, 10);
+        const xpGanhoHoje = historico
+          .filter(r => r.concluidoEm.startsWith(hoje))
+          .reduce((sum, r) => sum + (r.xpEarned || 0), 0);
+        
+        const xpDisponivelNoDia = Math.max(0, LIMITE_XP_DIARIO - xpGanhoHoje);
+        xpParaGanhar = Math.min(xpParaGanhar, xpDisponivelNoDia);
+        // ------------------------------
+
         let corridaClone = sessao.corrida;
         if (dadosExtras?.distanciaKm !== undefined && corridaClone) {
-          // Se for uma corrida com GPS, limpamos as 'etapas' pré-existentes que possam ter durações/distâncias de template
-          // e criamos uma única etapa consolidada com os dados reais.
           corridaClone = {
             ...corridaClone,
             etapas: [{
@@ -401,11 +433,11 @@ export const useTreinoStore = create<TreinoState>()(
           natacao: sessao.natacao,
           concluidoEm: new Date().toISOString(),
           duracaoTotalSegundos,
+          xpEarned: xpParaGanhar,
         };
 
         try {
           await salvarRegistro(uid, registro);
-          // IMPORTANTE: Limpar o treino ativo no Firestore ao concluir
           await salvarTreinoAtivo(uid, null);
           set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
         } catch (err) {

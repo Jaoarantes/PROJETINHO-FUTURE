@@ -58,8 +58,7 @@ export const darkTheme = createTheme({
         html: { backgroundColor: ONYX_950 },
         body: {
           backgroundColor: ONYX_950,
-          maxWidth: '500px',
-          margin: '0 auto',
+          margin: 0,
           minHeight: '100vh',
           position: 'relative',
           overflowX: 'hidden',
@@ -377,8 +376,7 @@ export const lightTheme = createTheme({
         html: { backgroundColor: '#EBEBEB' },
         body: {
           backgroundColor: '#F5F5F5',
-          maxWidth: '500px',
-          margin: '0 auto',
+          margin: 0,
           minHeight: '100vh',
           boxShadow: '0 0 40px rgba(0,0,0,0.04)',
           position: 'relative',
