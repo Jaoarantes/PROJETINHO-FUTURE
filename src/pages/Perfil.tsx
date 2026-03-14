@@ -3,8 +3,9 @@ import {
   Box, Typography, Button, Avatar, Divider,
   ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
+  List, ListItem, ListItemText, ListItemIcon, Checkbox,
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
@@ -14,7 +15,7 @@ import { carregarStravaAuth, desconectarStrava } from '../services/stravaFiresto
 import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '../services/dietaFirestore';
 import type { RegistroPeso } from '../services/dietaFirestore';
 import { STRAVA_AUTH_URL, getStravaActivities } from '../services/stravaApi';
-import type { StravaAuthData } from '../types/strava';
+import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 
 import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
@@ -32,6 +33,11 @@ export default function Perfil() {
   const [tempPhotoURL, setTempPhotoURL] = useState<string | null>(null);
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
+
+  // Strava Selection
+  const [stravaActivities, setStravaActivities] = useState<StravaActivity[]>([]);
+  const [stravaModalOpen, setStravaModalOpen] = useState(false);
+  const [selectedStravaIds, setSelectedStravaIds] = useState<number[]>([]);
 
   // Peso corporal
   const [pesoHistorico, setPesoHistorico] = useState<RegistroPeso[]>([]);
@@ -85,87 +91,96 @@ export default function Perfil() {
     if (!stravaAuth?.accessToken) return;
     setSyncing(true);
     try {
-      const atividades = await getStravaActivities(stravaAuth.accessToken, 15);
-      let added = 0;
+      const atividades = await getStravaActivities(stravaAuth.accessToken, 30);
+      // Filtrar tipos suportados e que não estão no histórico
+      const filtradas = atividades.filter((t) =>
+        ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'].includes(t.type) &&
+        !historico.some((r) => r.id === `strava_${t.id}`)
+      );
 
-      for (const t of atividades) {
-        if (t.type !== 'Run' && t.type !== 'Ride' && t.type !== 'Swim' && t.type !== 'WeightTraining' && t.type !== 'Workout') continue;
-
-        const isRun = t.type === 'Run' || t.type === 'Ride';
-        const isSwim = t.type === 'Swim';
-        const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout';
-
-        // Cálculo estimado de calorias usando METs (Equivalente Metabí³lico de Tarefa) caso a API do Strava ní£o retorne `calories`
-        // Peso mí©dio estimado de 75kg caso ní£o tenhamos o peso do usário no momento.
-        // Fí³rmula: Calorias = MET * Peso * (Tempo_em_minutos / 60)
-        let calorias = t.calories;
-        if (!calorias) {
-          if (t.kilojoules) {
-            calorias = Math.round(t.kilojoules * 0.239006); // Ciclismo fornece kJ
-          } else {
-            const minutos = t.moving_time / 60;
-            const pesoEstimado = 75; // kg
-            let mets = 7.0; // Padrí£o
-
-            if (isRun) mets = t.type === 'Ride' ? 8.0 : 9.8;
-            if (isSwim) mets = 8.0;
-            if (isMusculacao) mets = 5.0;
-
-            calorias = Math.round(mets * pesoEstimado * (minutos / 60));
-          }
-        }
-
-        const registro: any = {
-          id: `strava_${t.id}`,
-          sessaoId: `strava_source`,
-          nome: t.name,
-          tipo: isRun ? 'corrida' : isSwim ? 'natacao' : 'musculacao',
-          exercicios: [],
-          concluidoEm: new Date(t.start_date).toISOString(),
-          duracaoTotalSegundos: t.moving_time,
-          stravaData: {
-            id: t.id,
-            averageSpeedMps: t.average_speed || 0,
-            maxSpeedMps: t.max_speed || 0,
-            elevationGainM: t.total_elevation_gain || 0,
-            averageHeartrate: (t.has_heartrate || t.average_heartrate) ? Math.round(t.average_heartrate || 0) : undefined,
-            calories: calorias,
-          }
-        };
-
-        if (isRun) {
-          registro.corrida = {
-            etapas: [{
-              id: t.id.toString(),
-              tipo: t.type === 'Ride' ? 'bicicleta' : 'corrida',
-              distanciaKm: Number((t.distance / 1000).toFixed(2)),
-              duracaoMin: Math.round(t.moving_time / 60),
-              duracaoSegundos: t.moving_time,
-            }]
-          };
-        } else if (isSwim) {
-          registro.natacao = {
-            etapas: [{
-              id: t.id.toString(),
-              estilo: 'livre',
-              distanciaM: Math.round(t.distance),
-              duracaoMin: Math.round(t.moving_time / 60),
-              duracaoSegundos: t.moving_time,
-            }]
-          };
-        }
-
-        adicionarRegistro(registro);
-        added++;
+      if (filtradas.length === 0) {
+        setSnackMsg('Nenhuma atividade nova encontrada no Strava.');
+      } else {
+        setStravaActivities(filtradas);
+        setSelectedStravaIds(filtradas.map(f => f.id)); // Seleciona todos por padrão
+        setStravaModalOpen(true);
       }
-
-      setSnackMsg(`Sincronizado! ${added} novas rotas processadas.`);
     } catch (err) {
       console.error(err);
-      setSnackMsg('Erro ao sincronizar. O token pode ter expirado.');
+      setSnackMsg('Erro ao conectar ao Strava.');
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleImportSelected = () => {
+    const selecionadas = stravaActivities.filter((t) => selectedStravaIds.includes(t.id));
+    let added = 0;
+
+    for (const t of selecionadas) {
+      const isRun = t.type === 'Run' || t.type === 'Ride';
+      const isSwim = t.type === 'Swim';
+      const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout';
+
+      let calorias = t.calories;
+      if (!calorias) {
+        if (!t.kilojoules) {
+          const minutos = t.moving_time / 60;
+          const pesoEstimado = 75;
+          let mets = 7.0;
+          if (isRun) mets = t.type === 'Ride' ? 8.0 : 9.8;
+          if (isSwim) mets = 8.0;
+          if (isMusculacao) mets = 5.0;
+          calorias = Math.round(mets * pesoEstimado * (minutos / 60));
+        }
+      }
+
+      const registro: any = {
+        id: `strava_${t.id}`,
+        sessaoId: `strava_source`,
+        nome: t.name,
+        tipo: isRun ? 'corrida' : isSwim ? 'natacao' : 'musculacao',
+        exercicios: [],
+        concluidoEm: new Date(t.start_date).toISOString(),
+        duracaoTotalSegundos: t.moving_time,
+        stravaData: {
+          id: t.id,
+          averageSpeedMps: t.average_speed || 0,
+          maxSpeedMps: t.max_speed || 0,
+          elevationGainM: t.total_elevation_gain || 0,
+          averageHeartrate: (t.has_heartrate || t.average_heartrate) ? Math.round(t.average_heartrate || 0) : undefined,
+          calories: calorias,
+        }
+      };
+
+      if (isRun) {
+        registro.corrida = {
+          etapas: [{
+            id: t.id.toString(),
+            tipo: t.type === 'Ride' ? 'bicicleta' : 'corrida',
+            distanciaKm: Number((t.distance / 1000).toFixed(2)),
+            duracaoMin: Math.round(t.moving_time / 60),
+            duracaoSegundos: t.moving_time,
+          }]
+        };
+      } else if (isSwim) {
+        registro.natacao = {
+          etapas: [{
+            id: t.id.toString(),
+            estilo: 'livre',
+            distanciaM: Math.round(t.distance),
+            duracaoMin: Math.round(t.moving_time / 60),
+            duracaoSegundos: t.moving_time,
+          }]
+        };
+      }
+
+      adicionarRegistro(registro);
+      added++;
+    }
+
+    setStravaModalOpen(false);
+    setSnackMsg(`Sucesso! ${added} novas rotas importadas.`);
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,7 +235,7 @@ export default function Perfil() {
       <Typography variant="h4" sx={{ fontSize: '1.8rem', mb: 3 }}>PERFIL</Typography>
 
       {/* User card */}
-      <Card sx={{ mb: 3, borderRadius: '8px' }}>
+      <Card sx={{ mb: 3, borderRadius: '6px' }}>
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2.5 }}>
           <Box sx={{ position: 'relative' }}>
             <input
@@ -279,7 +294,7 @@ export default function Perfil() {
       <Dialog
         open={photoMenuOpen}
         onClose={() => setPhotoMenuOpen(false)}
-        PaperProps={{ sx: { borderRadius: 3, maxWidth: 280, width: '100%' } }}
+        PaperProps={{ sx: { borderRadius: 1.5, maxWidth: 280, width: '100%' } }}
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2, textAlign: 'center' }}>
@@ -290,7 +305,7 @@ export default function Perfil() {
             fullWidth
             onClick={() => document.getElementById('photo-upload')?.click()}
             startIcon={<Plus size={18} />}
-            sx={{ mb: 1, py: 1.2, borderRadius: 2 }}
+            sx={{ mb: 1, py: 1.2, borderRadius: 1 }}
           >
             Escolher uma foto
           </Button>
@@ -300,7 +315,7 @@ export default function Perfil() {
             color="error"
             onClick={handleRemovePhoto}
             disabled={!tempPhotoURL && !profile?.photoURL && !user?.photoURL}
-            sx={{ py: 1.2, borderRadius: 2 }}
+            sx={{ py: 1.2, borderRadius: 1 }}
           >
             Ficar sem foto
           </Button>
@@ -378,7 +393,7 @@ export default function Perfil() {
         </Button>
       </Box>
 
-      <Card sx={{ mb: 3, borderRadius: '8px' }}>
+      <Card sx={{ mb: 3, borderRadius: '6px' }}>
         <CardContent sx={{ py: 2 }}>
           {pesoHistorico.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 2 }}>
@@ -459,6 +474,81 @@ export default function Perfil() {
         </Box>
       </Dialog>
 
+      {/* Dialog Sincronizar Strava */}
+      <Dialog 
+        open={stravaModalOpen} 
+        onClose={() => setStravaModalOpen(false)} 
+        maxWidth="sm" 
+        fullWidth 
+        PaperProps={{ sx: { borderRadius: '6px' } }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>Treinos no Strava</Typography>
+            <IconButton size="small" onClick={() => setStravaModalOpen(false)}><X size={18} /></IconButton>
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Selecione quais treinos deseja importar para o seu histórico:
+          </Typography>
+
+          <List sx={{ maxHeight: 300, overflow: 'auto', mb: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+            {stravaActivities.map((t) => {
+              const labelId = `checkbox-list-label-${t.id}`;
+              const dataStr = new Date(t.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+              const distStr = t.distance > 0 ? `${(t.distance / 1000).toFixed(1)}km` : '';
+              
+              return (
+                <ListItem key={t.id} disablePadding>
+                  <ListItemIcon sx={{ minWidth: 40, ml: 1 }}>
+                    <Checkbox
+                      edge="start"
+                      checked={selectedStravaIds.indexOf(t.id) !== -1}
+                      tabIndex={-1}
+                      disableRipple
+                      inputProps={{ 'aria-labelledby': labelId }}
+                      onChange={() => {
+                        const currentIndex = selectedStravaIds.indexOf(t.id);
+                        const newChecked = [...selectedStravaIds];
+                        if (currentIndex === -1) {
+                          newChecked.push(t.id);
+                        } else {
+                          newChecked.splice(currentIndex, 1);
+                        }
+                        setSelectedStravaIds(newChecked);
+                      }}
+                    />
+                  </ListItemIcon>
+                  <ListItemText 
+                    id={labelId} 
+                    primary={t.name}
+                    secondary={`${dataStr} • ${t.type} ${distStr ? `• ${distStr}` : ''}`}
+                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.85rem' }}
+                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button variant="outlined" fullWidth onClick={() => setStravaModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+               variant="contained" 
+               fullWidth 
+               disabled={selectedStravaIds.length === 0} 
+               onClick={handleImportSelected}
+               startIcon={<Check size={18} />}
+               sx={{ bgcolor: '#FC4C02', color: '#fff', '&:hover': { bgcolor: '#E34402' } }}
+            >
+              Importar {selectedStravaIds.length}
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+
       <Divider sx={{ mb: 3 }} />
 
       {/* Theme */}
@@ -516,7 +606,7 @@ export default function Perfil() {
       <Card sx={{ mb: 3, bgcolor: stravaAuth ? 'rgba(252, 76, 2, 0.05)' : undefined, borderColor: stravaAuth ? 'rgba(252, 76, 2, 0.3)' : undefined }}>
         <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ p: 1, bgcolor: '#FC4C02', borderRadius: 2, display: 'flex', color: '#fff' }}>
+            <Box sx={{ p: 1, bgcolor: '#FC4C02', borderRadius: 1, display: 'flex', color: '#fff' }}>
               <Activity size={24} />
             </Box>
             <Box sx={{ flex: 1 }}>
@@ -629,7 +719,7 @@ function PesoChart({ dados }: { dados: RegistroPeso[] }) {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <Card sx={{ flex: 1, borderRadius: '8px' }}>
+    <Card sx={{ flex: 1, borderRadius: '4px' }}>
       <CardContent sx={{ textAlign: 'center', py: 2, px: 1 }}>
         <Box sx={{ color: 'primary.main', mb: 0.5 }}>{icon}</Box>
         <Typography
@@ -698,8 +788,7 @@ function GamificacaoSection({ historico }: {
 }) {
   const stats = useMemo(() => {
     const totalTreinos = historico.length;
-    const xpPorTreino = 100;
-    const totalXP = totalTreinos * xpPorTreino;
+    const totalXP = historico.reduce((acc, r) => acc + (r.xpEarned !== undefined ? r.xpEarned : 100), 0);
     // Fórmula Não-linear: exigência de XP cresce com o nível
     // Nível 1: 0-99 XP
     // Nível 2: 100-399 XP
@@ -808,7 +897,7 @@ function GamificacaoSection({ historico }: {
 
       {/* Stats row */}
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-        <Card sx={{ flex: 1, borderRadius: '8px' }}>
+        <Card sx={{ flex: 1, borderRadius: '4px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
             <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#F97316', lineHeight: 1 }}>
               {stats.streak}

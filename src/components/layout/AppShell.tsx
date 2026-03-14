@@ -51,17 +51,17 @@ export default function AppShell() {
     };
   }, [location.pathname, navigate]);
 
+  const { treinoAtivo } = useTreinoStore();
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Box
         component="main"
         sx={{
           flex: 1,
-          pb: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          pb: `calc(${treinoAtivo ? '140px' : '72px'} + env(safe-area-inset-bottom, 0px))`,
           px: 2.5,
           pt: 'calc(16px + env(safe-area-inset-top, 0px))',
-          maxWidth: '500px',
-          mx: 'auto',
           width: '100%',
         }}
       >

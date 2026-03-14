@@ -136,6 +136,7 @@ export interface RegistroTreino {
   natacao?: TreinoNatacao;
   concluidoEm: string;
   duracaoTotalSegundos?: number; // Tempo total do treino
+  xpEarned?: number; // XP ganho neste treino
   stravaData?: {
     id: number;
     averageSpeedMps: number;
