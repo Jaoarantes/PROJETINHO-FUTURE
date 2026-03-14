@@ -139,7 +139,7 @@ export default function SessaoTreino() {
                     disabled={salvando}
                     startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : <CheckCircle size={20} />}
                     onClick={() => handleConcluir()}
-                    sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 3 }}
+                    sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 1.5 }}
                 >
                     {salvando ? 'Salvando...' : 'Concluir Treino'}
                 </Button>
@@ -205,7 +205,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
             )}
 
             {sessao.exercicios.length === 0 ? (
-                <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 3, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
+                <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
                     <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum exercício adicionado</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Adicione exercícios ao seu treino</Typography>
                 </Box>
@@ -353,7 +353,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                     bgcolor: 'action.hover',
                     border: '1px solid',
                     borderColor: 'divider',
-                    borderRadius: 4,
+                    borderRadius: 1.5,
                     boxShadow: 'none'
                 }}>
                     <CardContent sx={{ p: 3 }}>
@@ -418,7 +418,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                     bgcolor: '#FF6B2C',
                                     color: '#fff',
                                     py: 2,
-                                    borderRadius: 3,
+                                    borderRadius: 1.5,
                                     fontWeight: 800,
                                     fontSize: '1.1rem',
                                     flex: 1,
@@ -443,7 +443,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                     bgcolor: 'success.main',
                                     color: '#fff',
                                     py: 2,
-                                    borderRadius: 3,
+                                    borderRadius: 1.5,
                                     fontWeight: 800,
                                     fontSize: '1.1rem',
                                     flex: 1,
@@ -460,7 +460,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                 sx={{
                                     border: '1px solid',
                                     borderColor: 'divider',
-                                    borderRadius: 3,
+                                    borderRadius: 1.5,
                                     px: 2,
                                     color: '#FF6B2C',
                                     height: '56px',
@@ -494,7 +494,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
         <>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
                 {etapas.map((etapa, idx) => (
-                    <Card key={etapa.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                    <Card key={etapa.id} variant="outlined" sx={{ borderRadius: 1.5 }}>
                         <CardContent sx={{ pb: '12px !important', px: 2 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                                 <Box sx={{

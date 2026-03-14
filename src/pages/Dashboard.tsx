@@ -15,7 +15,7 @@ import {
 import type { RegistroTreino } from '../types/treino';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-  BarChart, Bar, CartesianGrid,
+  BarChart, Bar, CartesianGrid, Cell,
 } from 'recharts';
 
 // ── Cores por tipo ──────────────────────────────
@@ -199,9 +199,12 @@ function injectKeyframes() {
       -webkit-tap-highlight-color: transparent !important;
       border: none !important;
     }
-    .recharts-bar-cursor {
+    .recharts-bar-cursor,
+    .recharts-tooltip-cursor,
+    .recharts-cursor {
       fill: transparent !important;
       stroke: none !important;
+      opacity: 0 !important;
     }
     @keyframes dash-countUp {
       from { opacity: 0; transform: scale(0.7); }
@@ -226,32 +229,31 @@ const tooltipStyle = {
 // Portal-based custom tooltip: renders at body level, impossible to clip
 function PortalTooltipWrapper(props: any) {
   const { active, payload, label, coordinate, renderContent } = props;
-  const [localActive, setLocalActive] = useState(false);
+
+  // Use a global visibility flag to ensure only one portal is active at a time
+  // and that scrolling hides everything.
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (active) setLocalActive(true);
-    else setLocalActive(false);
-  }, [active]);
+    setVisible(!!(active && payload?.length && coordinate));
+  }, [active, payload, coordinate]);
 
-  // Force hide on touch outside or next touch
   useEffect(() => {
-    if (!localActive) return;
-    const handleGlobalTouch = () => {
-      // Small delay to let the chart process its own touch first
-      setTimeout(() => setLocalActive(false), 50);
+    if (!visible) return;
+    const hide = () => setVisible(false);
+    window.addEventListener('scroll', hide, { passive: true });
+    window.addEventListener('touchstart', hide, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', hide);
+      window.removeEventListener('touchstart', hide);
     };
-    window.addEventListener('touchstart', handleGlobalTouch, { passive: true });
-    return () => window.removeEventListener('touchstart', handleGlobalTouch);
-  }, [localActive]);
+  }, [visible]);
 
-  if (!active || !localActive || !payload?.length || !coordinate) return null;
+  if (!visible || !payload || !coordinate) return null;
 
-  // Find the closest chart container to calculate absolute position
-  // Recharts provides coordinate relative to the chart surface
-  // We need to convert this to fixed position
   const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
     document.querySelector('.recharts-wrapper:hover') ||
-    document.querySelector('.recharts-responsive-container');
+    document.querySelector('.recharts-surface:hover');
 
   let left = coordinate.x;
   let top = coordinate.y;
@@ -261,13 +263,12 @@ function PortalTooltipWrapper(props: any) {
     left = rect.left + coordinate.x + 15;
     top = rect.top + coordinate.y - 10;
 
-    // Safety bounds
-    const tooltipWidth = 180; // Increased width
+    const tooltipWidth = 180;
     if (left + tooltipWidth > window.innerWidth) {
-      left = rect.left + coordinate.x - tooltipWidth - 15;
+      left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
     }
     if (top < 10) top = 10;
-    if (top + 100 > window.innerHeight) top = window.innerHeight - 100;
+    if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
   }
 
   return createPortal(
@@ -277,7 +278,8 @@ function PortalTooltipWrapper(props: any) {
       top,
       zIndex: 99999,
       pointerEvents: 'none',
-      transition: 'left 0.05s ease-out, top 0.05s ease-out',
+      transition: 'left 0.08s ease-out, top 0.08s ease-out, opacity 0.1s ease',
+      opacity: visible ? 1 : 0,
     }}>
       {renderContent(payload, label)}
     </div>,
@@ -288,6 +290,7 @@ function PortalTooltipWrapper(props: any) {
 const tooltipProps = {
   allowEscapeViewBox: { x: true, y: true },
   wrapperStyle: { zIndex: 9999, pointerEvents: 'none' as const, overflow: 'visible' as const },
+  cursor: false,
 };
 
 // ── Component ───────────────────────────────────
@@ -300,10 +303,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     injectKeyframes();
-    if (user?.uid) {
+    if (user?.uid && historico.length === 0) {
       carregarHistorico(user.uid).catch(console.error);
     }
-  }, [user?.uid, carregarHistorico]);
+  }, [user?.uid, carregarHistorico, historico.length]);
 
   const [periodo, setPeriodo] = useState<PeriodoKey>(() => {
     if (user?.uid) {
@@ -548,12 +551,25 @@ export default function Dashboard() {
     const semanas = Math.max(1, configP.dias / 7);
     const mediaSemanal = total / Math.min(semanas, 52);
 
+    // Muscle distribution data
+    const muscleCounts: Record<string, number> = {};
+    musculacao.forEach(reg => {
+      reg.exercicios?.forEach(ex => {
+        if (!ex.exercicio || !ex.series) return;
+        const grupo = ex.exercicio.grupoMuscular || 'Outros';
+        muscleCounts[grupo] = (muscleCounts[grupo] || 0) + ex.series.length;
+      });
+    });
+    const muscleData = Object.entries(muscleCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
       tempoTotal, volumeData, exercicioEvolucao, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, temMaisExercicios: exercicioEvolucaoFull.length > 3,
-      streak, mediaSemanal,
+      streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—'
     };
   }, [historicoFiltrado, periodo, mostrarTodosExercicios]);
 
@@ -977,6 +993,7 @@ export default function Dashboard() {
                     <Tooltip
                       {...tooltipProps}
                       content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
@@ -995,6 +1012,59 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               ) : (
                 <EmptyState text="Nenhum treino de musculação neste período" />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Distribuição Muscular */}
+          <SectionHeader 
+            icon={<Target size={15} />} 
+            title="Distribuição Muscular" 
+            badge={stats.topMuscle !== '—' ? `Foco: ${stats.topMuscle}` : ''}
+            isDark={isDark} 
+          />
+          <Card sx={{ mb: 3, borderRadius: '8px' }}>
+            <CardContent sx={{ py: 2, px: 1 }}>
+              {stats.muscleData.length > 0 ? (
+                <Box sx={{ height: 200, width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.muscleData} layout="vertical" margin={{ left: -10, right: 20 }}>
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        width={70} 
+                        tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                         {...tooltipProps}
+                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                           if (!payload || !payload.length) return null;
+                           const d = payload[0].payload;
+                           return (
+                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 100 }}>
+                               <Typography sx={{ color: theme.palette.primary.main, fontFamily: '"Oswald", sans-serif', fontSize: '1rem', fontWeight: 700 }}>
+                                 {d.value} séries
+                               </Typography>
+                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
+                                 {d.name}
+                               </Typography>
+                             </Box>
+                           );
+                         }} />}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        {stats.muscleData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? CORES.musculacao : alpha(CORES.musculacao, 0.4)} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              ) : (
+                <EmptyState text="Sem dados de distribuição" />
               )}
             </CardContent>
           </Card>
@@ -1019,6 +1089,7 @@ export default function Dashboard() {
                       <Tooltip
                         {...tooltipProps}
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
@@ -1065,6 +1136,7 @@ export default function Dashboard() {
                     <Tooltip
                       {...tooltipProps}
                       content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
@@ -1171,6 +1243,7 @@ export default function Dashboard() {
                     <Tooltip
                       {...tooltipProps}
                       content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
@@ -1221,6 +1294,7 @@ export default function Dashboard() {
                       <Tooltip
                         {...tooltipProps}
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
@@ -1289,6 +1363,7 @@ export default function Dashboard() {
                     <Tooltip
                       {...tooltipProps}
                       content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
@@ -1337,6 +1412,7 @@ export default function Dashboard() {
                       <Tooltip
                         {...tooltipProps}
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
@@ -1651,8 +1727,8 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
                 <YAxis tick={{ fontSize: 8, fill: isDark ? '#444' : '#ccc' }} width={32} unit="kg" axisLine={false} tickLine={false} />
                 <Tooltip
                   {...tooltipProps}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
+                  content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                    if (!payload || !payload.length) return null;
                     const d = payload[0].payload;
                     return (
                       <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
@@ -1670,7 +1746,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
                         </Typography>
                       </Box>
                     );
-                  }}
+                  }} />}
                 />
                 <Area
                   type="monotone" dataKey="umRM"

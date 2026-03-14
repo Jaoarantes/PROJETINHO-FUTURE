@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BottomNavigation, BottomNavigationAction, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -15,7 +16,12 @@ export default function BottomNav() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
-  const currentTab = tabs.findIndex((t) => location.pathname.startsWith(t.path));
+  const currentTab = useMemo(() => {
+    if (location.pathname.startsWith('/treino') || location.pathname.startsWith('/historico')) return 0;
+    if (location.pathname.startsWith('/dieta')) return 1;
+    if (location.pathname.startsWith('/perfil') || location.pathname.startsWith('/dashboard')) return 2;
+    return 0;
+  }, [location.pathname]);
 
   return (
     <Box
@@ -25,7 +31,6 @@ export default function BottomNav() {
         left: '50%',
         transform: 'translateX(-50%)',
         width: '100%',
-        maxWidth: '500px',
         zIndex: 1000,
         background: isDark
           ? 'rgba(10, 10, 10, 0.92)'
@@ -39,7 +44,7 @@ export default function BottomNav() {
       }}
     >
       <BottomNavigation
-        value={currentTab === -1 ? 0 : currentTab}
+        value={currentTab}
         onChange={(_, v) => navigate(tabs[v].path)}
       >
         {tabs.map((tab) => (

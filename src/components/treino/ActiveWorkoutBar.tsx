@@ -68,26 +68,27 @@ export default function ActiveWorkoutBar() {
       onClick={handleOpen}
       sx={{
         position: 'fixed',
-        bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+        bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: '500px',
+        width: 'calc(100% - 24px)',
+        maxWidth: '480px',
         zIndex: 1001,
         cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       <Box
         sx={{
-          mx: 1,
           px: 2,
-          py: 1,
-          borderRadius: '14px 14px 0 0',
+          py: 1.2,
+          borderRadius: '16px',
           background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
-          boxShadow: '0 -2px 16px rgba(255,107,44,0.3)',
+          boxShadow: '0 8px 24px rgba(255,107,44,0.4)',
+          border: '1px solid rgba(255,255,255,0.1)',
         }}
       >
         <Play size={16} fill="#fff" color="#fff" />
