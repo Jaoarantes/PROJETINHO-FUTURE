@@ -53,7 +53,7 @@ export default function DietaTab() {
   const {
     dataSelecionada, setData, getDiarioAtual, removerItem,
     metas, atualizarMetas, adicionarAgua, adicionarRefeicao, removerRefeicao,
-    perfil, atualizarPerfil,
+    perfil, atualizarPerfil, carregando, uid,
   } = useDietaStore();
   const diario = getDiarioAtual();
   const totais = calcularMacrosDia(diario.refeicoes);
@@ -87,6 +87,11 @@ export default function DietaTab() {
 
   return (
     <Box sx={{ pt: 1, pb: 10 }}>
+      {carregando && uid && (
+        <Box sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}>
+          <LinearProgress sx={{ height: 2 }} />
+        </Box>
+      )}
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h4" sx={{ fontSize: '1.8rem' }}>REFEIÇÃO</Typography>

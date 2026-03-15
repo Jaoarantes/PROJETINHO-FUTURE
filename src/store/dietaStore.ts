@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { DiarioDieta, Refeicao, ItemRefeicao, TipoRefeicao, MetasDieta, PerfilCorporal } from '../types/dieta';
-import { carregarDiarios, salvarDiario, carregarMetas, salvarMetas, carregarPerfil, salvarPerfil } from '../services/dietaFirestore';
+import { carregarDiarios, salvarDiario, carregarMetas, salvarMetas, carregarPerfil, salvarPerfil } from '../services/dietaService';
 
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function syncDebounced(uid: string, diario: DiarioDieta) {

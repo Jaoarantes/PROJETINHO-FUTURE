@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Avatar, Divider,
   ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
-  List, ListItem, ListItemText, ListItemIcon, Checkbox,
+  List, ListItem, Checkbox,
 } from '@mui/material';
 import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,10 +11,10 @@ import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
 import { useTreinoStore } from '../store/treinoStore';
 import { useDietaStore } from '../store/dietaStore';
-import { carregarStravaAuth, desconectarStrava } from '../services/stravaFirestore';
-import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '../services/dietaFirestore';
-import type { RegistroPeso } from '../services/dietaFirestore';
-import { STRAVA_AUTH_URL, getStravaActivities } from '../services/stravaApi';
+import { carregarStravaAuth, desconectarStrava, salvarStravaAuth } from '../services/stravaService';
+import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '../services/dietaService';
+import type { RegistroPeso } from '../services/dietaService';
+import { STRAVA_AUTH_URL, getStravaActivities, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 
@@ -46,24 +46,24 @@ export default function Perfil() {
   const [novaDataPeso, setNovaDataPeso] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
-    if (user?.uid) {
-      carregarStravaAuth(user.uid).then(setStravaAuth).catch(console.error);
-      carregarPesoHistorico(user.uid).then(setPesoHistorico).catch(console.error);
+    if (user?.id) {
+      carregarStravaAuth(user.id).then(setStravaAuth).catch(console.error);
+      carregarPesoHistorico(user.id).then(setPesoHistorico).catch(console.error);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   useEffect(() => {
     // Foto do auth só é usada como fallback extremo
-  }, [user?.photoURL]);
+  }, [user?.user_metadata?.avatar_url]);
 
   const handleSalvarPeso = async () => {
-    if (!user?.uid || !novoPeso) return;
+    if (!user?.id || !novoPeso) return;
     const registro: RegistroPeso = {
       id: novaDataPeso,
       data: novaDataPeso,
       peso: parseFloat(novoPeso),
     };
-    await salvarRegistroPeso(user.uid, registro).catch(console.error);
+    await salvarRegistroPeso(user.id, registro).catch(console.error);
     setPesoHistorico((prev) => {
       const sem = prev.filter((r) => r.id !== registro.id);
       return [...sem, registro].sort((a, b) => b.data.localeCompare(a.data));
@@ -73,25 +73,40 @@ export default function Perfil() {
   };
 
   const handleDeletarPeso = async (id: string) => {
-    if (!user?.uid) return;
-    await deletarRegistroPeso(user.uid, id).catch(console.error);
+    if (!user?.id) return;
+    await deletarRegistroPeso(user.id, id).catch(console.error);
     setPesoHistorico((prev) => prev.filter((r) => r.id !== id));
   };
 
   const totalExercicios = sessoes.reduce((acc, s) => acc + s.exercicios.length, 0);
 
   const handleStravaDisconnect = async () => {
-    if (!user?.uid) return;
-    await desconectarStrava(user.uid);
+    if (!user?.id) return;
+    await desconectarStrava(user.id);
     setStravaAuth(null);
     setSnackMsg('Strava desconectado.');
   };
 
   const handleSyncStrava = async () => {
-    if (!stravaAuth?.accessToken) return;
+    if (!stravaAuth?.accessToken || !user?.id) return;
     setSyncing(true);
     try {
-      const atividades = await getStravaActivities(stravaAuth.accessToken, 30);
+      // Refresh token if expired
+      let token = stravaAuth.accessToken;
+      const now = Math.floor(Date.now() / 1000);
+      if (stravaAuth.expiresAt && stravaAuth.expiresAt < now) {
+        const refreshed = await refreshStravaToken(stravaAuth.refreshToken);
+        const newAuth: StravaAuthData = {
+          accessToken: refreshed.access_token,
+          refreshToken: refreshed.refresh_token,
+          expiresAt: refreshed.expires_at,
+          athleteId: stravaAuth.athleteId,
+        };
+        await salvarStravaAuth(user.id, newAuth);
+        setStravaAuth(newAuth);
+        token = refreshed.access_token;
+      }
+      const atividades = await getStravaActivities(token, 30);
       // Filtrar tipos suportados e que não estão no histórico
       const filtradas = atividades.filter((t) =>
         ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'].includes(t.type) &&
@@ -105,15 +120,21 @@ export default function Perfil() {
         setSelectedStravaIds(filtradas.map(f => f.id)); // Seleciona todos por padrão
         setStravaModalOpen(true);
       }
-    } catch (err) {
-      console.error(err);
-      setSnackMsg('Erro ao conectar ao Strava.');
+    } catch (err: any) {
+      console.error('Strava sync error:', err);
+      if (err?.message?.includes('token') || err?.message?.includes('Token') || err?.message?.includes('atualizar')) {
+        // Token refresh failed - need to re-authenticate
+        setStravaAuth(null);
+        setSnackMsg('Sessão do Strava expirada. Conecte novamente.');
+      } else {
+        setSnackMsg('Erro ao sincronizar com o Strava. Tente novamente.');
+      }
     } finally {
       setSyncing(false);
     }
   };
 
-  const handleImportSelected = () => {
+  const handleImportSelected = async () => {
     const selecionadas = stravaActivities.filter((t) => selectedStravaIds.includes(t.id));
     let added = 0;
 
@@ -135,6 +156,14 @@ export default function Perfil() {
         }
       }
 
+      // Calcular XP para atividade do Strava (mínimo 20min)
+      let xpParaGanhar = 0;
+      if (t.moving_time >= 1200) {
+        xpParaGanhar = 100; // Base
+        if (t.moving_time >= 3600) xpParaGanhar += 50;
+        else if (t.moving_time >= 1800) xpParaGanhar += 25;
+      }
+
       const registro: any = {
         id: `strava_${t.id}`,
         sessaoId: `strava_source`,
@@ -143,6 +172,7 @@ export default function Perfil() {
         exercicios: [],
         concluidoEm: new Date(t.start_date).toISOString(),
         duracaoTotalSegundos: t.moving_time,
+        xpEarned: xpParaGanhar,
         stravaData: {
           id: t.id,
           averageSpeedMps: t.average_speed || 0,
@@ -175,17 +205,25 @@ export default function Perfil() {
         };
       }
 
-      adicionarRegistro(registro);
-      added++;
+      try {
+        await adicionarRegistro(registro);
+        added++;
+      } catch (err) {
+        console.error(`Erro ao salvar atividade ${t.name}:`, err);
+      }
     }
 
     setStravaModalOpen(false);
-    setSnackMsg(`Sucesso! ${added} novas rotas importadas.`);
+    if (added > 0) {
+      setSnackMsg(`Sucesso! ${added} atividade(s) importada(s).`);
+    } else {
+      setSnackMsg('Erro ao salvar atividades. Verifique o banco de dados.');
+    }
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user?.uid) return;
+    if (!file || !user?.id) return;
 
     // Preview local imediato para o usuário não ficar esperando
     const localURL = URL.createObjectURL(file);
@@ -199,14 +237,14 @@ export default function Perfil() {
     }, 15000);
 
     try {
-      await uploadProfilePicture(user.uid, file);
+      await uploadProfilePicture(user.id, file);
       await refreshUser();
       setSnackMsg('Foto de perfil atualizada!');
     } catch (err) {
       console.error(err);
       setSnackMsg('Erro ao atualizar foto.');
       // Opcional: reverter para a foto original em caso de erro
-      setTempPhotoURL(user.photoURL || null);
+      setTempPhotoURL(user.user_metadata?.avatar_url || null);
     } finally {
       clearTimeout(timeout);
       setUploadingPhoto(false);
@@ -214,11 +252,11 @@ export default function Perfil() {
   };
 
   const handleRemovePhoto = async () => {
-    if (!user?.uid) return;
+    if (!user?.id) return;
     setPhotoMenuOpen(false);
     setUploadingPhoto(true);
     try {
-      await removeProfilePicture(user.uid);
+      await removeProfilePicture(user.id);
       setTempPhotoURL(null);
       await refreshUser();
       setSnackMsg('Foto de perfil removida.');
@@ -251,7 +289,7 @@ export default function Perfil() {
             />
             <Box onClick={() => !uploadingPhoto && setPhotoMenuOpen(true)}>
               <Avatar
-                src={tempPhotoURL || profile?.photoURL || user?.photoURL || undefined}
+                src={tempPhotoURL || profile?.photoURL || user?.user_metadata?.avatar_url || undefined}
                 sx={{
                   width: 65, height: 65,
                   background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
@@ -265,7 +303,7 @@ export default function Perfil() {
                   '&:hover': { opacity: 0.9 }
                 }}
               >
-                {user?.displayName?.charAt(0).toUpperCase() || 'U'}
+                {user?.user_metadata?.display_name?.charAt(0).toUpperCase() || 'U'}
               </Avatar>
               {uploadingPhoto && (
                 <Box sx={{
@@ -282,7 +320,7 @@ export default function Perfil() {
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontSize: '1.1rem', lineHeight: 1.2 }}>
-              {user?.displayName || profile?.displayName || 'Usuário'}
+              {user?.user_metadata?.display_name || profile?.displayName || 'Usuário'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {user?.email || profile?.email}
@@ -314,7 +352,7 @@ export default function Perfil() {
             fullWidth
             color="error"
             onClick={handleRemovePhoto}
-            disabled={!tempPhotoURL && !profile?.photoURL && !user?.photoURL}
+            disabled={!tempPhotoURL && !profile?.photoURL && !user?.user_metadata?.avatar_url}
             sx={{ py: 1.2, borderRadius: 1 }}
           >
             Ficar sem foto
@@ -474,76 +512,96 @@ export default function Perfil() {
         </Box>
       </Dialog>
 
-      {/* Dialog Sincronizar Strava */}
-      <Dialog 
-        open={stravaModalOpen} 
-        onClose={() => setStravaModalOpen(false)} 
-        maxWidth="sm" 
-        fullWidth 
-        PaperProps={{ sx: { borderRadius: '6px' } }}
+      {/* Dialog Sincronizar Strava - fullscreen mobile */}
+      <Dialog
+        open={stravaModalOpen}
+        onClose={() => setStravaModalOpen(false)}
+        fullScreen
+        PaperProps={{ sx: { bgcolor: 'background.default' } }}
       >
-        <Box sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>Treinos no Strava</Typography>
-            <IconButton size="small" onClick={() => setStravaModalOpen(false)}><X size={18} /></IconButton>
+        <Box sx={{
+          display: 'flex', flexDirection: 'column', height: '100%',
+          pt: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          pb: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+        }}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5 }}>
+            <IconButton onClick={() => setStravaModalOpen(false)} sx={{ mr: 1 }}><X size={20} /></IconButton>
+            <Typography variant="h6" fontWeight={700} sx={{ flex: 1, fontSize: '1.1rem' }}>Treinos no Strava</Typography>
+            <Button
+              size="small"
+              onClick={() => {
+                if (selectedStravaIds.length === stravaActivities.length) {
+                  setSelectedStravaIds([]);
+                } else {
+                  setSelectedStravaIds(stravaActivities.map(a => a.id));
+                }
+              }}
+              sx={{ fontSize: '0.8rem', textTransform: 'none', fontWeight: 600 }}
+            >
+              {selectedStravaIds.length === stravaActivities.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            </Button>
           </Box>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Selecione quais treinos deseja importar para o seu histórico:
-          </Typography>
 
-          <List sx={{ maxHeight: 300, overflow: 'auto', mb: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+          {/* Lista scrollável */}
+          <List sx={{ flex: 1, overflow: 'auto', px: 1 }}>
             {stravaActivities.map((t) => {
-              const labelId = `checkbox-list-label-${t.id}`;
+              const checked = selectedStravaIds.includes(t.id);
               const dataStr = new Date(t.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
               const distStr = t.distance > 0 ? `${(t.distance / 1000).toFixed(1)}km` : '';
-              
+              const durMin = Math.round(t.moving_time / 60);
+
               return (
-                <ListItem key={t.id} disablePadding>
-                  <ListItemIcon sx={{ minWidth: 40, ml: 1 }}>
+                <ListItem
+                  key={t.id}
+                  disablePadding
+                  sx={{ mb: 0.5 }}
+                  onClick={() => {
+                    const idx = selectedStravaIds.indexOf(t.id);
+                    const next = [...selectedStravaIds];
+                    if (idx === -1) next.push(t.id); else next.splice(idx, 1);
+                    setSelectedStravaIds(next);
+                  }}
+                >
+                  <Box sx={{
+                    display: 'flex', alignItems: 'center', width: '100%',
+                    px: 2, py: 1.5, borderRadius: 2,
+                    bgcolor: checked ? 'action.selected' : 'action.hover',
+                    transition: 'background 0.15s',
+                  }}>
                     <Checkbox
                       edge="start"
-                      checked={selectedStravaIds.indexOf(t.id) !== -1}
-                      tabIndex={-1}
+                      checked={checked}
                       disableRipple
-                      inputProps={{ 'aria-labelledby': labelId }}
-                      onChange={() => {
-                        const currentIndex = selectedStravaIds.indexOf(t.id);
-                        const newChecked = [...selectedStravaIds];
-                        if (currentIndex === -1) {
-                          newChecked.push(t.id);
-                        } else {
-                          newChecked.splice(currentIndex, 1);
-                        }
-                        setSelectedStravaIds(newChecked);
-                      }}
+                      sx={{ mr: 1.5, p: 0 }}
                     />
-                  </ListItemIcon>
-                  <ListItemText 
-                    id={labelId} 
-                    primary={t.name}
-                    secondary={`${dataStr} • ${t.type} ${distStr ? `• ${distStr}` : ''}`}
-                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.85rem' }}
-                    secondaryTypographyProps={{ fontSize: '0.75rem' }}
-                  />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography fontWeight={600} fontSize="0.9rem" noWrap>{t.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {dataStr} • {t.type} {distStr ? `• ${distStr}` : ''} • {durMin}min
+                      </Typography>
+                    </Box>
+                  </Box>
                 </ListItem>
               );
             })}
           </List>
 
-          <Box sx={{ display: 'flex', gap: 1.5 }}>
-            <Button variant="outlined" fullWidth onClick={() => setStravaModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button 
-               variant="contained" 
-               fullWidth 
-               disabled={selectedStravaIds.length === 0} 
-               onClick={handleImportSelected}
-               startIcon={<Check size={18} />}
-               sx={{ bgcolor: '#FC4C02', color: '#fff', '&:hover': { bgcolor: '#E34402' } }}
+          {/* Botão fixo no rodapé */}
+          <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              disabled={selectedStravaIds.length === 0}
+              onClick={handleImportSelected}
+              startIcon={<Check size={18} />}
+              sx={{
+                bgcolor: '#FC4C02', color: '#fff',
+                '&:hover': { bgcolor: '#E34402' },
+                py: 1.5, borderRadius: 3, fontWeight: 700, fontSize: '0.95rem',
+              }}
             >
-              Importar {selectedStravaIds.length}
+              Importar {selectedStravaIds.length} {selectedStravaIds.length === 1 ? 'treino' : 'treinos'}
             </Button>
           </Box>
         </Box>
@@ -744,13 +802,25 @@ interface Conquista {
   desc: string;
   desbloqueada: boolean;
   cor: string;
+  frase: string; // Mensagem motivacional
+}
+
+// Filtra apenas treinos válidos: 20min+ e 3+ exercícios para musculação
+function filtrarTreinosValidos(historico: ReturnType<typeof useTreinoStore.getState>['historico']) {
+  return historico.filter((r) => {
+    const duracao = r.duracaoTotalSegundos || 0;
+    if (duracao < 1200) return false; // Mínimo 20 minutos
+    if (r.tipo === 'musculacao' && r.exercicios.length < 3) return false;
+    return true;
+  });
 }
 
 function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['historico']): number {
-  if (historico.length === 0) return 0;
+  const validos = filtrarTreinosValidos(historico);
+  if (validos.length === 0) return 0;
 
   const semanas = new Set<string>();
-  historico.forEach((r) => {
+  validos.forEach((r) => {
     const d = new Date(r.concluidoEm);
     const inicio = new Date(d);
     inicio.setDate(inicio.getDate() - inicio.getDay());
@@ -771,7 +841,6 @@ function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['h
 
     if (sorted[i] === esperadaStr || (i === 0 && sorted[0] <= semanaAtual)) {
       if (i === 0 && sorted[0] !== semanaAtual) {
-        // Semana passada conta se a diferení§a for de apenas 1 semana
         const diff = (agora.getTime() - new Date(sorted[0]).getTime()) / (1000 * 60 * 60 * 24);
         if (diff > 14) break;
       }
@@ -787,12 +856,11 @@ function GamificacaoSection({ historico }: {
   historico: ReturnType<typeof useTreinoStore.getState>['historico'];
 }) {
   const stats = useMemo(() => {
-    const totalTreinos = historico.length;
-    const totalXP = historico.reduce((acc, r) => acc + (r.xpEarned !== undefined ? r.xpEarned : 100), 0);
-    // Fórmula Não-linear: exigência de XP cresce com o nível
-    // Nível 1: 0-99 XP
-    // Nível 2: 100-399 XP
-    // Nível 3: 400-899 XP
+    // Apenas treinos válidos contam para gamificação
+    const validos = filtrarTreinosValidos(historico);
+    const totalTreinos = validos.length;
+    const totalXP = validos.reduce((acc, r) => acc + (r.xpEarned || 0), 0);
+
     const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
 
     const xpParaEsteLevel = (level - 1) * (level - 1) * 100;
@@ -802,40 +870,135 @@ function GamificacaoSection({ historico }: {
     const xpNecessario = xpParaProximoLevel - xpParaEsteLevel;
     const progresso = xpNecessario > 0 ? xpNoLevel / xpNecessario : 0;
 
-    const volumeTotal = historico.reduce((acc, r) => {
+    const volumeTotal = validos.reduce((acc, r) => {
       if (r.tipo !== 'musculacao') return acc;
       return acc + calcularVolumeSessao(r.exercicios);
     }, 0);
 
     const exerciciosUnicos = new Set<string>();
-    historico.forEach((r) => {
+    validos.forEach((r) => {
       r.exercicios.forEach((ex) => exerciciosUnicos.add(ex.exercicio.nome));
     });
 
     const streak = calcularStreak(historico);
 
-    const tempoTotal = historico.reduce((acc, r) => acc + (r.duracaoTotalSegundos || 0), 0);
+    const tempoTotal = validos.reduce((acc, r) => acc + (r.duracaoTotalSegundos || 0), 0);
 
     return { totalTreinos, totalXP, level, progresso, xpNoLevel, xpParaEsteLevel, xpParaProximoLevel, xpNecessario, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
   }, [historico]);
 
   const conquistas: Conquista[] = useMemo(() => [
-    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700' },
-    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C' },
-    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6' },
-    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444' },
-    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B' },
-    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981' },
-    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316' },
-    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9' },
-    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444' },
-    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6' },
+    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700', frase: 'A jornada de mil quilômetros começa com o primeiro passo. Você começou!' },
+    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C', frase: 'O hábito está se formando. Você já é mais forte do que ontem!' },
+    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6', frase: 'Consistência é o segredo dos campeões. Você é um deles!' },
+    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444', frase: 'Dedicação é fazer o que precisa ser feito, mesmo quando não tem vontade. Respeito!' },
+    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B', frase: 'Ninguém te para. 50 treinos é prova de que disciplina vence motivação!' },
+    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981', frase: 'Você é uma lenda! 100 treinos é elite. Pouquíssimos chegam aqui.' },
+    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316', frase: '3 semanas sem parar! Seu corpo agradece, sua mente agradece!' },
+    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9', frase: 'Uma TONELADA! Isso é mais pesado que um carro. Você é uma máquina!' },
+    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444', frase: '10 toneladas de puro ferro. Você não é humano, é um MONSTRO!' },
+    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6', frase: 'Versatilidade é poder. Dominar 10 exercícios diferentes mostra evolução real!' },
   ], [stats]);
 
   const desbloqueadas = conquistas.filter((c) => c.desbloqueada).length;
 
+  // Sistema de notificação de conquistas novas
+  const [conquistaModal, setConquistaModal] = useState<Conquista | null>(null);
+
+  useEffect(() => {
+    const key = 'valere_conquistas_vistas';
+    const vistas: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+    const novas = conquistas.filter(c => c.desbloqueada && !vistas.includes(c.id));
+    if (novas.length > 0) {
+      // Mostra a conquista mais recente
+      setConquistaModal(novas[novas.length - 1]);
+      // Salva todas como vistas
+      const todasVistas = [...vistas, ...novas.map(c => c.id)];
+      localStorage.setItem(key, JSON.stringify(todasVistas));
+    }
+  }, [conquistas]);
+
   return (
     <>
+      {/* Modal de Conquista Desbloqueada */}
+      <Dialog
+        open={!!conquistaModal}
+        onClose={() => setConquistaModal(null)}
+        PaperProps={{
+          sx: {
+            borderRadius: '24px',
+            overflow: 'visible',
+            maxWidth: 340,
+            mx: 2,
+            bgcolor: 'background.paper',
+            border: conquistaModal ? `2px solid ${conquistaModal.cor}40` : undefined,
+          }
+        }}
+      >
+        {conquistaModal && (
+          <Box sx={{ textAlign: 'center', px: 3, pt: 4, pb: 3, position: 'relative' }}>
+            {/* Ícone grande com glow */}
+            <Box sx={{
+              width: 80, height: 80, borderRadius: '20px', mx: 'auto', mb: 2,
+              bgcolor: conquistaModal.cor,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: `0 8px 32px ${conquistaModal.cor}60`,
+              animation: 'pulse 2s ease-in-out infinite',
+              '@keyframes pulse': {
+                '0%, 100%': { boxShadow: `0 8px 32px ${conquistaModal.cor}60` },
+                '50%': { boxShadow: `0 12px 48px ${conquistaModal.cor}90` },
+              },
+            }}>
+              {React.cloneElement(conquistaModal.icon as React.ReactElement<any>, { size: 36, color: '#fff' })}
+            </Box>
+
+            <Typography variant="caption" sx={{
+              color: conquistaModal.cor, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.7rem',
+              display: 'block', mb: 0.5,
+            }}>
+              Conquista Desbloqueada!
+            </Typography>
+
+            <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: '1.3rem' }}>
+              {conquistaModal.titulo}
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, fontSize: '0.85rem' }}>
+              {conquistaModal.desc}
+            </Typography>
+
+            {/* Frase motivacional */}
+            <Box sx={{
+              bgcolor: `${conquistaModal.cor}10`,
+              border: `1px solid ${conquistaModal.cor}30`,
+              borderRadius: 3, px: 2.5, py: 2, mb: 2.5,
+            }}>
+              <Typography variant="body2" sx={{
+                fontStyle: 'italic', fontWeight: 500, lineHeight: 1.5,
+                fontSize: '0.9rem', color: 'text.primary',
+              }}>
+                "{conquistaModal.frase}"
+              </Typography>
+            </Box>
+
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={() => setConquistaModal(null)}
+              sx={{
+                py: 1.5, borderRadius: 3, fontWeight: 700, fontSize: '0.95rem',
+                bgcolor: conquistaModal.cor, color: '#fff',
+                '&:hover': { bgcolor: conquistaModal.cor },
+                '&:active': { transform: 'scale(0.97)' },
+              }}
+            >
+              Valeu!
+            </Button>
+          </Box>
+        )}
+      </Dialog>
+
       <Typography
         variant="caption"
         color="text.secondary"
@@ -936,6 +1099,7 @@ function GamificacaoSection({ historico }: {
             {conquistas.map((c) => (
               <Box
                 key={c.id}
+                onClick={() => c.desbloqueada && setConquistaModal(c)}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -944,6 +1108,7 @@ function GamificacaoSection({ historico }: {
                   py: 0.8,
                   borderRadius: 2,
                   border: 1,
+                  cursor: c.desbloqueada ? 'pointer' : 'default',
                   borderColor: c.desbloqueada ? `${c.cor}60` : 'divider',
                   bgcolor: c.desbloqueada ? `${c.cor}10` : 'transparent',
                   opacity: c.desbloqueada ? 1 : 0.4,

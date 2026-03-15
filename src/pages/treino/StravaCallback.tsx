@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Typography, CircularProgress, Button } from '@mui/material';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { authenticateStrava } from '../../services/stravaApi';
-import { salvarStravaAuth } from '../../services/stravaFirestore';
+import { salvarStravaAuth } from '../../services/stravaService';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 export default function StravaCallback() {
@@ -35,7 +35,7 @@ export default function StravaCallback() {
                 if (!data.access_token) {
                     throw new Error('Resposta do Strava não contém access_token');
                 }
-                await salvarStravaAuth(user.uid, {
+                await salvarStravaAuth(user.id, {
                     accessToken: data.access_token,
                     refreshToken: data.refresh_token,
                     expiresAt: data.expires_at,

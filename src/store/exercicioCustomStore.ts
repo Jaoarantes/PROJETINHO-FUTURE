@@ -4,7 +4,7 @@ import {
   carregarExerciciosCustom,
   salvarExercicioCustom,
   deletarExercicioCustom,
-} from '../services/exercicioFirestore';
+} from '../services/exercicioService';
 
 interface ExercicioCustomStore {
   exerciciosCustom: Exercicio[];
