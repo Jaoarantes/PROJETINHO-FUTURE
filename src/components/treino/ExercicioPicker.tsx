@@ -26,6 +26,7 @@ import { useExerciciosCustom } from '../../hooks/useExerciciosCustom';
 import type { Exercicio } from '../../types/treino';
 import ExercicioDetalhe from './ExercicioDetalhe';
 import CadastrarExercicio from './CadastrarExercicio';
+import { getExerciseImageUrl } from '../../constants/exercise-images';
 
 interface Props {
   open: boolean;
@@ -217,6 +218,22 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
         ) : (
           <>
             <DialogContent sx={{ px: 3 }}>
+              {/* Imagem do exercício */}
+              {selecionado && (() => {
+                const imgUrl = selecionado.gifUrl || (typeof selecionado.id === 'number' ? getExerciseImageUrl(selecionado.id) : undefined);
+                return imgUrl ? (
+                  <Box sx={{ mb: 2, borderRadius: 3, overflow: 'hidden', bgcolor: '#1a1a1a' }}>
+                    <Box
+                      component="img"
+                      src={imgUrl}
+                      alt={selecionado.nome}
+                      sx={{ width: '100%', height: 180, objectFit: 'contain' }}
+                      onError={(e: any) => { e.target.style.display = 'none'; }}
+                    />
+                  </Box>
+                ) : null;
+              })()}
+
               <Box sx={{ mb: 4 }}>
                 <Typography variant="h6">{selecionado?.nome}</Typography>
                 <Chip label={selecionado?.grupoMuscular} size="small" variant="outlined" sx={{ mt: 0.5 }} />
