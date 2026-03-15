@@ -31,16 +31,12 @@ export default function EsqueceuSenha() {
       await resetPassword(data.email);
       setSuccess(true);
     } catch (err: unknown) {
-      const firebaseError = err as { code?: string };
-      switch (firebaseError.code) {
-        case 'auth/user-not-found':
-          setError('Nenhuma conta encontrada com este email');
-          break;
-        case 'auth/too-many-requests':
-          setError('Muitas tentativas. Tente novamente mais tarde.');
-          break;
-        default:
-          setError('Erro ao enviar email. Tente novamente.');
+      const supabaseError = err as { message?: string };
+      const msg = supabaseError.message || '';
+      if (msg.includes('rate limit') || msg.includes('too many')) {
+        setError('Muitas tentativas. Tente novamente mais tarde.');
+      } else {
+        setError('Erro ao enviar email. Tente novamente.');
       }
     } finally { setLoading(false); }
   };

@@ -405,81 +405,88 @@ export default function TreinoTab() {
       {/* ─── ABA MEUS TREINOS ─── */}
       {tabIndex === 0 && (
         <>
-          {carregando ? (
-            <Box sx={{ textAlign: 'center', mt: 8 }}>
-              <CircularProgress size={36} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>Carregando treinos...</Typography>
-            </Box>
-          ) : sessoes.length === 0 ? (
-            <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
-              <Dumbbell size={56} style={{ opacity: 0.15, marginBottom: 16 }} />
-              <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum treino criado</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Toque no + para criar seu primeiro treino</Typography>
-            </Box>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-            >
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {(Object.entries(sessoesAgrupadas) as [TipoSessao, SessaoTreino[]][])
-                  .filter(([, list]) => list.length > 0)
-                  .map(([tipo, list]) => {
-                    const Icon = TIPO_ICONS[tipo];
-                    return (
-                      <Box key={tipo}>
-                        {/* Título da seção (modalidade) */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                          <Icon size={18} />
-                          <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
-                            {TIPO_SESSAO_LABELS[tipo]}
-                          </Typography>
-                          <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
-                        </Box>
-
-                        {/* Cards */}
-                        <SortableContext
-                          items={list.map((s) => s.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            {list.map((sessao, index) => (
-                              <SortableTreinoCard
-                                key={sessao.id}
-                                sessao={sessao}
-                                index={index}
-                                tipo={tipo}
-                                isAtivo={treinoAtivo?.sessaoId === sessao.id}
-                                onNavigate={(id) => navigate(`/treino/${id}`)}
-                                onMenuOpen={handleMenuOpen}
-                                onIniciar={iniciarTreino}
-                              />
-                            ))}
+          {(() => {
+            if (carregando && sessoes.length === 0 && useTreinoStore.getState().uid) {
+              return (
+                <Box sx={{ textAlign: 'center', mt: 8 }}>
+                  <CircularProgress size={32} sx={{ color: 'primary.main' }} />
+                </Box>
+              );
+            }
+            if (sessoes.length === 0) {
+              return (
+                <Box sx={{ textAlign: 'center', mt: 8, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
+                  <Dumbbell size={56} style={{ opacity: 0.15, marginBottom: 16 }} />
+                  <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum treino criado</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Toque no + para criar seu primeiro treino</Typography>
+                </Box>
+              );
+            }
+            return (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {(Object.entries(sessoesAgrupadas) as [TipoSessao, SessaoTreino[]][])
+                    .filter(([, list]) => list.length > 0)
+                    .map(([tipo, list]) => {
+                      const Icon = TIPO_ICONS[tipo];
+                      return (
+                        <Box key={tipo}>
+                          {/* Título da seção (modalidade) */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                            <Icon size={18} />
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
+                              {TIPO_SESSAO_LABELS[tipo]}
+                            </Typography>
+                            <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
                           </Box>
-                        </SortableContext>
-                      </Box>
-                    );
-                  })}
-              </Box>
-              <DragOverlay>
-                {activeSessao ? (
-                  <SortableTreinoCard
-                    sessao={activeSessao}
-                    index={0} // Index doesn't matter for overlay
-                    tipo={activeSessao.tipo || 'musculacao'}
-                    isAtivo={treinoAtivo?.sessaoId === activeSessao.id}
-                    onNavigate={() => { }} // No navigation on overlay
-                    onMenuOpen={() => { }} // No menu on overlay
-                    onIniciar={() => { }} // No start on overlay
-                    isOverlay // Prop to style overlay if needed
-                  />
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )}
+
+                          {/* Cards */}
+                          <SortableContext
+                            items={list.map((s) => s.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {list.map((sessao, index) => (
+                                <SortableTreinoCard
+                                  key={sessao.id}
+                                  sessao={sessao}
+                                  index={index}
+                                  tipo={tipo}
+                                  isAtivo={treinoAtivo?.sessaoId === sessao.id}
+                                  onNavigate={(id) => navigate(`/treino/${id}`)}
+                                  onMenuOpen={handleMenuOpen}
+                                  onIniciar={iniciarTreino}
+                                />
+                              ))}
+                            </Box>
+                          </SortableContext>
+                        </Box>
+                      );
+                    })}
+                </Box>
+                <DragOverlay>
+                  {activeSessao ? (
+                    <SortableTreinoCard
+                      sessao={activeSessao}
+                      index={0}
+                      tipo={activeSessao.tipo || 'musculacao'}
+                      isAtivo={treinoAtivo?.sessaoId === activeSessao.id}
+                      onNavigate={() => { }}
+                      onMenuOpen={() => { }}
+                      onIniciar={() => { }}
+                      isOverlay
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            );
+          })()}
         </>
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import {
   Box, TextField, Button, Typography, Alert,
   CircularProgress, IconButton, InputAdornment,
@@ -8,8 +8,7 @@ import { EyeOff, Eye, CheckCircle2, Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { verifyPasswordResetCode, confirmPasswordReset } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { supabase } from '../../supabase';
 
 const schema = z
   .object({
@@ -23,9 +22,6 @@ const schema = z
 type RedefinirForm = z.infer<typeof schema>;
 
 export default function RedefinirSenha() {
-  const [searchParams] = useSearchParams();
-  const oobCode = searchParams.get('oobCode');
-
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -37,29 +33,49 @@ export default function RedefinirSenha() {
     resolver: zodResolver(schema),
   });
 
+  // No Supabase, o link de reset redireciona com tokens na hash.
+  // O supabase-js detecta automaticamente e autentica o usuário.
   useEffect(() => {
-    const verify = async () => {
-      if (!oobCode) {
-        setError('Link inválido ou expirado.');
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setEmail(session.user.email || '');
         setVerifying(false);
-        return;
+      } else {
+        // Aguardar evento de auth (token pode estar sendo processado)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY' && session?.user) {
+            setEmail(session.user.email || '');
+            setVerifying(false);
+          } else if (event === 'SIGNED_IN' && session?.user) {
+            setEmail(session.user.email || '');
+            setVerifying(false);
+          }
+        });
+        // Timeout de segurança
+        setTimeout(() => {
+          setVerifying((v) => {
+            if (v) {
+              setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
+              return false;
+            }
+            return v;
+          });
+          subscription.unsubscribe();
+        }, 5000);
       }
-      try {
-        const userEmail = await verifyPasswordResetCode(auth, oobCode);
-        setEmail(userEmail);
-      } catch {
-        setError('Link inválido ou expirado. Solicite um novo link de recuperação.');
-      } finally { setVerifying(false); }
     };
-    verify();
-  }, [oobCode]);
+    checkSession();
+  }, []);
 
   const onSubmit = async (data: RedefinirForm) => {
-    if (!oobCode) return;
     setError('');
     setLoading(true);
     try {
-      await confirmPasswordReset(auth, oobCode, data.password);
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: data.password,
+      });
+      if (updateError) throw updateError;
       setSuccess(true);
     } catch {
       setError('Erro ao redefinir senha. O link pode ter expirado.');

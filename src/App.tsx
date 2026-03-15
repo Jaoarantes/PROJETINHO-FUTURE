@@ -1,48 +1,62 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { CircularProgress, Box } from '@mui/material';
 import AppShell from './components/layout/AppShell';
 import PrivateRoute from './components/layout/PrivateRoute';
+import AuthCallback from './pages/auth/AuthCallback';
 import Login from './pages/auth/Login';
-import Registro from './pages/auth/Registro';
-import EsqueceuSenha from './pages/auth/EsqueceuSenha';
-import RedefinirSenha from './pages/auth/RedefinirSenha';
-import TreinoTab from './pages/treino/TreinoTab';
-import SessaoTreino from './pages/treino/SessaoTreino';
-import DietaTab from './pages/dieta/DietaTab';
-import Historico from './pages/Historico';
-import Perfil from './pages/Perfil';
-import Dashboard from './pages/Dashboard';
-import StravaCallback from './pages/treino/StravaCallback';
+
+// Lazy load das páginas pesadas
+const Registro = lazy(() => import('./pages/auth/Registro'));
+const EsqueceuSenha = lazy(() => import('./pages/auth/EsqueceuSenha'));
+const RedefinirSenha = lazy(() => import('./pages/auth/RedefinirSenha'));
+const TreinoTab = lazy(() => import('./pages/treino/TreinoTab'));
+const SessaoTreino = lazy(() => import('./pages/treino/SessaoTreino'));
+const DietaTab = lazy(() => import('./pages/dieta/DietaTab'));
+const Historico = lazy(() => import('./pages/Historico'));
+const Perfil = lazy(() => import('./pages/Perfil'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const StravaCallback = lazy(() => import('./pages/treino/StravaCallback'));
+
+function Loading() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <CircularProgress size={28} />
+    </Box>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Rotas públicas */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/registro" element={<Registro />} />
-        <Route path="/esqueceu-senha" element={<EsqueceuSenha />} />
-        <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* Rotas privadas (precisa estar logado) */}
-        <Route
-          element={
-            <PrivateRoute>
-              <AppShell />
-            </PrivateRoute>
-          }
-        >
-          <Route path="/treino" element={<TreinoTab />} />
-          <Route path="/treino/:id" element={<SessaoTreino />} />
-          <Route path="/dieta" element={<DietaTab />} />
-          <Route path="/historico" element={<Historico />} />
-          <Route path="/perfil" element={<Perfil />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/strava/callback" element={<StravaCallback />} />
-        </Route>
+          <Route path="/login" element={<Login />} />
+          <Route path="/registro" element={<Registro />} />
+          <Route path="/esqueceu-senha" element={<EsqueceuSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
-        {/* Redirecionar raiz para treino */}
-        <Route path="*" element={<Navigate to="/treino" replace />} />
-      </Routes>
+          <Route
+            element={
+              <PrivateRoute>
+                <AppShell />
+              </PrivateRoute>
+            }
+          >
+            <Route path="/treino" element={<TreinoTab />} />
+            <Route path="/treino/:id" element={<SessaoTreino />} />
+            <Route path="/dieta" element={<DietaTab />} />
+            <Route path="/historico" element={<Historico />} />
+            <Route path="/perfil" element={<Perfil />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/strava/callback" element={<StravaCallback />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/treino" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

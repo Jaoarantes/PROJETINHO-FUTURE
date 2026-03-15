@@ -8,11 +8,11 @@ export function useExerciciosCustom() {
 
   useEffect(() => {
     if (user) {
-      carregar(user.uid);
+      carregar(user.id);
     } else {
       limpar();
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   return { exerciciosCustom, carregando };
 }

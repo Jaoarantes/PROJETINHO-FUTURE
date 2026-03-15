@@ -16,6 +16,10 @@ dist-ssr/
 # Firebase
 firebase-debug.log
 .firebase/
+firebase-service-account.json
+
+# Scripts com dados sensíveis
+scripts/firebase-export/
 
 # Capacitor - Android build
 android/

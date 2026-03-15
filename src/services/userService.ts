@@ -1,95 +1,80 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { storage, auth, db } from '../firebase';
+import { supabase } from '../supabase';
 
 export interface UserProfile {
-    uid: string;
-    displayName: string | null;
-    photoURL: string | null;
-    email: string | null;
-    updatedAt: string;
+  uid: string;
+  displayName: string | null;
+  photoURL: string | null;
+  email: string | null;
+  updatedAt: string;
 }
 
-/**
- * Fetches the user profile from Firestore.
- */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-        return userDoc.data() as UserProfile;
-    }
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[userService] Erro ao buscar perfil:', error.message);
     return null;
+  }
+  if (!data) return null;
+
+  return {
+    uid: data.id,
+    displayName: data.display_name,
+    photoURL: data.photo_url,
+    email: data.email,
+    updatedAt: data.updated_at,
+  };
 }
 
-/**
- * Saves or updates the user profile in Firestore.
- */
-export async function saveUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
-    await setDoc(doc(db, 'users', uid), {
-        ...data,
-        uid,
-        updatedAt: new Date().toISOString()
-    }, { merge: true });
+export async function saveUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      id: uid,
+      display_name: profile.displayName,
+      photo_url: profile.photoURL,
+      email: profile.email,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+  if (error) {
+    console.error('[userService] Erro ao salvar perfil:', error.message);
+    throw error;
+  }
 }
 
-/**
- * Uploads a profile picture to Firebase Storage and updates both Auth and Firestore profiles.
- */
 export async function uploadProfilePicture(userId: string, file: File): Promise<string> {
-    const user = auth.currentUser;
-    if (!user || user.uid !== userId) {
-        throw new Error('Usuário não autenticado ou ID incorreto.');
-    }
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const filePath = `${userId}/avatar.${fileExt}`;
 
-    try {
-        console.log('[UserService] Iniciando upload para:', userId);
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const filePath = `profiles/${userId}/avatar_${Date.now()}.${fileExt}`;
-        const storageRef = ref(storage, filePath);
+  // Remove avatar antigo (ignora erro se nao existe)
+  await supabase.storage.from('avatars').remove([filePath]).catch(() => {});
 
-        // Upload
-        await uploadBytes(storageRef, file);
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
 
-        // Get URL
-        const photoURL = await getDownloadURL(storageRef);
-        console.log('[UserService] URL obtida:', photoURL);
+  if (uploadError) throw uploadError;
 
-        // Update Auth Profile
-        await updateProfile(user, { photoURL });
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
 
-        // Update Firestore Profile (Reliable source of truth)
-        await saveUserProfile(userId, { photoURL });
+  // Adiciona timestamp para evitar cache do navegador
+  const urlWithCache = `${publicUrl}?t=${Date.now()}`;
 
-        // Reload user to sync local Auth object
-        await user.reload();
+  // Salva no auth metadata E no profile
+  await supabase.auth.updateUser({ data: { avatar_url: urlWithCache } });
+  await saveUserProfile(userId, { photoURL: urlWithCache });
 
-        return photoURL;
-    } catch (error) {
-        console.error('[UserService] Erro no uploadProfilePicture:', error);
-        throw error;
-    }
+  return urlWithCache;
 }
-/**
- * Removes the profile picture from both Auth and Firestore.
- */
+
 export async function removeProfilePicture(userId: string): Promise<void> {
-    const user = auth.currentUser;
-    if (!user || user.uid !== userId) {
-        throw new Error('Usuário não autenticado.');
-    }
-
-    try {
-        // Update Auth
-        await updateProfile(user, { photoURL: null });
-
-        // Update Firestore
-        await saveUserProfile(userId, { photoURL: null });
-
-        // Reload user
-        await user.reload();
-    } catch (error) {
-        console.error('[UserService] Erro ao remover foto:', error);
-        throw error;
-    }
+  await supabase.auth.updateUser({ data: { avatar_url: null } });
+  await saveUserProfile(userId, { photoURL: null });
 }

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, TipoSessao, EtapaCorrida, EtapaNatacao } from '../types/treino';
-import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro, carregarTreinoAtivo, salvarTreinoAtivo } from '../services/treinoFirestore';
+import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro, carregarTreinoAtivo, salvarTreinoAtivo } from '../services/treinoService';
 import { calcularVolumeSessao } from '../types/treino';
 
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -79,7 +79,7 @@ interface TreinoState {
   concluirTreino: (sessaoId: string, dadosExtras?: { distanciaKm?: number; duracaoTotalSegundos?: number }) => Promise<void>;
   atualizarGPSAtivo: (distanciaKm: number, coordenadas: { latitude: number; longitude: number; timestamp: number }[]) => void;
   removerRegistro: (id: string) => void;
-  adicionarRegistro: (registro: RegistroTreino) => void;
+  adicionarRegistro: (registro: RegistroTreino) => Promise<void>;
 }
 
 export const useTreinoStore = create<TreinoState>()(
@@ -88,7 +88,7 @@ export const useTreinoStore = create<TreinoState>()(
       uid: null,
       sessoes: [],
       historico: [],
-      carregando: true,
+      carregando: false,
       treinoAtivo: null,
 
       setUid: (uid) => set({ uid }),
@@ -96,25 +96,23 @@ export const useTreinoStore = create<TreinoState>()(
       carregar: async (uid) => {
         set({ carregando: true, uid });
         try {
-          const [sessoes, treinoAtivoFirestore] = await Promise.all([
+          const [sessoes, treinoAtivoSupabase, historico] = await Promise.all([
             carregarSessoes(uid),
-            carregarTreinoAtivo(uid)
+            carregarTreinoAtivo(uid),
+            loadHistorico(uid),
           ]);
-
-          console.log('[treinoStore] Sessões carregadas do Firestore:', sessoes.length);
-          const migrated = sessoes.map((s) => ({
-            ...s,
-            tipo: s.tipo || ('musculacao' as TipoSessao),
-            exercicios: s.exercicios || [],
-          }));
-
           set({
-            sessoes: migrated,
-            treinoAtivo: treinoAtivoFirestore || get().treinoAtivo
+            sessoes: sessoes.map((s) => ({
+              ...s,
+              tipo: s.tipo || ('musculacao' as TipoSessao),
+              exercicios: s.exercicios || [],
+            })),
+            historico,
+            treinoAtivo: treinoAtivoSupabase || get().treinoAtivo,
+            carregando: false,
           });
         } catch (err) {
-          console.error('[treinoStore] Erro ao carregar dados:', err);
-        } finally {
+          console.error('[treinoStore] Erro ao carregar:', err);
           set({ carregando: false });
         }
       },
@@ -177,12 +175,12 @@ export const useTreinoStore = create<TreinoState>()(
         set((state) => ({ sessoes: [...state.sessoes, nova] }));
         const { uid } = get();
         if (uid) {
-          console.log('[treinoStore] Salvando nova sessão no Firestore:', { id: nova.id, nome: nova.nome, tipo: nova.tipo });
+          console.log('[treinoStore] Salvando nova sessão no Supabase:', { id: nova.id, nome: nova.nome, tipo: nova.tipo });
           salvarSessao(uid, nova)
             .then(() => console.log('[treinoStore] Sessão salva com sucesso:', nova.id))
             .catch((err) => console.error('[treinoStore] Erro ao salvar sessão:', err));
         } else {
-          console.warn('[treinoStore] UID não disponível! Sessão NÃO foi salva no Firestore:', nova.id);
+          console.warn('[treinoStore] UID não disponível! Sessão NÃO foi salva no Supabase:', nova.id);
         }
         return nova.id;
       },
@@ -204,7 +202,7 @@ export const useTreinoStore = create<TreinoState>()(
         set({ sessoes: novasSessoes });
         const { uid } = get();
         if (uid) {
-          // Salva a nova ordem no Firestore (pode ser otimizado salvando apenas as sessões alteradas)
+          // Salva a nova ordem no Supabase (pode ser otimizado salvando apenas as sessões alteradas)
           Promise.all(novasSessoes.map(s => salvarSessao(uid, s))).catch(console.error);
         }
       },
@@ -382,31 +380,36 @@ export const useTreinoStore = create<TreinoState>()(
         const LIMITE_XP_DIARIO = 500;
 
         let xpParaGanhar = 0;
-        
-        // Regra 1: Tempo Mínimo (20 min) e Mínimo de Exercícios (3)
-        // Nota: Corrida/Natação contam como 1 exercício, então checamos o tipo
+
+        // Musculação: precisa de 20min + 3 exercícios
+        // Corrida/Natação: precisa de 20min (não tem exercícios)
         const isMusculacao = sessao.tipo === 'musculacao';
         const temTempoMinimo = (duracaoTotalSegundos || 0) >= TEMPO_MINIMO_SEGUNDOS;
         const temExerciciosMinimos = isMusculacao ? sessao.exercicios.length >= MINIMO_EXERCICIOS : true;
 
         if (temTempoMinimo && temExerciciosMinimos) {
-          xpParaGanhar = 100;
-          
-          // Adicional por volume (opcional, mas incentiva treino pesado)
+          xpParaGanhar = 100; // Base
+
+          // Bônus por volume alto em musculação
           if (isMusculacao) {
             const volume = calcularVolumeSessao(sessao.exercicios);
-            if (volume > 5000) xpParaGanhar += 20; // Bônus por volume alto
+            if (volume > 5000) xpParaGanhar += 20;
+          }
+
+          // Bônus por duração longa (>30min = +25 XP, >60min = +50 XP)
+          if (duracaoTotalSegundos) {
+            if (duracaoTotalSegundos >= 3600) xpParaGanhar += 50;
+            else if (duracaoTotalSegundos >= 1800) xpParaGanhar += 25;
           }
         }
 
-        // Regra 3: Limite Diário de 500 XP
+        // Limite diário de 500 XP
         const hoje = new Date().toISOString().slice(0, 10);
         const xpGanhoHoje = historico
           .filter(r => r.concluidoEm.startsWith(hoje))
           .reduce((sum, r) => sum + (r.xpEarned || 0), 0);
-        
-        const xpDisponivelNoDia = Math.max(0, LIMITE_XP_DIARIO - xpGanhoHoje);
-        xpParaGanhar = Math.min(xpParaGanhar, xpDisponivelNoDia);
+
+        xpParaGanhar = Math.min(xpParaGanhar, Math.max(0, LIMITE_XP_DIARIO - xpGanhoHoje));
         // ------------------------------
 
         let corridaClone = sessao.corrida;
@@ -441,7 +444,7 @@ export const useTreinoStore = create<TreinoState>()(
           await salvarTreinoAtivo(uid, null);
           set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
         } catch (err) {
-          console.error('[treinoStore] Erro ao salvar registro no Firestore:', err);
+          console.error('[treinoStore] Erro ao salvar registro no Supabase:', err);
           throw err;
         }
       },
@@ -452,15 +455,21 @@ export const useTreinoStore = create<TreinoState>()(
         if (uid) deletarRegistro(uid, id).catch(console.error);
       },
 
-      adicionarRegistro: (registro) => {
+      adicionarRegistro: async (registro) => {
         const { uid, historico } = get();
         if (!uid) return;
 
         // Evitar duplicatas
         if (historico.some((r) => r.id === registro.id)) return;
 
-        set((state) => ({ historico: [registro, ...state.historico].sort((a, b) => new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()) }));
-        salvarRegistro(uid, registro).catch(console.error);
+        // Salvar no Supabase PRIMEIRO, depois atualizar estado local
+        try {
+          await salvarRegistro(uid, registro);
+          set((state) => ({ historico: [registro, ...state.historico].sort((a, b) => new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()) }));
+        } catch (err) {
+          console.error('[treinoStore] Erro ao salvar registro:', err);
+          throw err;
+        }
       },
     }),
     {

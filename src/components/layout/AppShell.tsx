@@ -12,24 +12,23 @@ import { useDietaStore } from '../../store/dietaStore';
 const TAB_ROUTES = ['/treino', '/dieta', '/perfil'];
 
 export default function AppShell() {
-  const { user, refreshUser } = useAuthContext();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     if (user) {
-      console.log('[AppShell] Carregando dados para uid:', user.uid);
-      refreshUser().catch(console.error); // Forçar atualização de metadados (ex: foto)
-      useTreinoStore.getState().carregar(user.uid);
-      useTreinoStore.getState().carregarHistorico(user.uid);
-      useExercicioCustomStore.getState().carregar(user.uid);
-      useDietaStore.getState().carregar(user.uid);
+      const currentUid = useTreinoStore.getState().uid;
+      if (currentUid === user.id) return; // Ja carregou para este usuario
+      useTreinoStore.getState().carregar(user.id);
+      useExercicioCustomStore.getState().carregar(user.id);
+      useDietaStore.getState().carregar(user.id);
     } else {
       useTreinoStore.getState().limpar();
       useExercicioCustomStore.getState().limpar();
       useDietaStore.getState().limpar();
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   // Handle Android back button
   useEffect(() => {
@@ -51,7 +50,7 @@ export default function AppShell() {
     };
   }, [location.pathname, navigate]);
 
-  const { treinoAtivo } = useTreinoStore();
+  const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

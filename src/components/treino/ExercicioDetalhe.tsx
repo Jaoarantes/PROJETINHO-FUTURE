@@ -26,7 +26,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
 
   const handleDelete = async () => {
     if (!user) return;
-    await removerExercicio(user.uid, exercicio.id);
+    await removerExercicio(user.id, exercicio.id);
     onClose();
   };
 

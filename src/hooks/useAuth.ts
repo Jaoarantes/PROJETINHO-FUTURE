@@ -1,114 +1,170 @@
-import { useState, useEffect } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut as firebaseSignOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  type User,
-} from 'firebase/auth';
-import { auth } from '../firebase';
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../supabase';
 import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userService';
-
-const googleProvider = new GoogleAuthProvider();
+import type { User } from '@supabase/supabase-js';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Load account-specific cache as soon as UID is known
-  useEffect(() => {
-    if (user?.uid) {
-      const cached = localStorage.getItem(`valere_profile_${user.uid}`);
-      if (cached) {
-        setProfile(JSON.parse(cached));
-      }
-    }
-  }, [user?.uid]);
+  const profileLoaded = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        setLoading(true);
-        try {
-          // Carregar perfil do Firestore
-          let p = await getUserProfile(user.uid);
+    let mounted = true;
 
-          // Se não existir, criar um inicial baseado no Auth
-          if (!p) {
-            await saveUserProfile(user.uid, {
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-              email: user.email
-            });
-            p = await getUserProfile(user.uid);
-          }
-
-          if (p) {
-            setProfile(p);
-            // Persistent per-account local memory
-            localStorage.setItem(`valere_profile_${user.uid}`, JSON.stringify(p));
-          }
-        } catch (err) {
-          console.error('[useAuth] Erro ao carregar perfil:', err);
-        }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        loadProfile(u);
       } else {
-        setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsubscribe;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+
+      if (u && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        loadProfile(u);
+      } else if (!u) {
+        setProfile(null);
+        profileLoaded.current = null;
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
+  async function loadProfile(u: User) {
+    if (profileLoaded.current === u.id) return;
+    profileLoaded.current = u.id;
+
+    const cached = localStorage.getItem(`valere_profile_${u.id}`);
+    if (cached) {
+      setProfile(JSON.parse(cached));
+      setLoading(false);
+    }
+
+    try {
+      let p = await getUserProfile(u.id);
+
+      if (!p) {
+        try {
+          await saveUserProfile(u.id, {
+            displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
+            photoURL: u.user_metadata?.avatar_url || null,
+            email: u.email || null,
+          });
+          p = await getUserProfile(u.id);
+        } catch { /* trigger pode ter criado */ }
+      }
+
+      if (!p) {
+        p = {
+          uid: u.id,
+          displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
+          photoURL: u.user_metadata?.avatar_url || null,
+          email: u.email || null,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      setProfile(p);
+      localStorage.setItem(`valere_profile_${u.id}`, JSON.stringify(p));
+    } catch (err) {
+      console.error('[useAuth] Erro ao carregar perfil:', err);
+      if (!cached) {
+        const fallback: UserProfile = {
+          uid: u.id,
+          displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
+          photoURL: u.user_metadata?.avatar_url || null,
+          email: u.email || null,
+          updatedAt: new Date().toISOString(),
+        };
+        setProfile(fallback);
+      }
+    }
+    setLoading(false);
+  }
+
   const signIn = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    // Instant cache hydration on login
-    const cached = localStorage.getItem(`valere_profile_${cred.user.uid}`);
-    if (cached) setProfile(JSON.parse(cached));
-    return cred;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
   };
 
   const signInWithGoogle = async () => {
-    return signInWithPopup(auth, googleProvider);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+    return data;
   };
 
   const signUp = async (email: string, password: string, nome: string) => {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(credential.user, { displayName: nome });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: nome } },
+    });
+    if (error) throw error;
 
-    // Salvar no Firestore imediatamente
-    const initialProfile = {
-      displayName: nome,
-      email: email,
-      photoURL: null
-    };
-    await saveUserProfile(credential.user.uid, initialProfile);
+    if (data.user && data.session) {
+      try {
+        await saveUserProfile(data.user.id, { displayName: nome, email, photoURL: null });
+      } catch { /* trigger */ }
+      return data;
+    }
 
-    return credential;
+    if (data.user && !data.session) {
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (!signInError && signInData.session) {
+        try {
+          await saveUserProfile(signInData.user.id, { displayName: nome, email, photoURL: null });
+        } catch { /* trigger */ }
+        return signInData;
+      }
+      throw new Error('email_not_confirmed');
+    }
+
+    return data;
   };
 
   const resetPassword = async (email: string) => {
-    return sendPasswordResetEmail(auth, email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/redefinir-senha`,
+    });
+    if (error) throw error;
   };
 
   const signOut = async () => {
-    return firebaseSignOut(auth);
+    // Limpar dados locais do perfil
+    if (user?.id) {
+      localStorage.removeItem(`valere_profile_${user.id}`);
+    }
+    profileLoaded.current = null;
+    setProfile(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   const refreshUser = async () => {
-    if (auth.currentUser) {
-      await auth.currentUser.reload();
-      setUser({ ...auth.currentUser });
-      const p = await getUserProfile(auth.currentUser.uid);
-      if (p) {
-        setProfile(p);
-        localStorage.setItem(`valere_profile_${auth.currentUser.uid}`, JSON.stringify(p));
-      }
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      setUser(currentUser);
+      profileLoaded.current = null;
+      await loadProfile(currentUser);
     }
   };
 

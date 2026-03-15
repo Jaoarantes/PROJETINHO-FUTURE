@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import type { User } from 'firebase/auth';
+import type { User } from '@supabase/supabase-js';
 import type { UserProfile } from '../services/userService';
 
 interface AuthContextType {
