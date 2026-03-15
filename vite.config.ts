@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon-512.svg'],
       manifest: {
-        name: 'Future Fit',
-        short_name: 'Future Fit',
+        name: 'Valere',
+        short_name: 'Valere',
         description: 'Seu app de treino e nutrição',
         theme_color: '#0A0A0A',
         background_color: '#0A0A0A',
@@ -21,15 +21,15 @@ export default defineConfig({
         scope: '/',
         icons: [
           {
-            src: '/icon-512.svg',
+            src: '/img/logo.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/icon-512.svg',
+            src: '/img/logo.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'maskable',
           },
         ],
@@ -59,4 +59,15 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
 })

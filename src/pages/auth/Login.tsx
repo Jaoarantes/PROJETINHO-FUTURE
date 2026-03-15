@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box, TextField, Button, Typography, Alert,
@@ -18,7 +18,14 @@ type Form = z.infer<typeof schema>;
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, signInWithGoogle } = useAuthContext();
+  const { user, loading: authLoading, signIn, signInWithGoogle } = useAuthContext();
+
+  // Se ja esta autenticado, redireciona
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/treino', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -36,8 +43,9 @@ export default function Login() {
       await signIn(data.email, data.password);
       navigate('/treino', { replace: true });
     } catch (err: unknown) {
-      const e = err as { code?: string };
-      if (e.code === 'auth/too-many-requests')
+      const e = err as { message?: string };
+      const msg = e.message || '';
+      if (msg.includes('rate limit') || msg.includes('too many'))
         setError('Muitas tentativas. Tente mais tarde.');
       else
         setError('Email ou senha incorretos.');
@@ -51,8 +59,8 @@ export default function Login() {
       await signInWithGoogle();
       navigate('/treino', { replace: true });
     } catch (err: unknown) {
-      const e = err as { code?: string };
-      if (e.code !== 'auth/popup-closed-by-user')
+      const e = err as { message?: string };
+      if (e.message)
         setError('Erro ao entrar com Google.');
     } finally { setGoogleLoading(false); }
   };

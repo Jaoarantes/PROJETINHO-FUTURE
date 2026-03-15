@@ -297,34 +297,34 @@ const tooltipProps = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { historico, carregarHistorico } = useTreinoStore();
+  const { historico, carregarHistorico, carregando } = useTreinoStore();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
   useEffect(() => {
     injectKeyframes();
-    if (user?.uid && historico.length === 0) {
-      carregarHistorico(user.uid).catch(console.error);
+    if (user?.id && historico.length === 0) {
+      carregarHistorico(user.id).catch(console.error);
     }
-  }, [user?.uid, carregarHistorico, historico.length]);
+  }, [user?.id, carregarHistorico, historico.length]);
 
   const [periodo, setPeriodo] = useState<PeriodoKey>(() => {
-    if (user?.uid) {
-      const saved = localStorage.getItem(getStorageKey(user.uid));
+    if (user?.id) {
+      const saved = localStorage.getItem(getStorageKey(user.id));
       if (saved && PERIODOS.some((p) => p.key === saved)) return saved as PeriodoKey;
     }
     return '3m';
   });
 
   const [dataInicio, setDataInicio] = useState(() => {
-    if (user?.uid) {
-      return localStorage.getItem(`dashboard_inicio_${user.uid}`) || toLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+    if (user?.id) {
+      return localStorage.getItem(`dashboard_inicio_${user.id}`) || toLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
     }
     return toLocalDateStr(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
   });
   const [dataFim, setDataFim] = useState(() => {
-    if (user?.uid) {
-      return localStorage.getItem(`dashboard_fim_${user.uid}`) || toLocalDateStr(new Date());
+    if (user?.id) {
+      return localStorage.getItem(`dashboard_fim_${user.id}`) || toLocalDateStr(new Date());
     }
     return toLocalDateStr(new Date());
   });
@@ -332,12 +332,12 @@ export default function Dashboard() {
   const [mostrarTodosExercicios, setMostrarTodosExercicios] = useState(false);
 
   useEffect(() => {
-    if (user?.uid) {
-      localStorage.setItem(getStorageKey(user.uid), periodo);
-      localStorage.setItem(`dashboard_inicio_${user.uid}`, dataInicio);
-      localStorage.setItem(`dashboard_fim_${user.uid}`, dataFim);
+    if (user?.id) {
+      localStorage.setItem(getStorageKey(user.id), periodo);
+      localStorage.setItem(`dashboard_inicio_${user.id}`, dataInicio);
+      localStorage.setItem(`dashboard_fim_${user.id}`, dataFim);
     }
-  }, [periodo, dataInicio, dataFim, user?.uid]);
+  }, [periodo, dataInicio, dataFim, user?.id]);
 
   const historicoFiltrado = useMemo(() => {
     const config = PERIODOS.find((p) => p.key === periodo)!;
@@ -386,10 +386,10 @@ export default function Dashboard() {
         r.exercicios.forEach((ex) => {
           const nome = ex.exercicio.nome;
           if (!exercicioMap.has(nome)) exercicioMap.set(nome, { nome, dados: [] });
-          const pesoMax = Math.max(...ex.series.map((s) => s.peso ?? 0), 0);
-          const repsMax = Math.max(...ex.series.map((s) => s.repeticoes), 0);
+          const pesoMax = Math.max(...ex.series.map((s) => (s as any).peso ?? 0), 0);
+          const repsMax = Math.max(...ex.series.map((s) => (s as any).repeticoes ?? 0), 0);
           const vol = calcularVolumeExercicio(ex.series);
-          const umRMs = ex.series.map(s => calcular1RM(s.peso ?? 0, s.repeticoes));
+          const umRMs = ex.series.map(s => calcular1RM((s as any).peso ?? 0, (s as any).repeticoes ?? 0));
           const melhor1RM = Math.max(...umRMs, 0);
 
           exercicioMap.get(nome)!.dados.push({
@@ -415,7 +415,7 @@ export default function Dashboard() {
         let exercicioNome = '';
         r.exercicios.forEach(ex => {
           ex.series.forEach(s => {
-            const peso = s.peso ?? 0;
+            const peso = (s as any).peso ?? 0;
             if (peso > cargaMax) {
               cargaMax = peso;
               exercicioNome = ex.exercicio.nome;
@@ -602,7 +602,18 @@ export default function Dashboard() {
   // ── Greeting based on time of day ──
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-  const firstName = user?.displayName?.split(' ')[0] || '';
+  const firstName = user?.user_metadata?.display_name?.split(' ')[0] || '';
+
+  if (carregando && historico.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 2 }}>
+        <Zap size={48} color={CORES.geral} style={{ animation: 'dash-glowPulse 1.5s infinite' }} />
+        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: '"Oswald", sans-serif', letterSpacing: '0.05em' }}>
+          CARREGANDO ESTATÍSTICAS...
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{

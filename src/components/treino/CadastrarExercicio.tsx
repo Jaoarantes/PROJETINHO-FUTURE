@@ -62,7 +62,7 @@ export default function CadastrarExercicio({ open, onClose }: Props) {
     setSalvando(true);
     setErroSalvar('');
     try {
-      await adicionarExercicio(user.uid, {
+      await adicionarExercicio(user.id, {
         nome: nome.trim(),
         grupoMuscular: grupo,
         equipamento: equipamento || undefined,
@@ -115,7 +115,7 @@ export default function CadastrarExercicio({ open, onClose }: Props) {
         {erroSalvar && (
           <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
             {erroSalvar.includes('permission') || erroSalvar.includes('PERMISSION')
-              ? 'Sem permissão no banco de dados. Configure as regras do Firestore.'
+              ? 'Sem permissão no banco de dados. Verifique as políticas RLS no Supabase.'
               : erroSalvar}
           </Alert>
         )}

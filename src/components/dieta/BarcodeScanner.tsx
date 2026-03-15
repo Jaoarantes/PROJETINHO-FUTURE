@@ -53,7 +53,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
     } catch {
       if (!activeRef.current) return;
       setStatus('error');
-      setErro('Permissão de câmera negada. Vá em Configurações > Apps > future-fit > Permissões e ative a câmera.');
+      setErro('Permissão de câmera negada. Vá em Configurações > Apps > Valere > Permissões e ative a câmera.');
       return;
     }
 

@@ -20,7 +20,7 @@ import {
 import { X, Search, Plus, Minus, ScanBarcode, Trash2 } from 'lucide-react';
 import { alimentosPadrao } from '../../constants/alimentos-padrao';
 import { buscarAlimentos } from '../../services/openFoodFacts';
-import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaFirestore';
+import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaService';
 import { useDietaStore } from '../../store/dietaStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import BarcodeScanner from './BarcodeScanner';
@@ -65,10 +65,10 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   const [alimentosCustom, setAlimentosCustom] = useState<Alimento[]>([]);
 
   useEffect(() => {
-    if (open && user?.uid) {
-      carregarAlimentosCustom(user.uid).then(setAlimentosCustom).catch(console.error);
+    if (open && user?.id) {
+      carregarAlimentosCustom(user.id).then(setAlimentosCustom).catch(console.error);
     }
-  }, [open, user?.uid]);
+  }, [open, user?.id]);
 
   const [aba, setAba] = useState(0); // 0 = local, 1 = online
   const [busca, setBusca] = useState('');
@@ -174,8 +174,8 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
       gorduras: parseFloat(formGord) || 0,
       isCustom: true,
     };
-    if (user?.uid) {
-      await salvarAlimentoCustom(user.uid, alimento).catch(console.error);
+    if (user?.id) {
+      await salvarAlimentoCustom(user.id, alimento).catch(console.error);
       setAlimentosCustom((prev) => [...prev.filter((a) => a.id !== alimento.id), alimento].sort((a, b) => a.nome.localeCompare(b.nome)));
     }
     setFormOpen(false);
@@ -184,8 +184,8 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   };
 
   const handleDeletarCustom = async (id: string) => {
-    if (!user?.uid) return;
-    await deletarAlimentoCustom(user.uid, id).catch(console.error);
+    if (!user?.id) return;
+    await deletarAlimentoCustom(user.id, id).catch(console.error);
     setAlimentosCustom((prev) => prev.filter((a) => a.id !== id));
     if (selecionado?.id === id) setSelecionado(null);
   };

@@ -26,7 +26,7 @@ type RegistroForm = z.infer<typeof registroSchema>;
 
 export default function Registro() {
   const navigate = useNavigate();
-  const { signUp, signInWithGoogle } = useAuthContext();
+  const { signUp, signIn, signInWithGoogle } = useAuthContext();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -45,16 +45,28 @@ export default function Registro() {
       await signUp(data.email, data.password, data.nome);
       navigate('/treino', { replace: true });
     } catch (err: unknown) {
-      const firebaseError = err as { code?: string };
-      switch (firebaseError.code) {
-        case 'auth/email-already-in-use':
-          setError('Este email já está em uso');
-          break;
-        case 'auth/weak-password':
-          setError('Senha muito fraca. Use pelo menos 6 caracteres.');
-          break;
-        default:
-          setError('Erro ao criar conta. Tente novamente.');
+      const supabaseError = err as { message?: string };
+      const msg = (supabaseError.message || '').toLowerCase();
+
+      if (msg.includes('email_not_confirmed')) {
+        // Conta criada mas email nao confirmado - tenta logar direto
+        try {
+          await signIn(data.email, data.password);
+          navigate('/treino', { replace: true });
+          return;
+        } catch {
+          setError('Conta criada! Faça login com seu email e senha.');
+          setTimeout(() => navigate('/login', { replace: true }), 2000);
+          return;
+        }
+      } else if (msg.includes('already registered') || msg.includes('already been registered')) {
+        setError('Este email já está em uso');
+      } else if (msg.includes('password')) {
+        setError('Senha muito fraca. Use pelo menos 6 caracteres.');
+      } else if (msg.includes('rate limit')) {
+        setError('Muitas tentativas. Espere um momento e tente novamente.');
+      } else {
+        setError(supabaseError.message || 'Erro ao criar conta. Tente novamente.');
       }
     } finally { setLoading(false); }
   };
@@ -66,8 +78,8 @@ export default function Registro() {
       await signInWithGoogle();
       navigate('/treino', { replace: true });
     } catch (err: unknown) {
-      const firebaseError = err as { code?: string };
-      if (firebaseError.code !== 'auth/popup-closed-by-user') {
+      const supabaseError = err as { message?: string };
+      if (supabaseError.message) {
         setError('Erro ao entrar com Google. Tente novamente.');
       }
     } finally { setGoogleLoading(false); }
