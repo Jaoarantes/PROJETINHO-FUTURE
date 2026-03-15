@@ -802,7 +802,6 @@ interface Conquista {
   desc: string;
   desbloqueada: boolean;
   cor: string;
-  frase: string; // Mensagem motivacional
 }
 
 // Filtra apenas treinos válidos: 20min+ e 3+ exercícios para musculação
@@ -888,117 +887,22 @@ function GamificacaoSection({ historico }: {
   }, [historico]);
 
   const conquistas: Conquista[] = useMemo(() => [
-    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700', frase: 'A jornada de mil quilômetros começa com o primeiro passo. Você começou!' },
-    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C', frase: 'O hábito está se formando. Você já é mais forte do que ontem!' },
-    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6', frase: 'Consistência é o segredo dos campeões. Você é um deles!' },
-    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444', frase: 'Dedicação é fazer o que precisa ser feito, mesmo quando não tem vontade. Respeito!' },
-    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B', frase: 'Ninguém te para. 50 treinos é prova de que disciplina vence motivação!' },
-    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981', frase: 'Você é uma lenda! 100 treinos é elite. Pouquíssimos chegam aqui.' },
-    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316', frase: '3 semanas sem parar! Seu corpo agradece, sua mente agradece!' },
-    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9', frase: 'Uma TONELADA! Isso é mais pesado que um carro. Você é uma máquina!' },
-    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444', frase: '10 toneladas de puro ferro. Você não é humano, é um MONSTRO!' },
-    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6', frase: 'Versatilidade é poder. Dominar 10 exercícios diferentes mostra evolução real!' },
+    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700' },
+    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C' },
+    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6' },
+    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444' },
+    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B' },
+    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981' },
+    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316' },
+    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9' },
+    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444' },
+    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6' },
   ], [stats]);
 
   const desbloqueadas = conquistas.filter((c) => c.desbloqueada).length;
 
-  // Sistema de notificação de conquistas novas
-  const [conquistaModal, setConquistaModal] = useState<Conquista | null>(null);
-
-  useEffect(() => {
-    const key = 'valere_conquistas_vistas';
-    const vistas: string[] = JSON.parse(localStorage.getItem(key) || '[]');
-    const novas = conquistas.filter(c => c.desbloqueada && !vistas.includes(c.id));
-    if (novas.length > 0) {
-      // Mostra a conquista mais recente
-      setConquistaModal(novas[novas.length - 1]);
-      // Salva todas como vistas
-      const todasVistas = [...vistas, ...novas.map(c => c.id)];
-      localStorage.setItem(key, JSON.stringify(todasVistas));
-    }
-  }, [conquistas]);
-
   return (
     <>
-      {/* Modal de Conquista Desbloqueada */}
-      <Dialog
-        open={!!conquistaModal}
-        onClose={() => setConquistaModal(null)}
-        PaperProps={{
-          sx: {
-            borderRadius: '24px',
-            overflow: 'visible',
-            maxWidth: 340,
-            mx: 2,
-            bgcolor: 'background.paper',
-            border: conquistaModal ? `2px solid ${conquistaModal.cor}40` : undefined,
-          }
-        }}
-      >
-        {conquistaModal && (
-          <Box sx={{ textAlign: 'center', px: 3, pt: 4, pb: 3, position: 'relative' }}>
-            {/* Ícone grande com glow */}
-            <Box sx={{
-              width: 80, height: 80, borderRadius: '20px', mx: 'auto', mb: 2,
-              bgcolor: conquistaModal.cor,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 8px 32px ${conquistaModal.cor}60`,
-              animation: 'pulse 2s ease-in-out infinite',
-              '@keyframes pulse': {
-                '0%, 100%': { boxShadow: `0 8px 32px ${conquistaModal.cor}60` },
-                '50%': { boxShadow: `0 12px 48px ${conquistaModal.cor}90` },
-              },
-            }}>
-              {React.cloneElement(conquistaModal.icon as React.ReactElement<any>, { size: 36, color: '#fff' })}
-            </Box>
-
-            <Typography variant="caption" sx={{
-              color: conquistaModal.cor, fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.15em', fontSize: '0.7rem',
-              display: 'block', mb: 0.5,
-            }}>
-              Conquista Desbloqueada!
-            </Typography>
-
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: '1.3rem' }}>
-              {conquistaModal.titulo}
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, fontSize: '0.85rem' }}>
-              {conquistaModal.desc}
-            </Typography>
-
-            {/* Frase motivacional */}
-            <Box sx={{
-              bgcolor: `${conquistaModal.cor}10`,
-              border: `1px solid ${conquistaModal.cor}30`,
-              borderRadius: 3, px: 2.5, py: 2, mb: 2.5,
-            }}>
-              <Typography variant="body2" sx={{
-                fontStyle: 'italic', fontWeight: 500, lineHeight: 1.5,
-                fontSize: '0.9rem', color: 'text.primary',
-              }}>
-                "{conquistaModal.frase}"
-              </Typography>
-            </Box>
-
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={() => setConquistaModal(null)}
-              sx={{
-                py: 1.5, borderRadius: 3, fontWeight: 700, fontSize: '0.95rem',
-                bgcolor: conquistaModal.cor, color: '#fff',
-                '&:hover': { bgcolor: conquistaModal.cor },
-                '&:active': { transform: 'scale(0.97)' },
-              }}
-            >
-              Valeu!
-            </Button>
-          </Box>
-        )}
-      </Dialog>
-
       <Typography
         variant="caption"
         color="text.secondary"
@@ -1099,7 +1003,6 @@ function GamificacaoSection({ historico }: {
             {conquistas.map((c) => (
               <Box
                 key={c.id}
-                onClick={() => c.desbloqueada && setConquistaModal(c)}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',

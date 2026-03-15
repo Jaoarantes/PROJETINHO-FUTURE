@@ -1,13 +1,15 @@
+import { useState, useEffect } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, Typography, Chip, Box, Button, Divider,
-  useMediaQuery,
+  useMediaQuery, Skeleton,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ArrowLeft, Trash2, Dumbbell } from 'lucide-react';
 import type { Exercicio } from '../../types/treino';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { getExerciseImageUrls } from '../../constants/exercise-images';
 interface Props {
   exercicio: Exercicio | null;
   open: boolean;
@@ -21,8 +23,21 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const removerExercicio = useExercicioCustomStore((s) => s.removerExercicio);
   const { user } = useAuthContext();
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [activeImg, setActiveImg] = useState(0);
+
+  useEffect(() => {
+    setImgLoaded(false);
+    setImgError(false);
+    setActiveImg(0);
+  }, [exercicio?.id]);
 
   if (!exercicio) return null;
+
+  const imageUrls = exercicio.gifUrl
+    ? [exercicio.gifUrl]
+    : (typeof exercicio.id === 'number' ? getExerciseImageUrls(exercicio.id) : undefined);
 
   const handleDelete = async () => {
     if (!user) return;
@@ -65,6 +80,42 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
       </DialogTitle>
 
       <DialogContent sx={{ px: 3, pb: modoSelecao ? 2 : 4 }}>
+        {/* Imagem do exercício */}
+        {imageUrls && !imgError && (
+          <Box sx={{ mb: 3, borderRadius: 3, overflow: 'hidden', bgcolor: 'action.hover', position: 'relative' }}>
+            {!imgLoaded && <Skeleton variant="rectangular" height={220} />}
+            <Box
+              component="img"
+              src={imageUrls[activeImg] || imageUrls[0]}
+              alt={exercicio.nome}
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)}
+              sx={{
+                width: '100%',
+                height: 220,
+                objectFit: 'contain',
+                display: imgLoaded ? 'block' : 'none',
+                bgcolor: '#1a1a1a',
+              }}
+            />
+            {imageUrls.length > 1 && imgLoaded && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, py: 1 }}>
+                {imageUrls.map((_, i) => (
+                  <Box
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    sx={{
+                      width: 8, height: 8, borderRadius: '50%', cursor: 'pointer',
+                      bgcolor: activeImg === i ? 'primary.main' : 'action.disabled',
+                      transition: 'all 0.2s',
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
+
         {/* Info chips */}
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
           <Chip label={exercicio.grupoMuscular} size="small" color="primary" />
