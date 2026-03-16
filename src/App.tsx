@@ -20,6 +20,8 @@ const StravaCallback = lazy(() => import('./pages/treino/StravaCallback'));
 const FeedTab = lazy(() => import('./pages/feed/FeedTab'));
 const PostDetalhe = lazy(() => import('./pages/feed/PostDetalhe'));
 const CriarPost = lazy(() => import('./pages/feed/CriarPost'));
+const MeusPosts = lazy(() => import('./pages/feed/MeusPosts'));
+const Notificacoes = lazy(() => import('./pages/feed/Notificacoes'));
 
 function Loading() {
   return (
@@ -57,6 +59,8 @@ export default function App() {
             <Route path="/strava/callback" element={<StravaCallback />} />
             <Route path="/feed" element={<FeedTab />} />
             <Route path="/feed/novo" element={<CriarPost />} />
+            <Route path="/feed/meus-posts" element={<MeusPosts />} />
+            <Route path="/feed/notificacoes" element={<Notificacoes />} />
             <Route path="/feed/:postId" element={<PostDetalhe />} />
           </Route>
 
