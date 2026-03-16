@@ -10,7 +10,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useFeedStore } from '../../store/feedStore';
 import { calcularVolumeSessao } from '../../types/treino';
-import type { RegistroTreino, TipoSessao } from '../../types/treino';
+import type { RegistroTreino } from '../../types/treino';
 import type { WorkoutSummary } from '../../types/feed';
 import { uploadFeedPhoto, compressImage } from '../../services/feedService';
 import PhotoUploader from '../../components/feed/PhotoUploader';
