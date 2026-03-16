@@ -17,6 +17,9 @@ const Historico = lazy(() => import('./pages/Historico'));
 const Perfil = lazy(() => import('./pages/Perfil'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StravaCallback = lazy(() => import('./pages/treino/StravaCallback'));
+const FeedTab = lazy(() => import('./pages/feed/FeedTab'));
+const PostDetalhe = lazy(() => import('./pages/feed/PostDetalhe'));
+const CriarPost = lazy(() => import('./pages/feed/CriarPost'));
 
 function Loading() {
   return (
@@ -52,6 +55,9 @@ export default function App() {
             <Route path="/perfil" element={<Perfil />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/strava/callback" element={<StravaCallback />} />
+            <Route path="/feed" element={<FeedTab />} />
+            <Route path="/feed/novo" element={<CriarPost />} />
+            <Route path="/feed/:postId" element={<PostDetalhe />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/treino" replace />} />

@@ -9,7 +9,7 @@ import { useTreinoStore } from '../../store/treinoStore';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useDietaStore } from '../../store/dietaStore';
 
-const TAB_ROUTES = ['/treino', '/dieta', '/perfil'];
+const TAB_ROUTES = ['/treino', '/dieta', '/feed', '/perfil'];
 
 export default function AppShell() {
   const { user } = useAuthContext();
