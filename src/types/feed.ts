@@ -1,9 +1,16 @@
+export interface ExercicioResumo {
+  nome: string;
+  sets: number;
+  exercicioId?: number;
+}
+
 export interface WorkoutSummary {
   exerciciosCount?: number;
   volumeTotal?: number;
   distanciaKm?: number;
   duracaoMin?: number;
   gruposMusculares?: string[];
+  exercicios?: ExercicioResumo[];
 }
 
 export interface FeedPost {
@@ -34,4 +41,18 @@ export interface FeedComment {
   createdAt: string;
   authorName: string | null;
   authorPhoto: string | null;
+  parentId?: string | null;
+}
+
+export interface FeedNotification {
+  id: string;
+  userId: string; // dono da notificação (quem recebe)
+  actorId: string;
+  actorName: string | null;
+  actorPhoto: string | null;
+  tipo: 'like' | 'comment';
+  postId: string;
+  texto: string | null; // texto do comentário (se tipo=comment)
+  lida: boolean;
+  createdAt: string;
 }

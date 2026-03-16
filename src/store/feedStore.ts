@@ -22,6 +22,7 @@ interface FeedState {
   }) => Promise<void>;
   deletarPost: (uid: string, postId: string) => Promise<void>;
   toggleLike: (postId: string, uid: string) => Promise<void>;
+  editarPost: (uid: string, postId: string, texto: string) => Promise<void>;
   atualizarContadorComentarios: (postId: string, delta: number) => void;
   limpar: () => void;
 }
@@ -95,6 +96,18 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : p
         ),
       }));
+    }
+  },
+
+  editarPost: async (uid, postId, texto) => {
+    set((state) => ({
+      posts: state.posts.map((p) => p.id === postId ? { ...p, texto } : p),
+    }));
+    try {
+      await feedService.editarPost(uid, postId, texto);
+    } catch (err) {
+      console.error('[feedStore] Erro ao editar post:', err);
+      await get().carregarFeed(uid, true);
     }
   },
 
