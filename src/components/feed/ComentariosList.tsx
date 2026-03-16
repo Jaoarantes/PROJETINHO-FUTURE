@@ -89,7 +89,6 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
   const handleConfirmDelete = async () => {
     if (!deleteConfirmId) return;
     const id = deleteConfirmId;
-    const comment = comments.find((c) => c.id === id);
     setDeleteConfirmId(null);
 
     // Contar quantos serão deletados (comentário + respostas)

@@ -111,28 +111,35 @@ export async function deletarPost(uid: string, postId: string): Promise<void> {
 }
 
 export async function toggleLike(postId: string, uid: string): Promise<boolean> {
-  const { data: existing } = await supabase
+  const { data: existing, error: selectErr } = await supabase
     .from('feed_likes')
     .select('id')
     .eq('post_id', postId)
     .eq('user_id', uid)
     .maybeSingle();
 
+  if (selectErr) console.error('[toggleLike] select error:', selectErr);
+
   if (existing) {
-    await supabase.from('feed_likes').delete().eq('post_id', postId).eq('user_id', uid);
+    const { error: delErr } = await supabase.from('feed_likes').delete().eq('post_id', postId).eq('user_id', uid);
+    if (delErr) console.error('[toggleLike] delete error:', delErr);
     const { count } = await supabase
       .from('feed_likes')
       .select('*', { count: 'exact', head: true })
       .eq('post_id', postId);
-    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
+    const { error: updErr } = await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
+    if (updErr) console.error('[toggleLike] update count error:', updErr);
     return false;
   } else {
-    await supabase.from('feed_likes').insert({ post_id: postId, user_id: uid });
+    const { error: insErr } = await supabase.from('feed_likes').insert({ post_id: postId, user_id: uid });
+    if (insErr) console.error('[toggleLike] insert error:', insErr);
+    if (insErr) throw insErr;
     const { count } = await supabase
       .from('feed_likes')
       .select('*', { count: 'exact', head: true })
       .eq('post_id', postId);
-    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
+    const { error: updErr } = await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
+    if (updErr) console.error('[toggleLike] update count error:', updErr);
     return true;
   }
 }
@@ -178,7 +185,8 @@ export async function adicionarComentario(uid: string, postId: string, texto: st
     .insert({ post_id: postId, user_id: uid, texto, parent_id: parentId || null })
     .select('id')
     .single();
-  if (error) throw error;
+  if (error) { console.error('[adicionarComentario] insert error:', error); throw error; }
+  const commentId = data.id;
 
   // Atualizar contador de comentários
   const { count } = await supabase
@@ -187,7 +195,7 @@ export async function adicionarComentario(uid: string, postId: string, texto: st
     .eq('post_id', postId);
   await supabase.from('feed_posts').update({ comments_count: count || 0 }).eq('id', postId);
 
-  return data.id;
+  return commentId;
 }
 
 export async function deletarComentario(uid: string, commentId: string, postId: string): Promise<void> {
