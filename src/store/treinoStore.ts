@@ -76,7 +76,7 @@ interface TreinoState {
   atualizarEtapaNatacao: (sessaoId: string, etapaId: string, dados: Partial<EtapaNatacao>) => void;
 
   carregarHistorico: (uid: string) => Promise<void>;
-  concluirTreino: (sessaoId: string, dadosExtras?: { distanciaKm?: number; duracaoTotalSegundos?: number }) => Promise<void>;
+  concluirTreino: (sessaoId: string, dadosExtras?: { distanciaKm?: number; duracaoTotalSegundos?: number }) => Promise<RegistroTreino | undefined>;
   atualizarGPSAtivo: (distanciaKm: number, coordenadas: { latitude: number; longitude: number; timestamp: number }[]) => void;
   removerRegistro: (id: string) => void;
   adicionarRegistro: (registro: RegistroTreino) => Promise<void>;
@@ -443,6 +443,7 @@ export const useTreinoStore = create<TreinoState>()(
           await salvarRegistro(uid, registro);
           await salvarTreinoAtivo(uid, null);
           set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
+          return registro;
         } catch (err) {
           console.error('[treinoStore] Erro ao salvar registro no Supabase:', err);
           throw err;

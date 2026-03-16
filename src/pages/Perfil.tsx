@@ -107,11 +107,15 @@ export default function Perfil() {
         token = refreshed.access_token;
       }
       const atividades = await getStravaActivities(token, 30);
-      // Filtrar tipos suportados e que não estão no histórico
-      const filtradas = atividades.filter((t) =>
-        ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'].includes(t.type) &&
-        !historico.some((r) => r.id === `strava_${t.id}`)
-      );
+      // Filtrar tipos suportados, que não estão no histórico, e apenas após data de cadastro
+      const dataCadastro = user.created_at ? new Date(user.created_at) : null;
+      const filtradas = atividades.filter((t) => {
+        if (!['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'].includes(t.type)) return false;
+        if (historico.some((r) => r.id === `strava_${t.id}`)) return false;
+        // Só importa atividades feitas após o cadastro no app
+        if (dataCadastro && new Date(t.start_date) < dataCadastro) return false;
+        return true;
+      });
 
       if (filtradas.length === 0) {
         setSnackMsg('Nenhuma atividade nova encontrada no Strava.');
