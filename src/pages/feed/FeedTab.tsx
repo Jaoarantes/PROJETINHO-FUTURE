@@ -1,24 +1,34 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, CircularProgress, Fab, Skeleton } from '@mui/material';
+import { Box, Typography, CircularProgress, Skeleton, Avatar, IconButton, Badge } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { Plus, Rss } from 'lucide-react';
+import { Search, Plus, Bell, Rss } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
+import { contarNotificacoesNaoLidas } from '../../services/feedService';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 
 export default function FeedTab() {
-  const { user } = useAuthContext();
+  const { user, profile } = useAuthContext();
   const navigate = useNavigate();
-  const { posts, loading, hasMore, carregarFeed, carregarMais, toggleLike, deletarPost } = useFeedStore();
+  const { posts, loading, hasMore, carregarFeed, carregarMais, toggleLike, deletarPost, editarPost } = useFeedStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const uid = user?.id;
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const userPhoto = user?.user_metadata?.avatar_url || profile?.photoURL || null;
 
   // Carrega feed inicial
   useEffect(() => {
     if (uid && posts.length === 0) {
       carregarFeed(uid, true);
+    }
+  }, [uid]);
+
+  // Contar notificações não lidas
+  useEffect(() => {
+    if (uid) {
+      contarNotificacoesNaoLidas(uid).then(setUnreadCount).catch(() => {});
     }
   }, [uid]);
 
@@ -37,46 +47,57 @@ export default function FeedTab() {
     [loading, hasMore, uid, carregarMais],
   );
 
-  // Pull to refresh
-  const handleRefresh = () => {
-    if (uid) carregarFeed(uid, true);
-  };
-
   if (!uid) return null;
 
   return (
     <Box sx={{ pt: 1, pb: 2 }}>
-      {/* Header */}
+      {/* Top Bar - Search | + | Avatar(meus posts) | Bell(notificações) */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         mb: 2.5,
       }}>
-        <Box>
-          <Typography variant="h4" fontWeight={800} sx={{
-            fontFamily: '"Oswald", sans-serif',
-            letterSpacing: '0.02em',
-            background: 'linear-gradient(135deg, #FF6B2C 0%, #FF8A50 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            FEED
-          </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-            Veja o que a comunidade está treinando
-          </Typography>
-        </Box>
-        <Box
-          onClick={handleRefresh}
+        <IconButton sx={{ color: 'text.secondary', width: 42, height: 42 }}>
+          <Search size={22} />
+        </IconButton>
+
+        <IconButton
+          onClick={() => navigate('/feed/novo')}
           sx={{
-            width: 40, height: 40, borderRadius: '12px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid', borderColor: 'divider',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            '&:active': { bgcolor: alpha('#FF6B2C', 0.1) },
+            width: 44, height: 44, color: '#fff',
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.08) : alpha('#000', 0.06),
+            borderRadius: '12px',
+            '&:active': { bgcolor: alpha('#FF6B2C', 0.15) },
           }}
         >
-          <Rss size={18} color="#94A3B8" />
+          <Plus size={24} />
+        </IconButton>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Avatar
+            src={userPhoto || undefined}
+            sx={{ width: 32, height: 32, cursor: 'pointer' }}
+            onClick={() => navigate('/feed/meus-posts')}
+          >
+            {profile?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+          </Avatar>
+          <IconButton
+            onClick={() => { navigate('/feed/notificacoes'); setUnreadCount(0); }}
+            sx={{ color: 'text.secondary' }}
+          >
+            <Badge
+              badgeContent={unreadCount}
+              color="error"
+              max={99}
+              sx={{
+                '& .MuiBadge-badge': {
+                  fontSize: '0.6rem', minWidth: 16, height: 16,
+                  bgcolor: '#FF6B2C', color: '#fff',
+                },
+              }}
+            >
+              <Bell size={22} />
+            </Badge>
+          </IconButton>
         </Box>
       </Box>
 
@@ -94,9 +115,7 @@ export default function FeedTab() {
             <Rss size={36} color="#FF6B2C" />
           </Box>
           <Box>
-            <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>
-              Feed vazio
-            </Typography>
+            <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5 }}>Feed vazio</Typography>
             <Typography variant="body2" color="text.secondary">
               Conclua um treino e compartilhe com a comunidade!
             </Typography>
@@ -110,14 +129,15 @@ export default function FeedTab() {
           {[1, 2, 3].map((i) => (
             <Box key={i} sx={{ bgcolor: 'background.paper', borderRadius: '20px', border: '1px solid', borderColor: 'divider', p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <Skeleton variant="circular" width={40} height={40} />
+                <Skeleton variant="circular" width={44} height={44} />
                 <Box sx={{ flex: 1 }}>
                   <Skeleton width="40%" height={20} />
                   <Skeleton width="20%" height={14} />
                 </Box>
+                <Skeleton width={50} height={24} />
               </Box>
-              <Skeleton variant="rounded" height={60} sx={{ borderRadius: '14px', mb: 1.5 }} />
-              <Skeleton width="60%" height={18} />
+              <Skeleton width="80%" height={20} sx={{ mb: 1 }} />
+              <Skeleton variant="rounded" height={50} sx={{ borderRadius: '14px', mb: 1.5 }} />
             </Box>
           ))}
         </Box>
@@ -132,33 +152,17 @@ export default function FeedTab() {
               currentUserId={uid}
               onLike={(id) => toggleLike(id, uid)}
               onDelete={(id) => deletarPost(uid, id)}
+              onEdit={(id, texto) => editarPost(uid, id, texto)}
             />
           </Box>
         ))}
       </Box>
 
-      {/* Loading more */}
       {loading && posts.length > 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
           <CircularProgress size={24} />
         </Box>
       )}
-
-      <div ref={sentinelRef} />
-
-      {/* FAB - Criar Post */}
-      <Fab
-        color="primary"
-        onClick={() => navigate('/feed/novo')}
-        sx={{
-          position: 'fixed',
-          bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
-          right: 20,
-          zIndex: 999,
-        }}
-      >
-        <Plus size={26} />
-      </Fab>
     </Box>
   );
 }

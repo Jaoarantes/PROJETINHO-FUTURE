@@ -11,13 +11,12 @@ export default function PostDetalhe() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
-  const { posts, toggleLike, deletarPost, atualizarContadorComentarios, carregarFeed } = useFeedStore();
+  const { posts, toggleLike, deletarPost, editarPost, atualizarContadorComentarios, carregarFeed } = useFeedStore();
   const [loading, setLoading] = useState(false);
 
   const uid = user?.id;
   const post = posts.find((p) => p.id === postId);
 
-  // Se o post não está no store, recarrega o feed
   useEffect(() => {
     if (!post && uid && !loading) {
       setLoading(true);
@@ -37,7 +36,6 @@ export default function PostDetalhe() {
 
   return (
     <Box sx={{ pt: 1, pb: 4 }}>
-      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <IconButton onClick={() => navigate('/feed')} sx={{ mr: 1, ml: -1 }}>
           <ArrowLeft size={22} />
@@ -47,18 +45,14 @@ export default function PostDetalhe() {
         </Typography>
       </Box>
 
-      {/* Post Card */}
       <FeedPostCard
         post={post}
         currentUserId={uid}
         onLike={(id) => toggleLike(id, uid)}
-        onDelete={(id) => {
-          deletarPost(uid, id);
-          navigate('/feed');
-        }}
+        onDelete={(id) => { deletarPost(uid, id); navigate('/feed'); }}
+        onEdit={(id, texto) => editarPost(uid, id, texto)}
       />
 
-      {/* Comentários */}
       <Box sx={{ mt: 2.5 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5, fontSize: '0.95rem' }}>
           Comentários {post.commentsCount > 0 && `(${post.commentsCount})`}
