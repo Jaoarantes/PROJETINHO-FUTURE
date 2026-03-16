@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, Avatar, Divider,
-  ToggleButtonGroup, ToggleButton, Card, CardContent, CircularProgress, Snackbar, Alert,
+  Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
   List, ListItem, Checkbox,
 } from '@mui/material';
@@ -621,39 +621,44 @@ export default function Perfil() {
       >
         Aparíªncia
       </Typography>
-      <ToggleButtonGroup
-        value={mode}
-        exclusive
-        onChange={(_, value) => { if (value) setMode(value); }}
-        fullWidth
-        sx={{
-          mb: 3,
-          gap: 1.5,
-          '& .MuiToggleButtonGroup-grouped': {
-            border: '1px solid !important',
-            borderColor: 'divider !important',
-            borderRadius: '12px !important',
-            '&.Mui-selected': {
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              '&:hover': { bgcolor: 'primary.dark' }
-            }
-          }
-        }}
-      >
-        <ToggleButton value="light">
-          <Sun size={18} style={{ marginRight: 8 }} />
-          Claro
-        </ToggleButton>
-        <ToggleButton value="system">
-          <Settings2 size={18} style={{ marginRight: 8 }} />
-          Sistema
-        </ToggleButton>
-        <ToggleButton value="dark">
-          <Moon size={18} style={{ marginRight: 8 }} />
-          Escuro
-        </ToggleButton>
-      </ToggleButtonGroup>
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+        {[
+          { value: 'light' as const, label: 'Claro', icon: <Sun size={18} /> },
+          { value: 'system' as const, label: 'Sistema', icon: <Settings2 size={18} /> },
+          { value: 'dark' as const, label: 'Escuro', icon: <Moon size={18} /> },
+        ].map((opt) => {
+          const selected = mode === opt.value;
+          return (
+            <Box
+              key={opt.value}
+              onClick={() => setMode(opt.value)}
+              sx={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+                py: 1.2,
+                borderRadius: '12px',
+                border: '1px solid',
+                borderColor: selected ? 'primary.main' : 'divider',
+                bgcolor: selected ? 'primary.main' : 'transparent',
+                color: selected ? 'primary.contrastText' : 'text.secondary',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:active': { transform: 'scale(0.97)' },
+              }}
+            >
+              {opt.icon}
+              {opt.label}
+            </Box>
+          );
+        })}
+      </Box>
 
       <Divider sx={{ mb: 3 }} />
 
