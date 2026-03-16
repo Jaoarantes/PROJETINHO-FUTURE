@@ -3,14 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, IconButton, Button, Card, CardContent,
     TextField, Chip, MenuItem as SelectItem, Snackbar, Alert, Menu, MenuItem,
-    CircularProgress,
+    CircularProgress, Dialog,
 } from '@mui/material';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square } from 'lucide-react';
+import { alpha } from '@mui/material/styles';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
+import { useFeedStore } from '../../store/feedStore';
+import { useAuthContext } from '../../contexts/AuthContext';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
+import PhotoUploader from '../../components/feed/PhotoUploader';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { formatPace } from '../../utils/geoUtils';
-import type { TipoCorridaTreino, EstiloNatacao, TipoSerie } from '../../types/treino';
+import { uploadFeedPhoto, compressImage } from '../../services/feedService';
+import { calcularVolumeSessao } from '../../types/treino';
+import type { TipoCorridaTreino, EstiloNatacao, TipoSerie, RegistroTreino } from '../../types/treino';
 import {
     TIPO_SESSAO_LABELS, TIPO_CORRIDA_LABELS, ESTILO_NATACAO_LABELS,
     TIPO_SERIE_LABELS, TIPO_SERIE_CORES,
@@ -28,23 +34,39 @@ function formatTimer(seconds: number): string {
 export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useAuthContext();
     const store = useTreinoStore();
+    const criarPost = useFeedStore((s) => s.criarPost);
     const { sessoes, concluirTreino, treinoAtivo, carregando } = store;
     const [pickerOpen, setPickerOpen] = useState(false);
     const [snackOpen, setSnackOpen] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const [salvando, setSalvando] = useState(false);
     const [erroMsg, setErroMsg] = useState('');
+    // Share dialog
+    const [shareOpen, setShareOpen] = useState(false);
+    const [shareRegistro, setShareRegistro] = useState<RegistroTreino | null>(null);
+    const [shareTexto, setShareTexto] = useState('');
+    const [sharePhotos, setSharePhotos] = useState<File[]>([]);
+    const [sharePosting, setSharePosting] = useState(false);
     const sessao = sessoes.find((s) => s.id === id);
 
     const isAtivo = treinoAtivo?.sessaoId === id;
 
-    // Timer do treino ativo
+    // Timer do treino ativo (pausa corretamente)
     useEffect(() => {
         if (!isAtivo || !treinoAtivo) { setElapsed(0); return; }
-        const update = () => setElapsed(Math.floor((Date.now() - treinoAtivo.iniciadoEm) / 1000));
-        update();
-        const interval = setInterval(update, 1000);
+        const calcElapsed = () => {
+            const pausado = treinoAtivo.tempoPausadoTotal || 0;
+            if (treinoAtivo.pausadoEm) {
+                // Quando pausado, congela o tempo
+                return Math.floor((treinoAtivo.pausadoEm - treinoAtivo.iniciadoEm - pausado) / 1000);
+            }
+            return Math.floor((Date.now() - treinoAtivo.iniciadoEm - pausado) / 1000);
+        };
+        setElapsed(calcElapsed());
+        if (treinoAtivo.pausadoEm) return; // Não atualiza enquanto pausado
+        const interval = setInterval(() => setElapsed(calcElapsed()), 1000);
         return () => clearInterval(interval);
     }, [isAtivo, treinoAtivo]);
 
@@ -72,17 +94,69 @@ export default function SessaoTreino() {
         setSalvando(true);
         setErroMsg('');
         try {
-            await concluirTreino(sessao.id, { distanciaKm: gpsDistancia });
+            const registro = await concluirTreino(sessao.id, { distanciaKm: gpsDistancia });
             setSnackOpen(true);
-            navigate('/treino');
-            setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
-            }, 100);
+            if (registro) {
+                setShareRegistro(registro);
+                setShareOpen(true);
+            } else {
+                navigate('/treino');
+                setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
+                }, 100);
+            }
         } catch (err) {
             console.error('[SessaoTreino] Erro ao concluir treino:', err);
             setErroMsg('Erro ao salvar o treino. Verifique sua conexão e tente novamente.');
         } finally {
             setSalvando(false);
+        }
+    };
+
+    const handleShareSkip = () => {
+        setShareOpen(false);
+        setShareRegistro(null);
+        navigate('/treino');
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
+        }, 100);
+    };
+
+    const handleSharePost = async () => {
+        if (!shareRegistro || !user?.id) return;
+        setSharePosting(true);
+        try {
+            const fotoUrls: string[] = [];
+            for (const photo of sharePhotos) {
+                const compressed = await compressImage(photo);
+                const url = await uploadFeedPhoto(user.id, compressed);
+                fotoUrls.push(url);
+            }
+
+            const gruposMusculares = [...new Set(shareRegistro.exercicios.map((e) => e.exercicio.grupoMuscular))];
+            await criarPost(user.id, {
+                id: crypto.randomUUID(),
+                registroId: shareRegistro.id,
+                tipoTreino: shareRegistro.tipo,
+                nomeTreino: shareRegistro.nome,
+                duracaoSegundos: shareRegistro.duracaoTotalSegundos || null,
+                resumo: {
+                    exerciciosCount: shareRegistro.exercicios.length,
+                    volumeTotal: calcularVolumeSessao(shareRegistro.exercicios),
+                    distanciaKm: shareRegistro.corrida?.etapas?.reduce((s, e) => s + (e.distanciaKm ?? 0), 0),
+                    duracaoMin: shareRegistro.duracaoTotalSegundos ? Math.round(shareRegistro.duracaoTotalSegundos / 60) : undefined,
+                    gruposMusculares,
+                },
+                texto: shareTexto.trim() || null,
+                fotoUrls,
+            });
+            setShareOpen(false);
+            navigate('/feed');
+        } catch (err) {
+            console.error('Erro ao compartilhar:', err);
+            setErroMsg('Erro ao compartilhar. Tente novamente.');
+        } finally {
+            setSharePosting(false);
         }
     };
 
@@ -158,6 +232,107 @@ export default function SessaoTreino() {
                     {erroMsg}
                 </Alert>
             </Snackbar>
+
+            {/* Share Dialog */}
+            <Dialog
+                open={shareOpen}
+                onClose={handleShareSkip}
+                fullWidth
+                maxWidth="sm"
+                PaperProps={{ sx: { borderRadius: '24px', mx: 2, p: 0 } }}
+            >
+                <Box sx={{ p: 3 }}>
+                    {/* Header */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
+                        <Box sx={{
+                            width: 44, height: 44, borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(255,107,44,0.15) 0%, rgba(255,107,44,0.05) 100%)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5,
+                        }}>
+                            <Share2 size={22} color="#FF6B2C" />
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem' }}>
+                                Compartilhar treino?
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Mostre seu progresso para a comunidade
+                            </Typography>
+                        </Box>
+                        <IconButton onClick={handleShareSkip} size="small">
+                            <X size={20} />
+                        </IconButton>
+                    </Box>
+
+                    {/* Workout Summary */}
+                    {shareRegistro && (
+                        <Box sx={{
+                            p: 2, mb: 2, borderRadius: '14px',
+                            background: (theme) => theme.palette.mode === 'dark'
+                                ? `linear-gradient(135deg, ${alpha('#FF6B2C', 0.08)} 0%, ${alpha('#FF6B2C', 0.02)} 100%)`
+                                : `linear-gradient(135deg, ${alpha('#FF6B2C', 0.05)} 0%, ${alpha('#FF6B2C', 0.01)} 100%)`,
+                            border: '1px solid',
+                            borderColor: alpha('#FF6B2C', 0.12),
+                        }}>
+                            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                                {shareRegistro.nome}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                {shareRegistro.duracaoTotalSegundos && (
+                                    <Chip label={`${Math.round(shareRegistro.duracaoTotalSegundos / 60)}min`} size="small" sx={{ height: 22, fontSize: '0.7rem' }} />
+                                )}
+                                {shareRegistro.exercicios.length > 0 && (
+                                    <Chip label={`${shareRegistro.exercicios.length} exerc.`} size="small" sx={{ height: 22, fontSize: '0.7rem' }} />
+                                )}
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* Caption */}
+                    <TextField
+                        multiline
+                        minRows={2}
+                        maxRows={4}
+                        fullWidth
+                        placeholder="Conte como foi o treino..."
+                        value={shareTexto}
+                        onChange={(e) => setShareTexto(e.target.value)}
+                        slotProps={{ htmlInput: { maxLength: 300 } }}
+                        sx={{ mb: 2 }}
+                    />
+
+                    {/* Photos */}
+                    <Box sx={{ mb: 2.5 }}>
+                        <PhotoUploader
+                            photos={sharePhotos}
+                            onAdd={(f) => setSharePhotos((prev) => [...prev, ...f].slice(0, 3))}
+                            onRemove={(i) => setSharePhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                        />
+                    </Box>
+
+                    {/* Buttons */}
+                    <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            onClick={handleShareSkip}
+                            sx={{ py: 1.3, borderRadius: '12px' }}
+                        >
+                            Pular
+                        </Button>
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            disabled={sharePosting}
+                            onClick={handleSharePost}
+                            startIcon={sharePosting ? <CircularProgress size={18} color="inherit" /> : <Send size={18} />}
+                            sx={{ py: 1.3, borderRadius: '12px' }}
+                        >
+                            {sharePosting ? 'Publicando...' : 'Compartilhar'}
+                        </Button>
+                    </Box>
+                </Box>
+            </Dialog>
 
         </Box>
     );

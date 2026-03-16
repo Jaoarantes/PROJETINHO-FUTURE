@@ -1,5 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip } from '@mui/material';
-import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation } from 'lucide-react';
+import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation, Share2 } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { formatPace } from '../utils/geoUtils';
 import { calcularDistanciaCorrida, calcularDistanciaNatacao } from '../types/treino';
@@ -23,6 +24,7 @@ function formatarDuracao(segundos?: number): string {
 }
 
 export default function Historico() {
+  const navigate = useNavigate();
   const { historico, removerRegistro } = useTreinoStore();
 
   if (historico.length === 0) {
@@ -85,6 +87,13 @@ export default function Historico() {
                       <Typography variant="caption" color="text.secondary">{formatarData(reg.concluidoEm)}</Typography>
                     </Box>
                   </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate(`/feed/novo?registro=${reg.id}`)}
+                    sx={{ opacity: 0.5, '&:hover': { opacity: 1, color: '#FF6B2C' } }}
+                  >
+                    <Share2 size={17} />
+                  </IconButton>
                   <IconButton size="small" color="error" onClick={() => removerRegistro(reg.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
                     <Trash2 size={18} />
                   </IconButton>
