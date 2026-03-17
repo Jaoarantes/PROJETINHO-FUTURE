@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 export interface UserProfile {
   uid: string;
   displayName: string | null;
+  username: string | null;
   photoURL: string | null;
   email: string | null;
   isPrivate: boolean;
@@ -25,6 +26,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return {
     uid: data.id,
     displayName: data.display_name,
+    username: data.username || null,
     photoURL: data.photo_url,
     email: data.email,
     isPrivate: data.is_private || false,
@@ -79,6 +81,52 @@ export async function uploadProfilePicture(userId: string, file: File): Promise<
 export async function removeProfilePicture(userId: string): Promise<void> {
   await supabase.auth.updateUser({ data: { avatar_url: null } });
   await saveUserProfile(userId, { photoURL: null });
+}
+
+export interface SearchUserResult {
+  id: string;
+  displayName: string | null;
+  username: string | null;
+  photoURL: string | null;
+  isPrivate: boolean;
+}
+
+export async function searchUsers(query: string, currentUserId: string): Promise<SearchUserResult[]> {
+  if (!query.trim()) return [];
+  const q = query.trim();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, username, photo_url, is_private')
+    .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
+    .neq('id', currentUserId)
+    .limit(20);
+  if (error || !data) return [];
+  return data.map((p: any) => ({
+    id: p.id,
+    displayName: p.display_name,
+    username: p.username || null,
+    photoURL: p.photo_url,
+    isPrivate: p.is_private || false,
+  }));
+}
+
+export async function checkUsernameAvailable(username: string, currentUserId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .ilike('username', username)
+    .neq('id', currentUserId)
+    .maybeSingle();
+  if (error) return false;
+  return !data;
+}
+
+export async function saveUsername(userId: string, username: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ username, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (error) throw error;
 }
 
 export async function togglePrivateProfile(userId: string, isPrivate: boolean): Promise<void> {
