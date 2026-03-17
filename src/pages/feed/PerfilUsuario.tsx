@@ -25,6 +25,7 @@ export default function PerfilUsuario() {
 
   const [profileData, setProfileData] = useState<{
     displayName: string | null;
+    username: string | null;
     photoURL: string | null;
     isPrivate: boolean;
   } | null>(null);
@@ -46,7 +47,7 @@ export default function PerfilUsuario() {
     if (!userId) return;
 
     getUserProfile(userId).then((p) => {
-      if (p) setProfileData({ displayName: p.displayName, photoURL: p.photoURL, isPrivate: p.isPrivate });
+      if (p) setProfileData({ displayName: p.displayName, username: p.username, photoURL: p.photoURL, isPrivate: p.isPrivate });
     });
 
     carregarMeusPosts(userId)
@@ -190,6 +191,11 @@ export default function PerfilUsuario() {
         <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1.5, fontSize: '1rem' }}>
           {displayName}
         </Typography>
+        {profileData?.username && (
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+            @{profileData.username}
+          </Typography>
+        )}
 
         {/* Botão Seguir */}
         {!isOwner && (
