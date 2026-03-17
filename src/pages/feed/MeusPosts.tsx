@@ -47,7 +47,6 @@ export default function MeusPosts() {
 
   // Solicitações pendentes
   const [pendingRequests, setPendingRequests] = useState<FollowUser[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
   const [showPending, setShowPending] = useState(false);
 
   // Username
@@ -347,7 +346,7 @@ export default function MeusPosts() {
                   </ListItemAvatar>
                   <ListItemText
                     primary={u.displayName || 'Usuário'}
-                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}
+                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', sx: { cursor: 'pointer' } }}
                     onClick={() => navigate(`/feed/perfil/${u.id}`)}
                   />
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
