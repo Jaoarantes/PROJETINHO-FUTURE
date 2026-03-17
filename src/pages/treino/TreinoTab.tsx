@@ -12,7 +12,7 @@ const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
-import type { TipoSessao, SessaoTreino } from '../../types/treino';
+import type { TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
 import type { TipoSerie } from '../../types/treino';
 import {
@@ -75,8 +75,8 @@ function formatarDataGrupo(isoString: string): string {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(data);
 }
 
-function agruparHistoricoPorData(registros: any[]) {
-  const mapa = new Map<string, any[]>();
+function agruparHistoricoPorData(registros: RegistroTreino[]) {
+  const mapa = new Map<string, RegistroTreino[]>();
   const ordemChaves: string[] = [];
   for (const reg of registros) {
     const d = new Date(reg.concluidoEm);

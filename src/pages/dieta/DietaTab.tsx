@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import {
   Box, Typography, IconButton, Card, CardContent, Button,
   LinearProgress, Collapse, Dialog, DialogTitle, DialogContent,
@@ -170,7 +170,6 @@ export default function DietaTab() {
 
   // Calorie balance
   const restante = Math.max(0, metas.calorias - totais.calorias);
-  const caloriePct = metas.calorias > 0 ? Math.min((totais.calorias / metas.calorias) * 100, 100) : 0;
   const overLimit = totais.calorias > metas.calorias;
 
   return (
@@ -452,7 +451,7 @@ function SummaryItem({ label, value, highlight, warn }: { label: string; value: 
 
 /* ── Refeição Card ─────────────────────────── */
 function RefeicaoCard({
-  refeicao, expandido, onToggle, onAdicionar, onQuickAdd, onRemoverItem, onRemoverRefeicao, metas,
+  refeicao, expandido, onToggle, onAdicionar, onQuickAdd, onRemoverItem, onRemoverRefeicao, metas: _metas,
 }: {
   refeicao: Refeicao;
   expandido: boolean;
