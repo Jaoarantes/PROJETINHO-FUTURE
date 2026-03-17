@@ -316,10 +316,23 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', px: 2, pt: 2, pb: 1.5 }}>
-        <Avatar src={post.authorPhoto || undefined} sx={{ width: 44, height: 44, mr: 1.5 }}>
+        <Avatar
+          src={post.authorPhoto || undefined}
+          sx={{ width: 44, height: 44, mr: 1.5, cursor: 'pointer' }}
+          onClick={() => {
+            if (post.userId === currentUserId) navigate('/feed/meus-posts');
+            else navigate(`/feed/perfil/${post.userId}`);
+          }}
+        >
           {post.authorName?.charAt(0).toUpperCase() || 'U'}
         </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box
+          sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+          onClick={() => {
+            if (post.userId === currentUserId) navigate('/feed/meus-posts');
+            else navigate(`/feed/perfil/${post.userId}`);
+          }}
+        >
           <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ fontSize: '0.95rem', lineHeight: 1.2 }}>
             {post.authorName || 'Usuário'}
           </Typography>
