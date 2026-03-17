@@ -42,7 +42,13 @@
       "Bash(curl -sI \"https://static.exercisedb.dev/media/EIeI8Vf.gif\")",
       "Bash(curl -kI \"https://static.exercisedb.dev/media/EIeI8Vf.gif\")",
       "Bash(npm run:*)",
-      "Bash(ls src/components/*/)"
+      "Bash(ls src/components/*/)",
+      "Bash(git stash:*)",
+      "Bash(find /c/Users/walia/Documents/PROJETINHO-FUTURE-1 -type f -name *theme*)",
+      "Bash(find /c/Users/walia/Documents/PROJETINHO-FUTURE-1 -type f -name *store*)",
+      "Bash(grep -r \"PieChart\\\\|<Pie\\\\|macros.*dieta\\\\|refeicao.*chart\" c:UserswaliaDocumentsPROJETINHO-FUTURE-1src --include=*.tsx --include=*.ts)",
+      "Bash(find c:UserswaliaDocumentsPROJETINHO-FUTURE-1src -type f \\\\\\(-name *conquista* -o -name *achievement* -o -name *Conquista* -o -name *Achievement* \\\\\\))",
+      "Bash(xargs wc:*)"
     ]
   }
 }
