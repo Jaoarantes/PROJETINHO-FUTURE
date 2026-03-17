@@ -67,7 +67,7 @@ export default function PerfilUsuario() {
   const isOwner = uid === userId;
   const displayName = profileData?.displayName || 'Usuário';
   const isPrivate = profileData?.isPrivate || false;
-  const canSeeContent = isOwner || !isPrivate;
+  const canSeeContent = isOwner || !isPrivate || isFollowing;
 
   const handleFollow = async () => {
     if (followLoading) return;
