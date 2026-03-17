@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar,
-  Dialog, DialogTitle, DialogContent, DialogActions, Button,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { ArrowLeft, Heart, MessageCircle, Bell, Trash2, X } from 'lucide-react';
@@ -12,6 +11,8 @@ import {
   deletarNotificacao, deletarTodasNotificacoes,
 } from '../../services/feedService';
 import type { FeedNotification } from '../../types/feed';
+import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 
 function tempoRelativo(data: string): string {
   const diff = (Date.now() - new Date(data).getTime()) / 1000;
@@ -27,7 +28,8 @@ export default function Notificacoes() {
   const { user } = useAuthContext();
   const [notifs, setNotifs] = useState<FeedNotification[]>([]);
   const [loading, setLoading] = useState(true);
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const deleteOne = useConfirmDelete();
+  const clearAll = useConfirmDelete();
 
   const uid = user?.id;
 
@@ -45,16 +47,16 @@ export default function Notificacoes() {
 
   if (!uid) return null;
 
-  const handleDeleteOne = async (e: React.MouseEvent, notifId: string) => {
+  const handleDeleteOne = (e: React.MouseEvent, notifId: string) => {
     e.stopPropagation();
-    setNotifs((prev) => prev.filter((n) => n.id !== notifId));
-    await deletarNotificacao(uid, notifId);
+    deleteOne.requestDelete(notifId);
   };
 
-  const handleClearAll = async () => {
-    setConfirmClearAll(false);
-    setNotifs([]);
-    await deletarTodasNotificacoes(uid);
+  const handleClearAll = () => {
+    clearAll.confirmDelete(async () => {
+      setNotifs([]);
+      await deletarTodasNotificacoes(uid);
+    });
   };
 
   return (
@@ -68,7 +70,7 @@ export default function Notificacoes() {
         </Typography>
         {notifs.length > 0 && (
           <IconButton
-            onClick={() => setConfirmClearAll(true)}
+            onClick={() => clearAll.requestDelete()}
             sx={{ color: 'text.secondary', opacity: 0.6 }}
           >
             <Trash2 size={20} />
@@ -161,36 +163,32 @@ export default function Notificacoes() {
         </Box>
       )}
 
+      {/* Dialog: Confirmar excluir uma notificação */}
+      <ConfirmDeleteDialog
+        open={deleteOne.open}
+        loading={deleteOne.loading}
+        title="Excluir notificação?"
+        message="Tem certeza que deseja excluir esta notificação?"
+        onClose={deleteOne.cancel}
+        onConfirm={() => {
+          const notifId = deleteOne.payload;
+          deleteOne.confirmDelete(async () => {
+            setNotifs((prev) => prev.filter((n) => n.id !== notifId));
+            await deletarNotificacao(uid, notifId);
+          });
+        }}
+      />
+
       {/* Dialog: Confirmar limpar tudo */}
-      <Dialog
-        open={confirmClearAll}
-        onClose={() => setConfirmClearAll(false)}
-        PaperProps={{ sx: { borderRadius: '16px' } }}
-      >
-        <DialogTitle sx={{ fontSize: '1.05rem', fontWeight: 700 }}>
-          Limpar notificações?
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Todas as notificações serão removidas. Esta ação não pode ser desfeita.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setConfirmClearAll(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleClearAll}
-            variant="contained"
-            sx={{
-              textTransform: 'none', fontWeight: 700,
-              bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' },
-            }}
-          >
-            Limpar tudo
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={clearAll.open}
+        loading={clearAll.loading}
+        title="Limpar notificações?"
+        message="Todas as notificações serão removidas. Esta ação não pode ser desfeita."
+        confirmLabel="Limpar tudo"
+        onClose={clearAll.cancel}
+        onConfirm={handleClearAll}
+      />
     </Box>
   );
 }

@@ -11,7 +11,12 @@ export default function PostDetalhe() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
-  const { posts, toggleLike, deletarPost, editarPost, atualizarContadorComentarios, carregarFeed } = useFeedStore();
+  const posts = useFeedStore((s) => s.posts);
+  const toggleLike = useFeedStore((s) => s.toggleLike);
+  const deletarPost = useFeedStore((s) => s.deletarPost);
+  const editarPost = useFeedStore((s) => s.editarPost);
+  const atualizarContadorComentarios = useFeedStore((s) => s.atualizarContadorComentarios);
+  const carregarFeed = useFeedStore((s) => s.carregarFeed);
   const [loading, setLoading] = useState(false);
 
   const uid = user?.id;

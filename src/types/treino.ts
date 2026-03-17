@@ -144,6 +144,7 @@ export interface RegistroTreino {
     elevationGainM: number;
     averageHeartrate?: number;
     calories?: number;
+    summaryPolyline?: string;
   };
 }
 

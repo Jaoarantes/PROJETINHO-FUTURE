@@ -23,7 +23,9 @@ import type { FeedPost } from '../../types/feed';
 export default function MeusPosts() {
   const navigate = useNavigate();
   const { user, profile, refreshUser } = useAuthContext();
-  const { toggleLike, deletarPost, editarPost } = useFeedStore();
+  const toggleLike = useFeedStore((s) => s.toggleLike);
+  const deletarPost = useFeedStore((s) => s.deletarPost);
+  const editarPost = useFeedStore((s) => s.editarPost);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [followers, setFollowers] = useState(0);

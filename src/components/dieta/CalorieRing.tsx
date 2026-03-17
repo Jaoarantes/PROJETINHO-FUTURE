@@ -23,12 +23,12 @@ export default function CalorieRing({ consumido, meta, size = 180 }: Props) {
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <defs>
           <linearGradient id="calorie-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FF6B2C" />
-            <stop offset="100%" stopColor="#FF8A50" />
+            <stop offset="0%" stopColor={theme.palette.primary.main} />
+            <stop offset="100%" stopColor={theme.palette.primary.light} />
           </linearGradient>
           <linearGradient id="calorie-over" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#EF4444" />
-            <stop offset="100%" stopColor="#F87171" />
+            <stop offset="0%" stopColor={theme.palette.error.main} />
+            <stop offset="100%" stopColor={theme.palette.mode === 'dark' ? '#F87171' : '#EF4444'} />
           </linearGradient>
           <filter id="ring-glow">
             <feGaussianBlur stdDeviation="4" result="blur" />

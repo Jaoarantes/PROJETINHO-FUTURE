@@ -305,7 +305,7 @@ export const darkTheme = createTheme({
     MuiLinearProgress: {
       styleOverrides: {
         root: { borderRadius: 10, height: 8, backgroundColor: alpha('#fff', 0.04) },
-        bar: { borderRadius: 10, background: `linear-gradient(90deg, ${EMBER_DARK}, ${EMBER})` },
+        bar: { borderRadius: 10 },
       },
     },
     MuiToggleButton: {

@@ -15,7 +15,14 @@ import FeedPostCard from '../../components/feed/FeedPostCard';
 export default function FeedTab() {
   const { user, profile, refreshUser } = useAuthContext();
   const navigate = useNavigate();
-  const { posts, loading, hasMore, carregarFeed, carregarMais, toggleLike, deletarPost, editarPost } = useFeedStore();
+  const posts = useFeedStore((s) => s.posts);
+  const loading = useFeedStore((s) => s.loading);
+  const hasMore = useFeedStore((s) => s.hasMore);
+  const carregarFeed = useFeedStore((s) => s.carregarFeed);
+  const carregarMais = useFeedStore((s) => s.carregarMais);
+  const toggleLike = useFeedStore((s) => s.toggleLike);
+  const deletarPost = useFeedStore((s) => s.deletarPost);
+  const editarPost = useFeedStore((s) => s.editarPost);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const uid = user?.id;
   const [unreadCount, setUnreadCount] = useState(0);

@@ -18,6 +18,7 @@ export interface WorkoutSummary {
   duracaoMin?: number;
   gruposMusculares?: string[];
   exercicios?: ExercicioResumo[];
+  summaryPolyline?: string;
 }
 
 export interface FeedPost {
