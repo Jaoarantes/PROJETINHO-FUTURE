@@ -5,6 +5,7 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   email: string | null;
+  isPrivate: boolean;
   updatedAt: string;
 }
 
@@ -26,6 +27,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     displayName: data.display_name,
     photoURL: data.photo_url,
     email: data.email,
+    isPrivate: data.is_private || false,
     updatedAt: data.updated_at,
   };
 }
@@ -77,4 +79,12 @@ export async function uploadProfilePicture(userId: string, file: File): Promise<
 export async function removeProfilePicture(userId: string): Promise<void> {
   await supabase.auth.updateUser({ data: { avatar_url: null } });
   await saveUserProfile(userId, { photoURL: null });
+}
+
+export async function togglePrivateProfile(userId: string, isPrivate: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_private: isPrivate, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (error) throw error;
 }

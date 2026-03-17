@@ -199,7 +199,7 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
               mr: 1.5, flexShrink: 0,
             }}>
               {tipo === 'musculacao' ? (
-                <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
                   {String.fromCharCode(65 + index)}
                 </Typography>
               ) : (

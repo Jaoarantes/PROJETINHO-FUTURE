@@ -1,7 +1,14 @@
+export interface SerieResumo {
+  reps: number;
+  peso?: number;
+  tipo?: string;
+}
+
 export interface ExercicioResumo {
   nome: string;
   sets: number;
   exercicioId?: number;
+  series?: SerieResumo[];
 }
 
 export interface WorkoutSummary {

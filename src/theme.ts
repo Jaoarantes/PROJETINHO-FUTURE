@@ -11,27 +11,26 @@ const SLATE_400 = '#94A3B8';
 const SLATE_600 = '#475569';
 const GLASS_BG = 'rgba(15, 15, 15, 0.85)';
 
-const headingFont = '"Oswald", sans-serif';
-const bodyFont = '"DM Sans", -apple-system, BlinkMacSystemFont, sans-serif';
+const poppins = '"Poppins", -apple-system, BlinkMacSystemFont, sans-serif';
 
 const typography = {
-  fontFamily: bodyFont,
-  fontSize: 15, // Base maior para mobile
-  h1: { fontFamily: headingFont, fontWeight: 700, fontSize: '1.75rem', textTransform: 'uppercase' as const, letterSpacing: '0.04em' },
-  h2: { fontFamily: headingFont, fontWeight: 700, fontSize: '1.5rem', textTransform: 'uppercase' as const, letterSpacing: '0.03em' },
-  h3: { fontFamily: headingFont, fontWeight: 700, fontSize: '1.3rem', textTransform: 'uppercase' as const, letterSpacing: '0.02em' },
-  h4: { fontFamily: headingFont, fontWeight: 600, fontSize: '1.15rem', textTransform: 'uppercase' as const, letterSpacing: '0.02em' },
-  h5: { fontFamily: headingFont, fontWeight: 600, fontSize: '1.05rem', textTransform: 'uppercase' as const, letterSpacing: '0.01em' },
-  h6: { fontFamily: headingFont, fontWeight: 600, fontSize: '1rem', letterSpacing: '0.01em' },
+  fontFamily: poppins,
+  fontSize: 15,
+  h1: { fontFamily: poppins, fontWeight: 700, fontSize: '1.75rem', letterSpacing: '-0.01em' },
+  h2: { fontFamily: poppins, fontWeight: 700, fontSize: '1.5rem', letterSpacing: '-0.01em' },
+  h3: { fontFamily: poppins, fontWeight: 700, fontSize: '1.3rem', letterSpacing: '-0.005em' },
+  h4: { fontFamily: poppins, fontWeight: 600, fontSize: '1.15rem' },
+  h5: { fontFamily: poppins, fontWeight: 600, fontSize: '1.05rem' },
+  h6: { fontFamily: poppins, fontWeight: 600, fontSize: '1rem' },
   subtitle1: { fontWeight: 600, fontSize: '1rem' },
   subtitle2: { fontWeight: 600, fontSize: '0.9rem' },
   body1: { fontWeight: 400, fontSize: '0.95rem' },
   body2: { fontWeight: 400, fontSize: '0.9rem' },
   button: {
-    fontFamily: headingFont,
-    textTransform: 'uppercase' as const,
+    fontFamily: poppins,
+    textTransform: 'none' as const,
     fontWeight: 600,
-    letterSpacing: '0.06em',
+    letterSpacing: '0.01em',
     fontSize: '0.95rem',
   },
   caption: { fontSize: '0.8rem', fontWeight: 500 },
@@ -201,7 +200,7 @@ export const darkTheme = createTheme({
           '&.Mui-selected': { color: EMBER },
         },
         label: {
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           letterSpacing: '0.08em',
           fontSize: '0.65rem',
@@ -315,7 +314,7 @@ export const darkTheme = createTheme({
           borderRadius: '12px !important',
           border: `1px solid ${alpha('#fff', 0.08)}`,
           color: SLATE_400,
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           fontWeight: 700,
@@ -338,7 +337,7 @@ export const darkTheme = createTheme({
     MuiTab: {
       styleOverrides: {
         root: {
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           fontWeight: 700,
           letterSpacing: '0.08em',
@@ -498,7 +497,7 @@ export const lightTheme = createTheme({
           '&.Mui-selected': { color: EMBER },
         },
         label: {
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           fontSize: '0.65rem',
@@ -588,7 +587,7 @@ export const lightTheme = createTheme({
           borderRadius: '10px !important',
           border: '1px solid rgba(0,0,0,0.1)',
           color: '#737373',
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
           fontWeight: 600,
@@ -609,7 +608,7 @@ export const lightTheme = createTheme({
     MuiTab: {
       styleOverrides: {
         root: {
-          fontFamily: headingFont,
+          fontFamily: poppins,
           textTransform: 'uppercase',
           fontWeight: 600,
           letterSpacing: '0.04em',

@@ -105,7 +105,7 @@ export default function Login() {
         >
           <img src="/img/logo.png" alt="Valere Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </Box>
-        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '0.05em', fontSize: '2.4rem', fontFamily: '"Oswald", sans-serif' }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '0.05em', fontSize: '2.4rem' }}>
           VALERE
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, letterSpacing: '0.03em' }}>

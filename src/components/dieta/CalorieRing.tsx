@@ -75,7 +75,7 @@ export default function CalorieRing({ consumido, meta, size = 180 }: Props) {
       >
         <Typography
           sx={{
-            fontFamily: '"Oswald", sans-serif',
+            
             fontWeight: 700,
             fontSize: '2.2rem',
             lineHeight: 1,

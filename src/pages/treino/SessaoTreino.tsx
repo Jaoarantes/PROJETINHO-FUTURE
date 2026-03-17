@@ -146,6 +146,12 @@ export default function SessaoTreino() {
                     distanciaKm: shareRegistro.corrida?.etapas?.reduce((s, e) => s + (e.distanciaKm ?? 0), 0),
                     duracaoMin: shareRegistro.duracaoTotalSegundos ? Math.round(shareRegistro.duracaoTotalSegundos / 60) : undefined,
                     gruposMusculares,
+                    exercicios: shareRegistro.exercicios.map((e) => ({
+                        nome: e.exercicio.nome,
+                        sets: e.series.length,
+                        exercicioId: e.exercicio.id,
+                        series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
+                    })),
                 },
                 texto: shareTexto.trim() || null,
                 fotoUrls,
@@ -183,7 +189,7 @@ export default function SessaoTreino() {
                                 <Play size={12} fill="#FF6B2C" color="#FF6B2C" />
                                 <Typography
                                     sx={{
-                                        fontFamily: '"Oswald", sans-serif',
+                                        
                                         color: 'primary.main',
                                         fontWeight: 700,
                                         fontSize: '0.85rem',
@@ -554,7 +560,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                             <Box sx={{ flex: 1, textAlign: 'center' }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.05em' }}>DISTÂNCIA</Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', mt: 1 }}>
-                                    <Typography variant="h3" fontWeight={800} sx={{ fontFamily: '"Oswald", sans-serif', mr: 1 }}>
+                                    <Typography variant="h3" fontWeight={800} sx={{ mr: 1 }}>
                                         {tracker.distanceKm.toFixed(2)}
                                     </Typography>
                                     <Typography variant="h6" fontWeight={800} color="text.primary">KM</Typography>
@@ -564,7 +570,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                             <Box sx={{ flex: 1, textAlign: 'center' }}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.05em' }}>PACE ATUAL</Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', mt: 1 }}>
-                                    <Typography variant="h3" fontWeight={800} sx={{ fontFamily: '"Oswald", sans-serif', mr: 1 }}>
+                                    <Typography variant="h3" fontWeight={800} sx={{ mr: 1 }}>
                                         {formatPace(tracker.currentPace)}
                                     </Typography>
                                     <Typography variant="h6" fontWeight={800} color="text.primary">/KM</Typography>
