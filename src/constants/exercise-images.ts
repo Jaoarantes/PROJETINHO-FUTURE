@@ -150,6 +150,124 @@ const GIF_MAP: Record<number, string> = {
   11005: 'e1e76I2',  // Corda de Pular → jump rope
   11006: 'dK9394r',  // Burpee → burpee
   11007: 'UHJlbu3',  // Kettlebell Swing → kettlebell swing
+
+  // ─── PEITO (adicionais) ──────────────────
+  1017: 'trqKQv2',  // Supino no Smith → smith bench press
+  1018: 'T0yTjgW',  // Chest Press na Máquina → lever chest press
+  1019: '5v7KYld',  // Supino Inclinado no Smith → smith incline bench press
+  1020: 'xXm4nYq',  // Crucifixo Declinado com Halteres → dumbbell decline fly
+  1021: 'J6Dx1Mu',  // Supino Reto Pegada Fechada → barbell close-grip bench press
+  1022: 'tBWXbIT',  // Crucifixo no Cabo Inclinado → cable incline fly
+  1023: 'I1OBLnn',  // Svend Press → weighted svend press
+  1024: '7w6i0vE',  // Floor Press com Halteres → kettlebell alternating press on floor
+  1025: 'vsVoPHt',  // Chest Press Declinado → lever decline chest press
+  1026: '7xI5MXA',  // Cable Chest Press → cable bench press
+
+  // ─── COSTAS (adicionais) ─────────────────
+  2016: 'r0z6xzQ',  // Pendlay Row → barbell pendlay row
+  2017: 'bZGHsAZ',  // Remada Inversa → inverted row
+  2018: 'x69MAlq',  // Pulldown com Braço Reto → cable straight arm pulldown
+  2019: '4f8RXP8',  // Remada no Cabo V-Bar → cable standing row v-bar
+  2020: 'U5INZY6',  // Puxada Unilateral → cable one arm pulldown
+  2021: 'SzX3uzM',  // Remada Curvada Supinada → barbell reverse grip bent over row
+  2022: 'nZZZy9m',  // Remada High Row → lever high row
+  2023: 'ZX9UZmj',  // Remada no Smith → smith bent over row
+  2024: 'yJUHKTn',  // Muscle Up → muscle up
+  2025: '4U7iLb5',  // Pullover na Máquina → lever pullover
+
+  // ─── OMBROS (adicionais) ─────────────────
+  3014: 'ainizkb',  // Remada Alta com Barra → dumbbell upright row
+  3015: 'ainizkb',  // Remada Alta com Halteres → dumbbell upright row
+  3016: 'u2X71Np',  // Elevação Frontal no Cabo → cable front raise
+  3017: 'PzQanLE',  // Desenvolvimento no Cabo → cable shoulder press
+  3018: '67n3r98',  // Desenvolvimento na Máquina → lever shoulder press
+  3019: 'hxyTtWj',  // Elevação Lateral Sentado → dumbbell seated lateral raise
+  3020: 'v3xmPAR',  // Crucifixo Inverso Máquina → lever seated fly (reversed)
+  3021: 'goJ6ezq',  // Elevação Lateral Unilateral → cable lateral raise
+  3022: 'vmwLyCg',  // W Press → dumbbell w-press
+  3023: 'RJa4tCo',  // Battle Ropes → battling ropes
+
+  // ─── BÍCEPS (adicionais) ─────────────────
+  4013: '2kattbR',  // Rosca Spider → ez barbell spider curl
+  4014: 'dXz8zjF',  // Rosca Drag → cable drag curl
+  4015: 'Qyk5J3p',  // Rosca Martelo Cross-Body → dumbbell cross body hammer curl
+  4016: 'kXaIn5A',  // Rosca Zottman → dumbbell zottman curl
+  4017: 'q6y3OhV',  // Rosca na Máquina → lever bicep curl
+  4018: 'rZ80Gbp',  // Rosca Concentrada no Cabo → cable seated one arm concentration curl
+  4019: 'IGtBdNT',  // Rosca Martelo Sentado → dumbbell seated hammer curl
+  4020: 'NdIb5Z1',  // Rosca Pegada Larga → barbell standing wide-grip curl
+
+  // ─── TRÍCEPS (adicionais) ────────────────
+  5015: '5uFK1xr',  // Tríceps Francês Sentado → barbell seated overhead triceps extension
+  5016: 'BRImeP8',  // Tríceps Mergulho Máquina → lever seated dip
+  5017: 'Ser9eQp',  // Tríceps Extensão Máquina → lever triceps extension
+  5018: 'ThKP69G',  // Tríceps Pulley Reverso → cable reverse grip triceps pushdown
+  5019: 'YTur5nR',  // Tríceps Unilateral Cabo → cable one arm curl (adapted)
+  5020: '6MfS53i',  // Tríceps Testa Alternado → dumbbell lying single extension
+  5021: 'soIB2rj',  // Flexão Diamante → diamond push-up
+
+  // ─── PERNAS (adicionais) ─────────────────
+  6021: 'bTpEUcm',  // Agachamento Low Bar → barbell low bar squat
+  6022: 'aXtJhlg',  // Step-Up com Halteres → dumbbell step-up
+  6023: 'GWoKnIm',  // Agachamento Cossaco → weighted cossack squats
+  6024: '10Z2DXU',  // Leg Press Horizontal → sled 45° leg press
+  6025: 'SSsBDwB',  // Avanço Reverso → dumbbell rear lunge
+  6026: 'Qa55kX1',  // Hack Machine → sled hack squat
+  6027: 'o6LqKKP',  // Levantamento Terra Romeno → traditional barbell romanian deadlift
+  6028: 'VPPtusI',  // Flexão Nórdica → inverted row bent knees (similar pattern)
+  6029: 'qXTaZnJ',  // Sissy Squat → barbell full squat (closest match)
+  6030: '10Z2DXU',  // Prensa de Pernas → sled 45° leg press
+  6031: 'TDYiji6',  // Agachamento com Salto → jump squat v. 2
+  6032: 'py1HSzx',  // Passada Lateral → barbell lateral lunge
+
+  // ─── PANTURRILHA (adicionais) ────────────
+  7006: 'LmaFNZS',  // Donkey Calf Raise → weighted donkey calf raise
+  7007: 'yl2IYyy',  // Panturrilha no Cabo → cable standing calf raise
+  7008: '2ORFMoR',  // Panturrilha no Hack → hack calf raise
+  7009: '6HmFgmx',  // Tibialis Raise → standing calf raise on staircase
+
+  // ─── GLÚTEOS (adicionais) ────────────────
+  8010: 'qKBpF7I',  // Hip Thrust Máquina → barbell glute bridge
+  8011: 'OM46QHm',  // Cable Pull Through → cable pull through (with rope)
+  8012: 'u0cNiij',  // Ponte de Glúteos → low glute bridge on floor
+  8013: 'dzz6BiV',  // Agachamento Sumô com Barra → smith sumo squat
+  8014: 'OPqShYN',  // Kickback na Máquina → lever hip extension v. 2
+  8015: 'OrETs32',  // Reverse Hyper → reverse hyper on flat bench
+
+  // ─── ABDÔMEN (adicionais) ────────────────
+  9012: 'fhZQPlV',  // Woodchop no Cabo → cable twist (up-down)
+  9013: 'WhuFnR7',  // Elevação Pernas Deitado → lying leg raise flat bench
+  9014: 'VBAWRPG',  // Dead Bug → weighted front plank (closest)
+  9015: '9pa4H5m',  // Pallof Press → band horizontal pallof press
+  9016: 'BMMolZ3',  // V-Up → tuck crunch
+  9017: 'Kzg30R7',  // Crunch no Cabo em Pé → band standing crunch
+  9018: 'QLL2gdc',  // Abdominal Declinado → decline sit-up
+  9019: 'NAgVB3t',  // Ab Wheel → wheel rollerout
+  9020: '03lzqwk',  // Elevação Joelhos Suspenso → assisted hanging knee raise
+  9021: 'yRpV5TC',  // Prancha Toque no Ombro → shoulder tap
+
+  // ─── ANTEBRAÇO (adicionais) ──────────────
+  10004: '2dImyQ8',  // Rosca de Pulso com Halteres → dumbbell seated palms up wrist curl
+  10005: 'lBDjFxJ',  // Dead Hang → pull-up (hanging)
+  10006: 'bd5b860',  // Wrist Roller → wrist rollerer
+  10007: 'mKwcrHn',  // Gripper → lever gripper hands
+  10008: 'LrV4s90',  // Rosca de Pulso no Cabo → cable wrist curl
+
+  // ─── TRAPÉZIO ────────────────────────────
+  12001: 'dG7tG5y',  // Encolhimento por Trás → barbell shrug (similar)
+  12002: '1DN3iz4',  // Encolhimento no Smith → smith upright row
+  12003: 'SpsOSXk',  // Face Pull → cable rear pulldown
+  12004: 'NJzBsGJ',  // Encolhimento Inclinado → dumbbell shrug (similar)
+
+  // ─── CARDIO (adicionais) ─────────────────
+  11008: 'TDYiji6',  // Box Jump → jump squat v. 2
+  11009: 'RJgzwny',  // Mountain Climber → mountain climber
+  11010: '1g5bPpA',  // Jumping Jack → jack jump
+  11011: '0Yz8WdV',  // Bear Crawl → bear crawl
+  11012: 'rjtuP6X',  // Stair Climber → walk elliptical
+  11013: 'dK9394r',  // Sprint → burpee (closest cardio)
+  11014: 'J9zIWig',  // High Knees → walking high knees lunge
+  11015: '0JtKWum',  // Dumbbell Burpee → dumbbell burpee
 };
 
 export function getExerciseImageUrl(exerciseId: number): string | undefined {

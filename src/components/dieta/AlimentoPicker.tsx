@@ -17,7 +17,8 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { X, Search, Plus, Minus, ScanBarcode, Trash2 } from 'lucide-react';
+import { alpha } from '@mui/material/styles';
+import { X, Search, Plus, Minus, ScanBarcode, Trash2, Clock } from 'lucide-react';
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { alimentosPadrao } from '../../constants/alimentos-padrao';
@@ -62,9 +63,28 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const adicionarItem = useDietaStore((s) => s.adicionarItem);
+  const diarios = useDietaStore((s) => s.diarios);
   const { user } = useAuthContext();
 
   const [alimentosCustom, setAlimentosCustom] = useState<Alimento[]>([]);
+
+  // Derive recent foods from diary history (unique by id, most recent first)
+  const alimentosRecentes = useMemo(() => {
+    const seen = new Map<string, Alimento>();
+    // Sort diarios by date descending to get most recent first
+    const sorted = [...diarios].sort((a, b) => b.data.localeCompare(a.data));
+    for (const d of sorted) {
+      for (const r of d.refeicoes) {
+        for (const item of r.itens) {
+          if (!seen.has(item.alimento.id)) {
+            seen.set(item.alimento.id, item.alimento);
+          }
+        }
+      }
+      if (seen.size >= 15) break; // limit to 15 recent foods
+    }
+    return Array.from(seen.values());
+  }, [diarios]);
 
   useEffect(() => {
     if (open && user?.id) {
@@ -274,9 +294,14 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
                   label={cat}
                   size="small"
                   onClick={() => setCategoriaAtiva(cat)}
-                  color={categoriaAtiva === cat ? 'primary' : 'default'}
                   variant={categoriaAtiva === cat ? 'filled' : 'outlined'}
-                  sx={{ flexShrink: 0 }}
+                  sx={{
+                    flexShrink: 0,
+                    ...(categoriaAtiva === cat && {
+                      bgcolor: '#FF6B2C !important',
+                      color: '#fff !important',
+                    }),
+                  }}
                 />
               ))}
             </Box>
@@ -363,6 +388,44 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
 
           {/* Food list */}
           <List sx={{ flex: 1, overflow: 'auto', pt: 0 }}>
+            {/* Seção: Recentes (aba local, sem busca ativa) */}
+            {aba === 0 && !busca.trim() && alimentosRecentes.length > 0 && (
+              <>
+                <Box sx={{ px: 2, pt: 1, pb: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Clock size={12} color={theme.palette.text.secondary} />
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                    Recentes
+                  </Typography>
+                </Box>
+                {alimentosRecentes.map((alimento) => (
+                  <ListItemButton
+                    key={`recent-${alimento.id}`}
+                    onClick={() => handleSelecionar(alimento)}
+                    selected={selecionado?.id === alimento.id}
+                    sx={{ py: 0.75 }}
+                  >
+                    <ListItemText
+                      primary={alimento.marca ? `${alimento.nome} — ${alimento.marca}` : alimento.nome}
+                      secondary={`${alimento.porcao}${alimento.unidade} · ${alimento.calorias} kcal · P${alimento.proteinas}g C${alimento.carboidratos}g G${alimento.gorduras}g`}
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: 500 }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                    <IconButton
+                      size="small"
+                      edge="end"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        adicionarItem(tipoRefeicao, { alimento, quantidade: 1 });
+                      }}
+                      sx={{ opacity: 0.5, ml: 0.5, bgcolor: alpha('#FF6B2C', 0.08), '&:active': { bgcolor: alpha('#FF6B2C', 0.15) } }}
+                    >
+                      <Plus size={16} color="#FF6B2C" />
+                    </IconButton>
+                  </ListItemButton>
+                ))}
+              </>
+            )}
+
             {/* Seção: Meus Alimentos (aba local) */}
             {aba === 0 && alimentosCustomFiltrados.length > 0 && (
               <>

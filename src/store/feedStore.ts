@@ -1,12 +1,15 @@
 import { create } from 'zustand';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { FeedPost } from '../types/feed';
 import * as feedService from '../services/feedService';
+import { supabase } from '../supabase';
 
 interface FeedState {
   posts: FeedPost[];
   loading: boolean;
   hasMore: boolean;
   page: number;
+  _realtimeChannel: RealtimeChannel | null;
 
   carregarFeed: (uid: string, reset?: boolean) => Promise<void>;
   carregarMais: (uid: string) => Promise<void>;
@@ -24,6 +27,8 @@ interface FeedState {
   toggleLike: (postId: string, uid: string) => Promise<void>;
   editarPost: (uid: string, postId: string, texto: string) => Promise<void>;
   atualizarContadorComentarios: (postId: string, delta: number) => void;
+  iniciarRealtime: (uid: string) => void;
+  pararRealtime: () => void;
   limpar: () => void;
 }
 
@@ -32,6 +37,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   loading: false,
   hasMore: true,
   page: 0,
+  _realtimeChannel: null,
 
   carregarFeed: async (uid, reset = false) => {
     if (get().loading) return;
@@ -121,5 +127,98 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }));
   },
 
-  limpar: () => set({ posts: [], loading: false, hasMore: true, page: 0 }),
+  iniciarRealtime: (uid: string) => {
+    // Se já tiver canal ativo, não duplicar
+    if (get()._realtimeChannel) return;
+
+    const channel = supabase
+      .channel('feed-realtime')
+      // Atualização de posts existentes (likes_count, comments_count, texto)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'feed_posts' },
+        (payload) => {
+          const row = payload.new as any;
+          set((state) => ({
+            posts: state.posts.map((p) =>
+              p.id === row.id
+                ? {
+                    ...p,
+                    likesCount: row.likes_count ?? p.likesCount,
+                    commentsCount: row.comments_count ?? p.commentsCount,
+                    texto: row.texto ?? p.texto,
+                  }
+                : p,
+            ),
+          }));
+        },
+      )
+      // Novos posts de outros usuários
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'feed_posts' },
+        async (payload) => {
+          const row = payload.new as any;
+          // Ignorar posts do próprio usuário (já adicionados via criarPost)
+          if (row.user_id === uid) return;
+
+          // Buscar perfil do autor
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, display_name, photo_url')
+            .eq('id', row.user_id)
+            .limit(1);
+          const author = profiles?.[0];
+
+          const newPost: FeedPost = {
+            id: row.id,
+            userId: row.user_id,
+            registroId: row.registro_id,
+            tipoTreino: row.tipo_treino,
+            nomeTreino: row.nome_treino,
+            duracaoSegundos: row.duracao_segundos,
+            resumo: row.resumo,
+            texto: row.texto,
+            fotoUrls: row.foto_urls || [],
+            likesCount: row.likes_count || 0,
+            commentsCount: row.comments_count || 0,
+            createdAt: row.created_at,
+            authorName: author?.display_name || null,
+            authorPhoto: author?.photo_url || null,
+            likedByMe: false,
+          };
+
+          set((state) => ({
+            posts: [newPost, ...state.posts],
+          }));
+        },
+      )
+      // Posts deletados
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'feed_posts' },
+        (payload) => {
+          const oldRow = payload.old as any;
+          set((state) => ({
+            posts: state.posts.filter((p) => p.id !== oldRow.id),
+          }));
+        },
+      )
+      .subscribe();
+
+    set({ _realtimeChannel: channel });
+  },
+
+  pararRealtime: () => {
+    const channel = get()._realtimeChannel;
+    if (channel) {
+      supabase.removeChannel(channel);
+      set({ _realtimeChannel: null });
+    }
+  },
+
+  limpar: () => {
+    get().pararRealtime();
+    set({ posts: [], loading: false, hasMore: true, page: 0, _realtimeChannel: null });
+  },
 }));

@@ -119,7 +119,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
 
         {/* Info chips */}
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 3 }}>
-          <Chip label={exercicio.grupoMuscular} size="small" color="primary" />
+          <Chip label={exercicio.grupoMuscular} size="small" sx={{ bgcolor: '#FF6B2C', color: '#fff' }} />
           {exercicio.isCustom && (
             <Chip label="Personalizado" size="small" variant="outlined" />
           )}

@@ -774,6 +774,594 @@ export const EXERCICIOS_PADRAO: Exercicio[] = [
     descricao: '1. Pés na largura dos ombros, kettlebell entre os pés.\n2. Pegue com as duas mãos, incline o tronco e impulsione com o quadril.\n3. Deixe o kettlebell balançar até a altura dos ombros.\n4. Retorne com controle curvando o quadril (não a lombar).',
   },
 
+  // ─── PEITO (adicionais) ────────────────────────────────────────────────
+  {
+    id: 1017, nome: 'Supino no Smith', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps, Ombros',
+    equipamento: 'Smith Machine, Banco',
+    descricao: '1. Ajuste o banco sob a barra guiada do Smith.\n2. Segure a barra com pegada larga e destrave.\n3. Desça até o peito de forma controlada.\n4. Empurre para cima até extensão quase completa.\n5. A barra guiada ajuda na estabilidade e segurança.',
+  },
+  {
+    id: 1018, nome: 'Chest Press na Máquina', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps, Ombros',
+    equipamento: 'Máquina',
+    descricao: '1. Ajuste o banco para que as pegadas fiquem na altura do peito.\n2. Segure as pegadas e empurre para frente.\n3. Retorne de forma controlada sem deixar os pesos baterem.\n4. Ótimo para iniciantes e para isolar o peitoral.',
+  },
+  {
+    id: 1019, nome: 'Supino Inclinado no Smith', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps, Ombros',
+    equipamento: 'Smith Machine, Banco inclinado',
+    descricao: '1. Posicione o banco inclinado a 30–45° sob o Smith.\n2. Pegada um pouco mais larga que os ombros.\n3. Desça a barra guiada até a parte superior do peito.\n4. Empurre para cima controlando o movimento.',
+  },
+  {
+    id: 1020, nome: 'Crucifixo Declinado com Halteres', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Ombros',
+    equipamento: 'Halteres, Banco declinado',
+    descricao: '1. Prenda os pés e deite no banco declinado com halteres.\n2. Abra os braços em arco controlado para os lados.\n3. Mantenha cotovelos levemente flexionados.\n4. Fecho o arco espremendo a porção inferior do peito.',
+  },
+  {
+    id: 1021, nome: 'Supino Reto Pegada Fechada', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps',
+    equipamento: 'Barra, Banco',
+    descricao: '1. Deite no banco e segure a barra com pegada na largura dos ombros ou mais estreita.\n2. Desça a barra até o peito mantendo os cotovelos próximos ao corpo.\n3. Empurre para cima focando na contração do peitoral interno e tríceps.',
+  },
+  {
+    id: 1022, nome: 'Crucifixo no Cabo Inclinado', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Ombros',
+    equipamento: 'Cabos, Banco inclinado',
+    descricao: '1. Posicione banco inclinado entre duas polias baixas.\n2. Segure as pegadas e abra em arco como um crucifixo.\n3. Feche os braços convergindo no topo.\n4. Tensão constante durante todo o movimento.',
+  },
+  {
+    id: 1023, nome: 'Svend Press', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Ombros',
+    equipamento: 'Anilha',
+    descricao: '1. Em pé, segure uma anilha entre as palmas das mãos na altura do peito.\n2. Empurre a anilha para frente estendendo os braços.\n3. Retorne ao peito mantendo a pressão entre as palmas.\n4. Excelente para contração isométrica do peitoral.',
+  },
+  {
+    id: 1024, nome: 'Floor Press com Halteres', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps',
+    equipamento: 'Halteres',
+    descricao: '1. Deite no chão com os joelhos dobrados e halteres na mão.\n2. Desça os halteres até os cotovelos tocarem o chão.\n3. Empurre para cima até extensão quase completa.\n4. Elimina o impulso das pernas, isolando peito e tríceps.',
+  },
+  {
+    id: 1025, nome: 'Chest Press Declinado na Máquina', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps',
+    equipamento: 'Máquina',
+    descricao: '1. Ajuste o assento da máquina de chest press declinada.\n2. Segure as pegadas e empurre para frente e levemente para baixo.\n3. Retorne de forma controlada.\n4. Foca na porção inferior do peitoral.',
+  },
+  {
+    id: 1026, nome: 'Cable Chest Press', grupoMuscular: 'Peito',
+    musculosSecundarios: 'Tríceps, Ombros',
+    equipamento: 'Cabos',
+    descricao: '1. Posicione as polias na altura do peito.\n2. Segure as pegadas e dê um passo à frente.\n3. Empurre ambas as mãos para frente até os braços estenderem.\n4. Retorne lentamente sentindo a tensão constante nos cabos.',
+  },
+
+  // ─── COSTAS (adicionais) ───────────────────────────────────────────────
+  {
+    id: 2016, nome: 'Pendlay Row', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Posterior de ombro',
+    equipamento: 'Barra',
+    descricao: '1. Tronco paralelo ao chão, barra no solo.\n2. Puxe explosivamente até o abdômen.\n3. Retorne a barra ao chão a cada repetição.\n4. Mantém postura rígida, trabalha costas com força explosiva.',
+  },
+  {
+    id: 2017, nome: 'Remada Inversa (Barra Fixa Australiana)', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Posterior de ombro',
+    equipamento: 'Barra fixa baixa',
+    descricao: '1. Posicione-se sob uma barra baixa com o corpo estendido.\n2. Segure a barra com pegada pronada na largura dos ombros.\n3. Puxe o peito em direção à barra mantendo o corpo reto.\n4. Desça de forma controlada.',
+  },
+  {
+    id: 2018, nome: 'Pulldown com Braço Reto', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Tríceps longo',
+    equipamento: 'Polia alta',
+    descricao: '1. Fique de pé em frente à polia alta com barra reta.\n2. Braços estendidos, empurre a barra para baixo até as coxas.\n3. Retorne lentamente ao nível dos ombros.\n4. Isola o latíssimo sem ação do bíceps.',
+  },
+  {
+    id: 2019, nome: 'Remada no Cabo Pegada Neutra (V-Bar)', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Trapézio',
+    equipamento: 'Polia baixa, V-Bar',
+    descricao: '1. Sente na remada com pegada neutra (V-bar).\n2. Puxe até o abdômen apertando as escápulas.\n3. Retorne de forma controlada mantendo o tronco estável.\n4. Foco na contração do meio das costas.',
+  },
+  {
+    id: 2020, nome: 'Puxada Unilateral na Polia', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps',
+    equipamento: 'Polia alta',
+    descricao: '1. Sente na máquina de pulldown com uma pegada de mão.\n2. Puxe com um braço de cada vez até a altura do peito.\n3. Retorne de forma controlada.\n4. Permite corrigir assimetrias entre os lados.',
+  },
+  {
+    id: 2021, nome: 'Remada Curvada Pegada Supinada', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Lombar',
+    equipamento: 'Barra',
+    descricao: '1. Incline o tronco a 45° segurando a barra com palmas para cima.\n2. Puxe a barra até o abdômen inferior.\n3. Retorne de forma controlada.\n4. Maior ênfase no bíceps e latíssimo inferior.',
+  },
+  {
+    id: 2022, nome: 'Remada High Row na Máquina', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Posterior de ombro, Bíceps',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de high row com o peito apoiado.\n2. Puxe as pegadas para trás na altura dos ombros.\n3. Aperte as escápulas no final do movimento.\n4. Retorne de forma controlada.',
+  },
+  {
+    id: 2023, nome: 'Remada no Smith', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Lombar',
+    equipamento: 'Smith Machine',
+    descricao: '1. Incline o tronco e segure a barra guiada com pegada pronada.\n2. Puxe a barra até o abdômen.\n3. Retorne de forma controlada.\n4. A barra guiada estabiliza o movimento.',
+  },
+  {
+    id: 2024, nome: 'Muscle Up', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Bíceps, Tríceps, Peito, Ombros',
+    equipamento: 'Barra fixa',
+    descricao: '1. Pendure na barra com pegada pronada.\n2. Puxe explosivamente levando o corpo acima da barra.\n3. Transite para posição de apoio (dip) acima da barra.\n4. Empurre para cima e desça controladamente.\n5. Movimento avançado que combina puxada e mergulho.',
+  },
+  {
+    id: 2025, nome: 'Pullover na Máquina', grupoMuscular: 'Costas',
+    musculosSecundarios: 'Peito, Tríceps longo',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de pullover com os braços no suporte acolchoado.\n2. Empurre o suporte para baixo em arco até as coxas.\n3. Retorne de forma controlada acima da cabeça.\n4. Excelente para isolar o latíssimo.',
+  },
+
+  // ─── OMBROS (adicionais) ───────────────────────────────────────────────
+  {
+    id: 3014, nome: 'Remada Alta com Barra', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Trapézio, Bíceps',
+    equipamento: 'Barra',
+    descricao: '1. Em pé, segure a barra com pegada estreita (mãos próximas).\n2. Puxe a barra para cima até a altura do queixo.\n3. Cotovelos apontam para os lados e para cima.\n4. Desça de forma controlada.\n5. Trabalha deltóide lateral e trapézio.',
+  },
+  {
+    id: 3015, nome: 'Remada Alta com Halteres', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Trapézio, Bíceps',
+    equipamento: 'Halteres',
+    descricao: '1. Em pé, segure um halter em cada mão à frente do corpo.\n2. Puxe os halteres para cima mantendo-os próximos ao corpo.\n3. Cotovelos sobem primeiro, acima das mãos.\n4. Desça de forma controlada.',
+  },
+  {
+    id: 3016, nome: 'Elevação Frontal no Cabo', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Peitoral superior',
+    equipamento: 'Polia baixa',
+    descricao: '1. De costas para a polia baixa, segure a pegada entre as pernas.\n2. Eleve o braço à frente até a altura dos ombros.\n3. Retorne lentamente.\n4. Tensão constante no deltóide anterior.',
+  },
+  {
+    id: 3017, nome: 'Desenvolvimento no Cabo Sentado', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Tríceps',
+    equipamento: 'Cabos',
+    descricao: '1. Sente entre duas polias baixas.\n2. Segure as pegadas na altura dos ombros.\n3. Empurre para cima até a extensão.\n4. Retorne de forma controlada.\n5. Tensão constante em todo o arco de movimento.',
+  },
+  {
+    id: 3018, nome: 'Desenvolvimento na Máquina', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Tríceps',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina com as costas apoiadas.\n2. Segure as pegadas na altura dos ombros.\n3. Empurre para cima até quase estender os braços.\n4. Retorne de forma controlada.\n5. Seguro e ideal para carga pesada.',
+  },
+  {
+    id: 3019, nome: 'Elevação Lateral Sentado com Halteres', grupoMuscular: 'Ombros',
+    musculosSecundarios: '',
+    equipamento: 'Halteres, Banco',
+    descricao: '1. Sente em um banco com um halter em cada mão.\n2. Eleve os braços para os lados até a altura dos ombros.\n3. Cotovelos levemente flexionados.\n4. Desça de forma controlada.\n5. Sentado elimina o impulso do corpo.',
+  },
+  {
+    id: 3020, nome: 'Crucifixo Inverso na Máquina (Pec Deck Invertido)', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Trapézio médio, Rombóides',
+    equipamento: 'Máquina Pec Deck',
+    descricao: '1. Sente de frente para o encosto da máquina pec deck.\n2. Segure as pegadas e abra os braços para trás.\n3. Aperte as escápulas no final.\n4. Retorne de forma controlada.\n5. Isola o deltóide posterior.',
+  },
+  {
+    id: 3021, nome: 'Elevação Lateral Unilateral no Cabo', grupoMuscular: 'Ombros',
+    musculosSecundarios: '',
+    equipamento: 'Polia baixa',
+    descricao: '1. De lado para a polia baixa, segure a pegada com a mão oposta.\n2. Eleve lateralmente até a altura do ombro.\n3. Retorne de forma controlada.\n4. Tensão constante durante todo o arco.',
+  },
+  {
+    id: 3022, nome: 'W Press com Halteres', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Trapézio, Rotadores',
+    equipamento: 'Halteres',
+    descricao: '1. Sente segurando halteres com cotovelos a 90° formando um "W".\n2. Empurre para cima convergindo os halteres.\n3. Retorne à posição de "W".\n4. Trabalha todos os feixes do deltóide com rotação externa.',
+  },
+  {
+    id: 3023, nome: 'Battle Ropes (Cordas Navais)', grupoMuscular: 'Ombros',
+    musculosSecundarios: 'Core, Braços, Cardio',
+    equipamento: 'Cordas navais',
+    descricao: '1. Segure uma ponta da corda em cada mão.\n2. Agache levemente e faça ondulações alternadas com os braços.\n3. Mantenha o core contraído e o ritmo constante.\n4. Variações: ondas alternadas, ondas simultâneas, slams.',
+  },
+
+  // ─── BÍCEPS (adicionais) ───────────────────────────────────────────────
+  {
+    id: 4013, nome: 'Rosca Spider (Aranha)', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Antebraço',
+    equipamento: 'Barra EZ, Banco inclinado',
+    descricao: '1. Deite de bruços no banco inclinado com os braços pendurados.\n2. Segure a barra EZ e flexione os cotovelos.\n3. Suba até contração máxima.\n4. Desça de forma controlada.\n5. Sem impulso — isola o bíceps na fase de contração.',
+  },
+  {
+    id: 4014, nome: 'Rosca Drag (Arrasto)', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Braquial',
+    equipamento: 'Barra ou Cabos',
+    descricao: '1. Em pé, segure a barra próxima ao corpo.\n2. Flexione arrastando a barra pelo corpo (cotovelos vão para trás).\n3. A barra sobe rente ao tronco até o peito.\n4. Desça pelo mesmo caminho.\n5. Enfatiza a cabeça longa do bíceps.',
+  },
+  {
+    id: 4015, nome: 'Rosca Martelo Cross-Body', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Braquiorradial',
+    equipamento: 'Halteres',
+    descricao: '1. Em pé, segure um halter em cada mão (pegada neutra).\n2. Flexione um braço cruzando o halter em direção ao ombro oposto.\n3. Alterne os braços.\n4. Trabalha mais o braquiorradial que a rosca martelo normal.',
+  },
+  {
+    id: 4016, nome: 'Rosca Zottman', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Antebraço',
+    equipamento: 'Halteres',
+    descricao: '1. Em pé, faça rosca supinada (palmas para cima) subindo.\n2. No topo, gire os pulsos para pegada pronada (palmas para baixo).\n3. Desça com pegada pronada.\n4. Gire novamente para supinada e repita.\n5. Trabalha bíceps na subida e antebraço na descida.',
+  },
+  {
+    id: 4017, nome: 'Rosca na Máquina', grupoMuscular: 'Bíceps',
+    musculosSecundarios: '',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de bíceps com os braços no suporte.\n2. Flexione os cotovelos puxando a pegada em direção aos ombros.\n3. Retorne de forma controlada.\n4. Isola completamente o bíceps.',
+  },
+  {
+    id: 4018, nome: 'Rosca Concentrada com Cabo', grupoMuscular: 'Bíceps',
+    musculosSecundarios: '',
+    equipamento: 'Polia baixa',
+    descricao: '1. Sente de frente para uma polia baixa.\n2. Apoie o cotovelo na coxa interna.\n3. Flexione o braço puxando a pegada em direção ao ombro.\n4. Retorne de forma controlada.\n5. Tensão constante durante todo o movimento.',
+  },
+  {
+    id: 4019, nome: 'Rosca Martelo Sentado', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Braquiorradial',
+    equipamento: 'Halteres, Banco',
+    descricao: '1. Sente em um banco segurando halteres com pegada neutra.\n2. Flexione alternando os braços.\n3. Sem impulso do corpo.\n4. Sentado elimina trapaça e isola melhor o bíceps.',
+  },
+  {
+    id: 4020, nome: 'Rosca com Barra Pegada Larga', grupoMuscular: 'Bíceps',
+    musculosSecundarios: 'Antebraço',
+    equipamento: 'Barra',
+    descricao: '1. Em pé, segure a barra com pegada supinada mais larga que os ombros.\n2. Flexione os cotovelos trazendo a barra aos ombros.\n3. Retorne de forma controlada.\n4. Ênfase na cabeça curta do bíceps.',
+  },
+
+  // ─── TRÍCEPS (adicionais) ──────────────────────────────────────────────
+  {
+    id: 5015, nome: 'Tríceps Francês Sentado com Barra', grupoMuscular: 'Tríceps',
+    musculosSecundarios: '',
+    equipamento: 'Barra EZ, Banco',
+    descricao: '1. Sente segurando a barra EZ acima da cabeça com braços estendidos.\n2. Flexione os cotovelos descendo a barra atrás da cabeça.\n3. Estenda os braços de volta ao topo.\n4. Cotovelos apontam para cima, fixos.',
+  },
+  {
+    id: 5016, nome: 'Tríceps Mergulho na Máquina', grupoMuscular: 'Tríceps',
+    musculosSecundarios: 'Peito, Ombros',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de dip com as mãos nas pegadas.\n2. Empurre para baixo estendendo os braços.\n3. Retorne de forma controlada.\n4. Permite ajustar a carga com segurança.',
+  },
+  {
+    id: 5017, nome: 'Tríceps Extensão na Máquina', grupoMuscular: 'Tríceps',
+    musculosSecundarios: '',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de extensão de tríceps.\n2. Posicione os braços no suporte acolchoado.\n3. Estenda os cotovelos empurrando a pegada para baixo.\n4. Retorne de forma controlada.',
+  },
+  {
+    id: 5018, nome: 'Tríceps Pulley Reverso (Pegada Supinada)', grupoMuscular: 'Tríceps',
+    musculosSecundarios: '',
+    equipamento: 'Polia alta',
+    descricao: '1. De frente para a polia alta, segure a barra com palmas para cima.\n2. Cotovelos fixos ao lado do corpo.\n3. Estenda os braços empurrando a barra para baixo.\n4. Retorne de forma controlada.\n5. Ênfase na cabeça medial do tríceps.',
+  },
+  {
+    id: 5019, nome: 'Tríceps Unilateral no Cabo', grupoMuscular: 'Tríceps',
+    musculosSecundarios: '',
+    equipamento: 'Polia alta',
+    descricao: '1. De frente para a polia alta, segure a pegada com uma mão.\n2. Cotovelo fixo ao lado do corpo.\n3. Estenda o braço empurrando para baixo.\n4. Retorne de forma controlada.\n5. Permite corrigir assimetrias.',
+  },
+  {
+    id: 5020, nome: 'Tríceps Testa com Halteres (Alternado)', grupoMuscular: 'Tríceps',
+    musculosSecundarios: '',
+    equipamento: 'Halteres, Banco',
+    descricao: '1. Deite no banco segurando um halter em cada mão acima do peito.\n2. Flexione um cotovelo descendo o halter até a testa.\n3. Estenda de volta e alterne.\n4. Cada braço trabalha independentemente.',
+  },
+  {
+    id: 5021, nome: 'Flexão de Braço com Mãos Juntas (Diamante)', grupoMuscular: 'Tríceps',
+    musculosSecundarios: 'Peito',
+    equipamento: 'Peso corporal',
+    descricao: '1. Posição de flexão com as mãos formando um diamante sob o peito.\n2. Desça controlando até o peito quase tocar as mãos.\n3. Empurre de volta à posição inicial.\n4. Ênfase no tríceps e peitoral interno.',
+  },
+
+  // ─── PERNAS (adicionais) ───────────────────────────────────────────────
+  {
+    id: 6021, nome: 'Agachamento com Barra Baixa (Low Bar)', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos, Lombar',
+    equipamento: 'Barra, Pesos',
+    descricao: '1. Posicione a barra mais abaixo no trapézio (não no pescoço).\n2. Incline mais o tronco para compensar.\n3. Desça até pelo menos paralelo.\n4. Empurre pelo calcanhar para subir.\n5. Permite cargas mais pesadas que o high bar.',
+  },
+  {
+    id: 6022, nome: 'Step-Up com Halteres', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Halteres, Caixa/Banco',
+    descricao: '1. Segure halteres e posicione um pé sobre a caixa.\n2. Empurre pelo calcanhar subindo até estender a perna.\n3. Desça de forma controlada com a outra perna.\n4. Complete as repetições de um lado antes de trocar.',
+  },
+  {
+    id: 6023, nome: 'Agachamento Cossaco', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Adutores, Glúteos',
+    equipamento: 'Peso corporal ou Halter',
+    descricao: '1. Pés bem afastados.\n2. Agache lateralmente sobre uma perna enquanto a outra fica estendida.\n3. Desça o mais profundo possível.\n4. Empurre de volta ao centro e alterne.\n5. Excelente para mobilidade e adutores.',
+  },
+  {
+    id: 6024, nome: 'Leg Press Horizontal na Máquina', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina de leg press horizontal.\n2. Posicione os pés na plataforma na largura dos ombros.\n3. Empurre a plataforma estendendo as pernas.\n4. Retorne flexionando os joelhos a 90°.',
+  },
+  {
+    id: 6025, nome: 'Avanço Reverso com Halteres', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Halteres',
+    descricao: '1. Em pé segurando halteres, dê um passo para trás.\n2. Desça até o joelho de trás quase tocar o chão.\n3. Empurre de volta à posição inicial com a perna da frente.\n4. Alterne as pernas.\n5. Menos estresse no joelho que o avanço para frente.',
+  },
+  {
+    id: 6026, nome: 'Agachamento no Hack Machine', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Máquina Hack',
+    descricao: '1. Encaixe-se na máquina hack com os ombros sob os suportes.\n2. Pés na plataforma na largura dos ombros.\n3. Destrave e desça controladamente.\n4. Empurre para cima até quase estender as pernas.\n5. Isola quadríceps com segurança.',
+  },
+  {
+    id: 6027, nome: 'Levantamento Terra Romeno com Barra', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos, Lombar',
+    equipamento: 'Barra',
+    descricao: '1. Em pé segurando a barra com braços estendidos.\n2. Empurre o quadril para trás mantendo leve flexão nos joelhos.\n3. Desça a barra ao longo das pernas até sentir o alongamento.\n4. Retorne espremendo os glúteos no topo.\n5. Foco no posterior de coxa.',
+  },
+  {
+    id: 6028, nome: 'Flexão Nórdica de Joelhos', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Peso corporal',
+    descricao: '1. Ajoelhe com os pés presos (parceiro ou suporte).\n2. Desça o corpo para frente de forma controlada mantendo o quadril estendido.\n3. Desça o máximo que conseguir usando os isquiotibiais para frear.\n4. Retorne ou use as mãos para apoiar.\n5. Exercício avançado para posterior de coxa.',
+  },
+  {
+    id: 6029, nome: 'Sissy Squat', grupoMuscular: 'Pernas',
+    musculosSecundarios: '',
+    equipamento: 'Peso corporal ou Máquina',
+    descricao: '1. Em pé, segure-se em um suporte para equilíbrio.\n2. Fique na ponta dos pés e incline o corpo para trás.\n3. Flexione os joelhos descendo o corpo enquanto os joelhos avançam.\n4. Retorne à posição inicial.\n5. Isola intensamente o quadríceps.',
+  },
+  {
+    id: 6030, nome: 'Prensa de Pernas Sentado (Leg Press Horizontal)', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos',
+    equipamento: 'Máquina',
+    descricao: '1. Sente na máquina com as costas apoiadas.\n2. Pés na plataforma afastados na largura dos ombros.\n3. Empurre a plataforma estendendo as pernas.\n4. Retorne flexionando os joelhos sem travar.',
+  },
+  {
+    id: 6031, nome: 'Agachamento com Salto', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Glúteos, Panturrilha',
+    equipamento: 'Peso corporal',
+    descricao: '1. Agache até a posição paralela.\n2. Salte explosivamente estendendo todo o corpo.\n3. Aterrisse suavemente voltando à posição de agachamento.\n4. Excelente para potência e explosão das pernas.',
+  },
+  {
+    id: 6032, nome: 'Passada Lateral com Halter', grupoMuscular: 'Pernas',
+    musculosSecundarios: 'Adutores, Glúteos',
+    equipamento: 'Halteres',
+    descricao: '1. Em pé segurando halteres, dê um passo largo para o lado.\n2. Flexione o joelho da perna que avançou.\n3. A outra perna fica estendida.\n4. Empurre de volta à posição inicial.\n5. Trabalha adutores e quadríceps lateral.',
+  },
+
+  // ─── PANTURRILHA (adicionais) ──────────────────────────────────────────
+  {
+    id: 7006, nome: 'Panturrilha Burro (Donkey Calf Raise)', grupoMuscular: 'Panturrilha',
+    musculosSecundarios: '',
+    equipamento: 'Peso corporal ou Máquina',
+    descricao: '1. Incline o tronco apoiando as mãos em um suporte.\n2. Fique na ponta dos pés em uma plataforma elevada.\n3. Suba na ponta dos pés contraindo a panturrilha.\n4. Desça além do nível da plataforma para alongar.\n5. O ângulo do quadril aumenta o estiramento.',
+  },
+  {
+    id: 7007, nome: 'Panturrilha no Cabo', grupoMuscular: 'Panturrilha',
+    musculosSecundarios: '',
+    equipamento: 'Polia baixa',
+    descricao: '1. Fique de frente para a polia baixa com uma barra ou cinto.\n2. Suba na ponta dos pés.\n3. Desça de forma controlada.\n4. Tensão constante do cabo durante todo o movimento.',
+  },
+  {
+    id: 7008, nome: 'Panturrilha no Hack Squat', grupoMuscular: 'Panturrilha',
+    musculosSecundarios: '',
+    equipamento: 'Máquina Hack',
+    descricao: '1. Posicione-se na máquina hack com apenas a ponta dos pés na plataforma.\n2. Destrave e suba na ponta dos pés.\n3. Desça o calcanhar abaixo da plataforma.\n4. Suba novamente contraindo a panturrilha.',
+  },
+  {
+    id: 7009, nome: 'Tibialis Raise (Elevação de Tibial)', grupoMuscular: 'Panturrilha',
+    musculosSecundarios: '',
+    equipamento: 'Peso corporal',
+    descricao: '1. Encoste as costas na parede com os pés a ~30cm dela.\n2. Levante a ponta dos pés mantendo os calcanhares no chão.\n3. Desça de forma controlada.\n4. Fortalece o tibial anterior (parte da frente da canela).',
+  },
+
+  // ─── GLÚTEOS (adicionais) ──────────────────────────────────────────────
+  {
+    id: 8010, nome: 'Hip Thrust na Máquina', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Posterior de coxa',
+    equipamento: 'Máquina de Hip Thrust',
+    descricao: '1. Sente na máquina com as costas apoiadas no encosto.\n2. Pés no chão na largura dos ombros.\n3. Empurre o quadril para cima contra a resistência.\n4. Aperte os glúteos no topo.\n5. Desça de forma controlada.',
+  },
+  {
+    id: 8011, nome: 'Cable Pull Through', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Posterior de coxa, Lombar',
+    equipamento: 'Polia baixa, Corda',
+    descricao: '1. De costas para a polia baixa, passe a corda entre as pernas.\n2. Incline o tronco à frente com leve flexão nos joelhos.\n3. Estenda o quadril puxando a corda entre as pernas.\n4. Aperte os glúteos no topo.\n5. Excelente para aprender o padrão de hip hinge.',
+  },
+  {
+    id: 8012, nome: 'Ponte de Glúteos no Solo', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Posterior de coxa, Core',
+    equipamento: 'Peso corporal',
+    descricao: '1. Deite de costas com joelhos dobrados e pés no chão.\n2. Empurre o quadril para cima espremendo os glúteos.\n3. Forme uma linha reta dos ombros aos joelhos.\n4. Desça de forma controlada.\n5. Pode adicionar peso no quadril para progressão.',
+  },
+  {
+    id: 8013, nome: 'Agachamento Sumô com Barra', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Adutores, Quadríceps',
+    equipamento: 'Barra',
+    descricao: '1. Pés bem afastados com pontas viradas para fora.\n2. Barra apoiada no trapézio.\n3. Agache mantendo os joelhos alinhados com os pés.\n4. Empurre de volta à posição inicial.\n5. Ênfase em adutores e glúteos.',
+  },
+  {
+    id: 8014, nome: 'Kickback na Máquina de Glúteos', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Posterior de coxa',
+    equipamento: 'Máquina',
+    descricao: '1. Posicione-se na máquina com um pé na plataforma.\n2. Empurre a perna para trás estendendo o quadril.\n3. Aperte o glúteo na contração máxima.\n4. Retorne de forma controlada.',
+  },
+  {
+    id: 8015, nome: 'Reverse Hyper (Hiperextensão Reversa)', grupoMuscular: 'Glúteos',
+    musculosSecundarios: 'Posterior de coxa, Lombar',
+    equipamento: 'Banco ou Máquina',
+    descricao: '1. Deite de bruços em um banco elevado com as pernas penduradas.\n2. Eleve as pernas para trás até ficarem alinhadas com o corpo.\n3. Aperte os glúteos no topo.\n4. Desça de forma controlada.\n5. Fortalece glúteos e lombar.',
+  },
+
+  // ─── ABDÔMEN (adicionais) ──────────────────────────────────────────────
+  {
+    id: 9012, nome: 'Woodchop no Cabo', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Oblíquos, Ombros',
+    equipamento: 'Polia alta ou baixa',
+    descricao: '1. Fique de lado para a polia com as duas mãos na pegada.\n2. Puxe diagonalmente de cima para baixo (ou de baixo para cima).\n3. Gire o tronco de forma controlada.\n4. Retorne lentamente.\n5. Excelente para oblíquos e rotação.',
+  },
+  {
+    id: 9013, nome: 'Elevação de Pernas Deitado', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Flexores do quadril',
+    equipamento: 'Peso corporal',
+    descricao: '1. Deite de costas com as mãos sob os glúteos.\n2. Pernas estendidas, eleve até 90°.\n3. Desça de forma controlada sem tocar o chão.\n4. Mantenha a lombar pressionada no chão.\n5. Foco no abdômen inferior.',
+  },
+  {
+    id: 9014, nome: 'Dead Bug', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Core profundo',
+    equipamento: 'Peso corporal',
+    descricao: '1. Deite de costas com braços estendidos ao teto e joelhos a 90°.\n2. Estenda simultaneamente o braço direito e a perna esquerda.\n3. Retorne e alterne.\n4. Mantenha a lombar pressionada no chão durante todo o movimento.\n5. Excelente para estabilização do core.',
+  },
+  {
+    id: 9015, nome: 'Pallof Press', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Oblíquos, Core profundo',
+    equipamento: 'Cabos ou Elástico',
+    descricao: '1. Fique de lado para o cabo na altura do peito.\n2. Segure a pegada com ambas as mãos no centro do peito.\n3. Empurre as mãos para frente resistindo à rotação.\n4. Retorne ao peito.\n5. Exercício anti-rotação para estabilidade do core.',
+  },
+  {
+    id: 9016, nome: 'V-Up', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Flexores do quadril',
+    equipamento: 'Peso corporal',
+    descricao: '1. Deite de costas com braços e pernas estendidos.\n2. Eleve simultaneamente o tronco e as pernas formando um "V".\n3. Toque os pés com as mãos no topo.\n4. Retorne de forma controlada.',
+  },
+  {
+    id: 9017, nome: 'Crunch no Cabo em Pé', grupoMuscular: 'Abdômen',
+    musculosSecundarios: '',
+    equipamento: 'Polia alta',
+    descricao: '1. De costas para a polia alta, segure a corda atrás da cabeça.\n2. Flexione o tronco para baixo contraindo o abdômen.\n3. Retorne de forma controlada.\n4. Tensão constante do cabo.',
+  },
+  {
+    id: 9018, nome: 'Abdominal Declinado', grupoMuscular: 'Abdômen',
+    musculosSecundarios: '',
+    equipamento: 'Banco declinado',
+    descricao: '1. Prenda os pés no suporte do banco declinado.\n2. Cruze os braços no peito ou coloque as mãos atrás da cabeça.\n3. Suba o tronco até posição sentada.\n4. Desça de forma controlada.\n5. A declinação aumenta a dificuldade.',
+  },
+  {
+    id: 9019, nome: 'Abdominal na Roda (Ab Wheel)', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Ombros, Lombar',
+    equipamento: 'Roda abdominal',
+    descricao: '1. Ajoelhe segurando a roda abdominal no chão.\n2. Role para frente estendendo o corpo o máximo possível.\n3. Puxe de volta à posição inicial usando o abdômen.\n4. Mantenha o core contraído durante todo o movimento.\n5. Exercício avançado.',
+  },
+  {
+    id: 9020, nome: 'Elevação de Joelhos Suspenso', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Flexores do quadril',
+    equipamento: 'Barra fixa',
+    descricao: '1. Pendure na barra fixa com braços estendidos.\n2. Flexione os joelhos trazendo-os em direção ao peito.\n3. Desça de forma controlada.\n4. Evite balanço do corpo.\n5. Variação mais fácil da elevação de pernas suspenso.',
+  },
+  {
+    id: 9021, nome: 'Prancha com Toque no Ombro', grupoMuscular: 'Abdômen',
+    musculosSecundarios: 'Core, Ombros',
+    equipamento: 'Peso corporal',
+    descricao: '1. Posição de prancha alta (braços estendidos).\n2. Toque o ombro esquerdo com a mão direita.\n3. Retorne e alterne.\n4. Mantenha o quadril estável sem rotar.\n5. Trabalha estabilidade anti-rotação do core.',
+  },
+
+  // ─── ANTEBRAÇO (adicionais) ────────────────────────────────────────────
+  {
+    id: 10004, nome: 'Rosca de Pulso com Halteres', grupoMuscular: 'Antebraço',
+    musculosSecundarios: '',
+    equipamento: 'Halteres',
+    descricao: '1. Sente com os antebraços apoiados nas coxas segurando halteres.\n2. Pegada supinada (palmas para cima).\n3. Flexione os pulsos para cima.\n4. Desça de forma controlada.\n5. Cada mão trabalha independentemente.',
+  },
+  {
+    id: 10005, nome: 'Dead Hang (Sustentação na Barra)', grupoMuscular: 'Antebraço',
+    musculosSecundarios: 'Costas, Ombros',
+    equipamento: 'Barra fixa',
+    descricao: '1. Pendure na barra fixa com pegada pronada.\n2. Braços estendidos, corpo relaxado.\n3. Segure o máximo de tempo possível.\n4. Ótimo para força de pegada e descompressão da coluna.',
+  },
+  {
+    id: 10006, nome: 'Wrist Roller (Rolo de Pulso)', grupoMuscular: 'Antebraço',
+    musculosSecundarios: '',
+    equipamento: 'Rolo de pulso',
+    descricao: '1. Segure o rolo com braços estendidos à frente.\n2. Enrole a corda girando os pulsos para levantar o peso.\n3. Desenrole de forma controlada.\n4. Trabalha flexores e extensores do antebraço.',
+  },
+  {
+    id: 10007, nome: 'Gripper (Aperto de Mão)', grupoMuscular: 'Antebraço',
+    musculosSecundarios: '',
+    equipamento: 'Gripper / Hand Grip',
+    descricao: '1. Segure o gripper com uma mão.\n2. Feche completamente esmagando as alças.\n3. Abra de forma controlada.\n4. Excelente para força de pegada e grip.',
+  },
+  {
+    id: 10008, nome: 'Rosca de Pulso no Cabo', grupoMuscular: 'Antebraço',
+    musculosSecundarios: '',
+    equipamento: 'Polia baixa',
+    descricao: '1. Sente de frente para a polia baixa com os antebraços nas coxas.\n2. Segure a barra com pegada supinada.\n3. Flexione os pulsos para cima.\n4. Desça de forma controlada.\n5. Tensão constante do cabo.',
+  },
+
+  // ─── CARDIO / FUNCIONAIS (adicionais) ──────────────────────────────────
+  {
+    id: 11008, nome: 'Box Jump (Salto na Caixa)', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Pernas, Glúteos',
+    equipamento: 'Caixa pliométrica',
+    descricao: '1. Fique de frente para a caixa a uma distância confortável.\n2. Agache levemente e salte para cima da caixa.\n3. Aterrisse suavemente com ambos os pés na caixa.\n4. Fique em pé, desça e repita.',
+  },
+  {
+    id: 11009, nome: 'Escalador (Mountain Climber)', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Abdômen, Ombros, Pernas',
+    equipamento: 'Peso corporal',
+    descricao: '1. Posição de prancha alta.\n2. Traga um joelho em direção ao peito rapidamente.\n3. Alterne as pernas em ritmo acelerado.\n4. Mantenha o core contraído e o quadril estável.',
+  },
+  {
+    id: 11010, nome: 'Jumping Jack', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Pernas, Ombros',
+    equipamento: 'Peso corporal',
+    descricao: '1. Em pé, pernas juntas e braços ao lado.\n2. Salte abrindo as pernas e elevando os braços acima da cabeça.\n3. Salte de volta juntando as pernas e baixando os braços.\n4. Repita em ritmo constante.',
+  },
+  {
+    id: 11011, nome: 'Bear Crawl (Caminhada de Urso)', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Core, Ombros, Pernas',
+    equipamento: 'Peso corporal',
+    descricao: '1. Posição de quatro apoios com joelhos levantados do chão.\n2. Avance mão e pé opostos simultaneamente.\n3. Mantenha as costas retas e o core contraído.\n4. Alterne os lados caminhando para frente.',
+  },
+  {
+    id: 11012, nome: 'Stair Climber (Escada)', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Pernas, Glúteos',
+    equipamento: 'Máquina de escada',
+    descricao: '1. Suba na máquina e segure levemente as barras laterais.\n2. Suba os degraus em ritmo constante.\n3. Mantenha postura ereta, não se apoie nas barras.\n4. Ajuste velocidade conforme condicionamento.',
+  },
+  {
+    id: 11013, nome: 'Sprint', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Pernas, Glúteos, Core',
+    equipamento: 'Nenhum',
+    descricao: '1. Corrida em velocidade máxima por distância curta (20-100m).\n2. Braços bombeando ao lado do corpo.\n3. Descanso ativo entre sprints.\n4. Excelente para queima calórica e condicionamento anaeróbico.',
+  },
+  {
+    id: 11014, nome: 'High Knees (Joelhos Altos)', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Abdômen, Flexores do quadril',
+    equipamento: 'Peso corporal',
+    descricao: '1. Em pé, corra no lugar elevando os joelhos à altura do quadril.\n2. Braços acompanham o movimento como em uma corrida.\n3. Mantenha ritmo acelerado.\n4. Excelente aquecimento e cardio.',
+  },
+  {
+    id: 11015, nome: 'Dumbbell Burpee', grupoMuscular: 'Cardio',
+    musculosSecundarios: 'Corpo inteiro',
+    equipamento: 'Halteres',
+    descricao: '1. Segure halteres, agache e coloque-os no chão.\n2. Salte os pés para trás em posição de prancha.\n3. Faça uma flexão (opcional).\n4. Salte os pés de volta, fique em pé e eleve os halteres acima da cabeça.',
+  },
+
+  // ─── TRAPÉZIO ──────────────────────────────────────────────────────────
+  {
+    id: 12001, nome: 'Encolhimento com Barra por Trás', grupoMuscular: 'Trapézio',
+    musculosSecundarios: '',
+    equipamento: 'Barra',
+    descricao: '1. Em pé, segure a barra atrás do corpo com pegada pronada.\n2. Eleve os ombros em direção às orelhas.\n3. Segure no topo por 1 segundo.\n4. Desça de forma controlada.\n5. Trabalha fibras diferentes do encolhimento frontal.',
+  },
+  {
+    id: 12002, nome: 'Encolhimento no Smith', grupoMuscular: 'Trapézio',
+    musculosSecundarios: '',
+    equipamento: 'Smith Machine',
+    descricao: '1. Fique de frente para a barra do Smith.\n2. Segure com pegada pronada na largura dos ombros.\n3. Eleve os ombros retos para cima (não role).\n4. Desça de forma controlada.',
+  },
+  {
+    id: 12003, nome: 'Face Pull', grupoMuscular: 'Trapézio',
+    musculosSecundarios: 'Posterior de ombro, Rombóides',
+    equipamento: 'Polia alta, Corda',
+    descricao: '1. Posicione a polia na altura da cabeça com corda.\n2. Puxe a corda em direção ao rosto separando as mãos.\n3. Cotovelos altos, aperte as escápulas.\n4. Retorne de forma controlada.\n5. Excelente para saúde dos ombros e postura.',
+  },
+  {
+    id: 12004, nome: 'Encolhimento com Halteres Inclinado', grupoMuscular: 'Trapézio',
+    musculosSecundarios: '',
+    equipamento: 'Halteres, Banco inclinado',
+    descricao: '1. Deite de bruços em banco inclinado segurando halteres.\n2. Eleve os ombros apertando as escápulas.\n3. Segure no topo.\n4. Desça de forma controlada.\n5. Foca no trapézio médio e inferior.',
+  },
+
 ];
 
 export const GRUPOS_MUSCULARES = [
@@ -787,5 +1375,6 @@ export const GRUPOS_MUSCULARES = [
   'Glúteos',
   'Abdômen',
   'Antebraço',
+  'Trapézio',
   'Cardio',
 ];
