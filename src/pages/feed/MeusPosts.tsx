@@ -2,11 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Badge,
-  Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText,
-  Menu, MenuItem,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button as MuiButton,
+  List, ListItem, ListItemAvatar, ListItemText,
+  Menu, MenuItem, TextField,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Rss, Camera, X, ImagePlus, Trash2, Lock, Unlock, UserCheck, UserX, Users } from 'lucide-react';
+import { ArrowLeft, Rss, Camera, X, ImagePlus, Trash2, Lock, Unlock, UserCheck, UserX, Users, AtSign } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import {
@@ -15,7 +16,7 @@ import {
   acceptFollowRequest, rejectFollowRequest,
 } from '../../services/feedService';
 import type { FollowUser } from '../../services/feedService';
-import { uploadProfilePicture, removeProfilePicture, togglePrivateProfile } from '../../services/userService';
+import { uploadProfilePicture, removeProfilePicture, togglePrivateProfile, checkUsernameAvailable, saveUsername } from '../../services/userService';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
 
@@ -48,6 +49,12 @@ export default function MeusPosts() {
   const [pendingRequests, setPendingRequests] = useState<FollowUser[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [showPending, setShowPending] = useState(false);
+
+  // Username
+  const [usernameDialog, setUsernameDialog] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameSaving, setUsernameSaving] = useState(false);
 
   const uid = user?.id;
   const userPhoto = user?.user_metadata?.avatar_url || profile?.photoURL || null;
@@ -249,10 +256,29 @@ export default function MeusPosts() {
           </Box>
         </Box>
 
-        {/* Nome */}
+        {/* Nome + Username */}
         <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1.5, fontSize: '1rem' }}>
           {displayName}
         </Typography>
+        <Box
+          onClick={() => {
+            setUsernameInput(profile?.username || '');
+            setUsernameError('');
+            setUsernameDialog(true);
+          }}
+          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer', mt: 0.2 }}
+        >
+          {profile?.username ? (
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+              @{profile.username}
+            </Typography>
+          ) : (
+            <Typography variant="body2" sx={{ fontSize: '0.82rem', color: '#FF6B2C', fontWeight: 600 }}>
+              <AtSign size={13} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+              Definir nome de usuário
+            </Typography>
+          )}
+        </Box>
 
         {/* Botão Privado */}
         <Box
@@ -509,6 +535,76 @@ export default function MeusPosts() {
             </List>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Username */}
+      <Dialog
+        open={usernameDialog}
+        onClose={() => setUsernameDialog(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontSize: '1.05rem', fontWeight: 700 }}>
+          Nome de usuário
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.85rem' }}>
+            Escolha um nome único. Só pode conter letras, números, pontos e underlines.
+          </Typography>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="ex: joao.silva"
+            value={usernameInput}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^a-zA-Z0-9._]/g, '');
+              setUsernameInput(val);
+              setUsernameError('');
+            }}
+            error={!!usernameError}
+            helperText={usernameError}
+            slotProps={{ htmlInput: { maxLength: 30 } }}
+            sx={{ '& input': { fontSize: '0.95rem' } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <MuiButton onClick={() => setUsernameDialog(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancelar
+          </MuiButton>
+          <MuiButton
+            variant="contained"
+            disabled={usernameSaving || usernameInput.length < 3}
+            onClick={async () => {
+              if (usernameInput.length < 3) {
+                setUsernameError('Mínimo de 3 caracteres.');
+                return;
+              }
+              setUsernameSaving(true);
+              try {
+                const available = await checkUsernameAvailable(usernameInput, uid);
+                if (!available) {
+                  setUsernameError('Este nome já está em uso.');
+                  setUsernameSaving(false);
+                  return;
+                }
+                await saveUsername(uid, usernameInput);
+                await refreshUser();
+                setUsernameDialog(false);
+              } catch {
+                setUsernameError('Erro ao salvar. Tente novamente.');
+              } finally {
+                setUsernameSaving(false);
+              }
+            }}
+            sx={{
+              textTransform: 'none', fontWeight: 700,
+              bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' },
+            }}
+          >
+            {usernameSaving ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Salvar'}
+          </MuiButton>
+        </DialogActions>
       </Dialog>
     </Box>
   );

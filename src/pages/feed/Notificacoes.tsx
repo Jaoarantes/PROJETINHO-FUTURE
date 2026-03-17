@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton, CircularProgress, Avatar } from '@mui/material';
+import {
+  Box, Typography, IconButton, CircularProgress, Avatar,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button,
+} from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Heart, MessageCircle, Bell } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Bell, Trash2, X } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { carregarNotificacoes, marcarNotificacoesLidas } from '../../services/feedService';
+import {
+  carregarNotificacoes, marcarNotificacoesLidas,
+  deletarNotificacao, deletarTodasNotificacoes,
+} from '../../services/feedService';
 import type { FeedNotification } from '../../types/feed';
 
 function tempoRelativo(data: string): string {
@@ -21,6 +27,7 @@ export default function Notificacoes() {
   const { user } = useAuthContext();
   const [notifs, setNotifs] = useState<FeedNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const uid = user?.id;
 
@@ -38,15 +45,35 @@ export default function Notificacoes() {
 
   if (!uid) return null;
 
+  const handleDeleteOne = async (e: React.MouseEvent, notifId: string) => {
+    e.stopPropagation();
+    setNotifs((prev) => prev.filter((n) => n.id !== notifId));
+    await deletarNotificacao(uid, notifId);
+  };
+
+  const handleClearAll = async () => {
+    setConfirmClearAll(false);
+    setNotifs([]);
+    await deletarTodasNotificacoes(uid);
+  };
+
   return (
     <Box sx={{ pt: 1, pb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
         <IconButton onClick={() => navigate('/feed')} sx={{ mr: 1, ml: -1 }}>
           <ArrowLeft size={22} />
         </IconButton>
-        <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.2rem' }}>
+        <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.2rem', flex: 1 }}>
           Notificações
         </Typography>
+        {notifs.length > 0 && (
+          <IconButton
+            onClick={() => setConfirmClearAll(true)}
+            sx={{ color: 'text.secondary', opacity: 0.6 }}
+          >
+            <Trash2 size={20} />
+          </IconButton>
+        )}
       </Box>
 
       {loading ? (
@@ -119,10 +146,51 @@ export default function Notificacoes() {
               {!n.lida && (
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#FF6B2C', flexShrink: 0 }} />
               )}
+              <IconButton
+                size="small"
+                onClick={(e) => handleDeleteOne(e, n.id)}
+                sx={{
+                  color: 'text.secondary', opacity: 0.4, flexShrink: 0,
+                  '&:hover': { opacity: 0.8, color: '#EF4444' },
+                }}
+              >
+                <X size={16} />
+              </IconButton>
             </Box>
           ))}
         </Box>
       )}
+
+      {/* Dialog: Confirmar limpar tudo */}
+      <Dialog
+        open={confirmClearAll}
+        onClose={() => setConfirmClearAll(false)}
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontSize: '1.05rem', fontWeight: 700 }}>
+          Limpar notificações?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Todas as notificações serão removidas. Esta ação não pode ser desfeita.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmClearAll(false)} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleClearAll}
+            variant="contained"
+            sx={{
+              textTransform: 'none', fontWeight: 700,
+              bgcolor: '#EF4444', '&:hover': { bgcolor: '#DC2626' },
+            }}
+          >
+            Limpar tudo
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

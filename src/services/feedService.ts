@@ -283,6 +283,21 @@ export async function marcarNotificacoesLidas(uid: string): Promise<void> {
     .eq('lida', false);
 }
 
+export async function deletarNotificacao(uid: string, notifId: string): Promise<void> {
+  await supabase
+    .from('feed_notifications')
+    .delete()
+    .eq('id', notifId)
+    .eq('user_id', uid);
+}
+
+export async function deletarTodasNotificacoes(uid: string): Promise<void> {
+  await supabase
+    .from('feed_notifications')
+    .delete()
+    .eq('user_id', uid);
+}
+
 export async function contarNotificacoesNaoLidas(uid: string): Promise<number> {
   const { count, error } = await supabase
     .from('feed_notifications')

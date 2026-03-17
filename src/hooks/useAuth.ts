@@ -71,6 +71,7 @@ export function useAuth() {
         p = {
           uid: u.id,
           displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
+          username: null,
           photoURL: u.user_metadata?.avatar_url || null,
           email: u.email || null,
           isPrivate: false,
@@ -86,6 +87,7 @@ export function useAuth() {
         const fallback: UserProfile = {
           uid: u.id,
           displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
+          username: null,
           photoURL: u.user_metadata?.avatar_url || null,
           email: u.email || null,
           isPrivate: false,
