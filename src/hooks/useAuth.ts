@@ -73,6 +73,7 @@ export function useAuth() {
           displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
           photoURL: u.user_metadata?.avatar_url || null,
           email: u.email || null,
+          isPrivate: false,
           updatedAt: new Date().toISOString(),
         };
       }
@@ -87,6 +88,7 @@ export function useAuth() {
           displayName: u.user_metadata?.display_name || u.user_metadata?.full_name || null,
           photoURL: u.user_metadata?.avatar_url || null,
           email: u.email || null,
+          isPrivate: false,
           updatedAt: new Date().toISOString(),
         };
         setProfile(fallback);
