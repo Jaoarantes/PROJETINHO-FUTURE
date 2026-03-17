@@ -143,9 +143,14 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                 label="Todos"
                 size="small"
                 onClick={() => setGrupoSelecionado(undefined)}
-                color={!grupoSelecionado ? 'primary' : 'default'}
                 variant={!grupoSelecionado ? 'filled' : 'outlined'}
-                sx={{ flexShrink: 0 }}
+                sx={{
+                  flexShrink: 0,
+                  ...(!grupoSelecionado && {
+                    bgcolor: '#FF6B2C !important',
+                    color: '#fff !important',
+                  }),
+                }}
               />
               {grupos.map((g) => (
                 <Chip
@@ -153,9 +158,14 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                   label={g}
                   size="small"
                   onClick={() => setGrupoSelecionado(grupoSelecionado === g ? undefined : g)}
-                  color={grupoSelecionado === g ? 'primary' : 'default'}
                   variant={grupoSelecionado === g ? 'filled' : 'outlined'}
-                  sx={{ flexShrink: 0 }}
+                  sx={{
+                    flexShrink: 0,
+                    ...(grupoSelecionado === g && {
+                      bgcolor: '#FF6B2C !important',
+                      color: '#fff !important',
+                    }),
+                  }}
                 />
               ))}
             </Box>

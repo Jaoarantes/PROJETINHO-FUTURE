@@ -140,6 +140,23 @@ export async function toggleLike(postId: string, uid: string): Promise<boolean> 
       .eq('post_id', postId);
     const { error: updErr } = await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
     if (updErr) console.error('[toggleLike] update count error:', updErr);
+
+    // Notificar dono do post (se não for o próprio usuário)
+    const { data: post } = await supabase
+      .from('feed_posts')
+      .select('user_id')
+      .eq('id', postId)
+      .maybeSingle();
+    if (post && post.user_id !== uid) {
+      await supabase.from('feed_notifications').insert({
+        user_id: post.user_id,
+        actor_id: uid,
+        tipo: 'like',
+        post_id: postId,
+        texto: null,
+      }).then(({ error: nErr }) => { if (nErr) console.error('[toggleLike] notif error:', nErr); });
+    }
+
     return true;
   }
 }
@@ -194,6 +211,22 @@ export async function adicionarComentario(uid: string, postId: string, texto: st
     .select('*', { count: 'exact', head: true })
     .eq('post_id', postId);
   await supabase.from('feed_posts').update({ comments_count: count || 0 }).eq('id', postId);
+
+  // Notificar dono do post (se não for o próprio usuário)
+  const { data: post } = await supabase
+    .from('feed_posts')
+    .select('user_id')
+    .eq('id', postId)
+    .maybeSingle();
+  if (post && post.user_id !== uid) {
+    await supabase.from('feed_notifications').insert({
+      user_id: post.user_id,
+      actor_id: uid,
+      tipo: 'comment',
+      post_id: postId,
+      texto,
+    }).then(({ error: nErr }) => { if (nErr) console.error('[adicionarComentario] notif error:', nErr); });
+  }
 
   return commentId;
 }
@@ -410,6 +443,17 @@ export async function toggleFollow(followerId: string, followingId: string, isPr
       .from('follows')
       .insert({ follower_id: followerId, following_id: followingId, status: newStatus });
     if (error) throw error;
+
+    // Notificar o usuário que recebeu o follow
+    const tipo = isPrivate ? 'follow_request' : 'follow';
+    await supabase.from('feed_notifications').insert({
+      user_id: followingId,
+      actor_id: followerId,
+      tipo,
+      post_id: null,
+      texto: null,
+    }).then(({ error: nErr }) => { if (nErr) console.error('[toggleFollow] notif error:', nErr); });
+
     return newStatus;
   }
 }
@@ -420,6 +464,15 @@ export async function acceptFollowRequest(followerId: string, followingId: strin
     .update({ status: 'accepted' })
     .eq('follower_id', followerId)
     .eq('following_id', followingId);
+
+  // Notificar quem pediu que foi aceito
+  await supabase.from('feed_notifications').insert({
+    user_id: followerId,
+    actor_id: followingId,
+    tipo: 'follow',
+    post_id: null,
+    texto: null,
+  }).then(({ error: nErr }) => { if (nErr) console.error('[acceptFollow] notif error:', nErr); });
 }
 
 export async function rejectFollowRequest(followerId: string, followingId: string): Promise<void> {

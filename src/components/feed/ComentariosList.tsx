@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Avatar, TextField, IconButton, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function ComentariosList({ postId, currentUserId, currentUserName, currentUserPhoto, onCountChange }: Props) {
+  const navigate = useNavigate();
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState('');
@@ -128,9 +130,18 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
     });
   };
 
+  const goToProfile = (userId: string) => {
+    if (userId === currentUserId) navigate('/feed/meus-posts');
+    else navigate(`/feed/perfil/${userId}`);
+  };
+
   const renderComment = (c: FeedComment, isReply = false) => (
     <Box key={c.id} sx={{ display: 'flex', gap: 1.5, ml: isReply ? 5 : 0 }}>
-      <Avatar src={c.authorPhoto || undefined} sx={{ width: isReply ? 28 : 32, height: isReply ? 28 : 32, mt: 0.3 }}>
+      <Avatar
+        src={c.authorPhoto || undefined}
+        sx={{ width: isReply ? 28 : 32, height: isReply ? 28 : 32, mt: 0.3, cursor: 'pointer' }}
+        onClick={() => goToProfile(c.userId)}
+      >
         {c.authorName?.charAt(0).toUpperCase() || 'U'}
       </Avatar>
       <Box sx={{
@@ -138,7 +149,12 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
         bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.03) : alpha('#000', 0.02),
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.3 }}>
-          <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.8rem' }}>
+          <Typography
+            variant="caption"
+            fontWeight={700}
+            sx={{ fontSize: '0.8rem', cursor: 'pointer', '&:active': { opacity: 0.6 } }}
+            onClick={() => goToProfile(c.userId)}
+          >
             {c.authorName || 'Usuário'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
