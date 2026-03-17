@@ -10,11 +10,51 @@ import { useConfirmDelete } from '../hooks/useConfirmDelete';
 function formatarData(isoString: string): string {
   const data = new Date(isoString);
   return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
-    month: 'short',
     hour: '2-digit',
     minute: '2-digit'
   }).format(data);
+}
+
+function formatarDataGrupo(isoString: string): string {
+  const data = new Date(isoString);
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+
+  const mesmodia = (a: Date, b: Date) =>
+    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+  if (mesmodia(data, hoje)) return 'Hoje';
+  if (mesmodia(data, ontem)) return 'Ontem';
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit'
+  }).format(data);
+}
+
+function agruparPorData(registros: { concluidoEm: string; [key: string]: any }[]) {
+  const grupos: { data: string; label: string; registros: any[] }[] = [];
+  const mapa = new Map<string, any[]>();
+  const ordemChaves: string[] = [];
+
+  for (const reg of registros) {
+    const d = new Date(reg.concluidoEm);
+    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!mapa.has(chave)) {
+      mapa.set(chave, []);
+      ordemChaves.push(chave);
+    }
+    mapa.get(chave)!.push(reg);
+  }
+
+  for (const chave of ordemChaves) {
+    const regs = mapa.get(chave)!;
+    grupos.push({ data: chave, label: formatarDataGrupo(regs[0].concluidoEm), registros: regs });
+  }
+
+  return grupos;
 }
 
 function formatarDuracao(segundos?: number): string {
@@ -52,8 +92,23 @@ export default function Historico() {
         O GPS usa a fórmula de <strong>Haversine</strong> para precisão esférica e filtros de ruído para ignorar oscilações menores que 2 metros.
       </Alert>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {historico.map((reg) => {
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {agruparPorData(historico).map((grupo) => (
+          <Box key={grupo.data}>
+            {/* Date header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+              <Calendar size={16} style={{ opacity: 0.5 }} />
+              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.85rem', letterSpacing: '0.03em' }}>
+                {grupo.label}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
+                {grupo.registros.length} {grupo.registros.length === 1 ? 'treino' : 'treinos'}
+              </Typography>
+              <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 1 }} />
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {grupo.registros.map((reg) => {
           const isCorrida = reg.tipo === 'corrida';
           const isMusculacao = reg.tipo === 'musculacao';
           const isNatacao = reg.tipo === 'natacao';
@@ -168,6 +223,9 @@ export default function Historico() {
             </Card>
           );
         })}
+            </Box>
+          </Box>
+        ))}
       </Box>
 
       <ConfirmDeleteDialog

@@ -1,13 +1,16 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Box, Typography, IconButton, Card, CardContent, Button,
   LinearProgress, Collapse, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, List, ListItemButton, ListItemText,
+  Snackbar, Alert,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   ChevronLeft, ChevronRight, Plus, Trash2, Coffee,
   UtensilsCrossed, Cookie, Moon, Droplets, Calculator,
-  Minus, Pencil, Apple, Dumbbell, Sunset,
+  Minus, Pencil, Apple, Dumbbell, Sunset, Copy, Zap,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
@@ -55,7 +58,9 @@ export default function DietaTab() {
   const dataSelecionada = useDietaStore((s) => s.dataSelecionada);
   const setData = useDietaStore((s) => s.setData);
   const getDiarioAtual = useDietaStore((s) => s.getDiarioAtual);
+  const diarios = useDietaStore((s) => s.diarios);
   const removerItem = useDietaStore((s) => s.removerItem);
+  const adicionarItem = useDietaStore((s) => s.adicionarItem);
   const metas = useDietaStore((s) => s.metas);
   const atualizarMetas = useDietaStore((s) => s.atualizarMetas);
   const adicionarAgua = useDietaStore((s) => s.adicionarAgua);
@@ -79,6 +84,9 @@ export default function DietaTab() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aguaEditOpen, setAguaEditOpen] = useState(false);
   const [addRefeicaoOpen, setAddRefeicaoOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddTipo, setQuickAddTipo] = useState<TipoRefeicao>('cafe');
+  const [snackMsg, setSnackMsg] = useState('');
 
   const abrirPicker = (tipo: TipoRefeicao) => {
     setPickerTipo(tipo);
@@ -95,9 +103,75 @@ export default function DietaTab() {
     setAddRefeicaoOpen(false);
   };
 
+  // Copy previous day (with confirmation)
+  const [confirmarCopiaOpen, setConfirmarCopiaOpen] = useState(false);
+  const [snapshotAntesDeCopiar, setSnapshotAntesDeCopiar] = useState<Refeicao[] | null>(null);
+
+  const handleCopiarDiaAnterior = () => {
+    const dataAnterior = navegarData(dataSelecionada, -1);
+    const diarioAnterior = diarios.find((d) => d.id === dataAnterior);
+    if (!diarioAnterior || diarioAnterior.refeicoes.every((r) => r.itens.length === 0)) {
+      setSnackMsg('Nenhuma refeição encontrada no dia anterior.');
+      return;
+    }
+    setConfirmarCopiaOpen(true);
+  };
+
+  const confirmarCopia = () => {
+    setConfirmarCopiaOpen(false);
+    const dataAnterior = navegarData(dataSelecionada, -1);
+    const diarioAnterior = diarios.find((d) => d.id === dataAnterior);
+    if (!diarioAnterior) return;
+
+    // Salvar snapshot para desfazer
+    setSnapshotAntesDeCopiar(diario.refeicoes.map((r) => ({ ...r, itens: [...r.itens] })));
+
+    for (const ref of diarioAnterior.refeicoes) {
+      if (!diario.refeicoes.some((r) => r.tipo === ref.tipo)) {
+        adicionarRefeicao(ref.tipo);
+      }
+      for (const item of ref.itens) {
+        adicionarItem(ref.tipo, { alimento: item.alimento, quantidade: item.quantidade });
+      }
+    }
+    setSnackMsg('Refeições copiadas! Toque em DESFAZER para reverter.');
+  };
+
+  const desfazerCopia = () => {
+    if (!snapshotAntesDeCopiar) return;
+    // Remover todas as refeições atuais e restaurar o snapshot
+    for (const ref of diario.refeicoes) {
+      for (const item of ref.itens) {
+        removerItem(ref.tipo, item.id);
+      }
+    }
+    // Remover refeições extras que foram criadas
+    for (const ref of diario.refeicoes) {
+      if (!snapshotAntesDeCopiar.some((r) => r.tipo === ref.tipo)) {
+        removerRefeicao(ref.tipo);
+      }
+    }
+    // Re-adicionar itens do snapshot
+    for (const ref of snapshotAntesDeCopiar) {
+      if (!diario.refeicoes.some((r) => r.tipo === ref.tipo)) {
+        adicionarRefeicao(ref.tipo);
+      }
+      for (const item of ref.itens) {
+        adicionarItem(ref.tipo, { alimento: item.alimento, quantidade: item.quantidade });
+      }
+    }
+    setSnapshotAntesDeCopiar(null);
+    setSnackMsg('Cópia desfeita!');
+  };
+
   const aguaPct = Math.min(((diario.aguaML || 0) / (metas.agua || 2500)) * 100, 100);
   const tiposExistentes = diario.refeicoes.map((r) => r.tipo);
   const refeicoesFaltantes = ALL_REFEICOES.filter((t) => !tiposExistentes.includes(t));
+
+  // Calorie balance
+  const restante = Math.max(0, metas.calorias - totais.calorias);
+  const caloriePct = metas.calorias > 0 ? Math.min((totais.calorias / metas.calorias) * 100, 100) : 0;
+  const overLimit = totais.calorias > metas.calorias;
 
   return (
     <Box sx={{ pt: 1, pb: 10 }}>
@@ -109,9 +183,14 @@ export default function DietaTab() {
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h4" sx={{ fontSize: '1.8rem' }}>REFEIÇÃO</Typography>
-        <IconButton size="small" onClick={() => setWizardOpen(true)} sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider' }}>
-          <Calculator size={18} />
-        </IconButton>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton size="small" onClick={handleCopiarDiaAnterior} sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider' }} title="Copiar dia anterior">
+            <Copy size={16} />
+          </IconButton>
+          <IconButton size="small" onClick={() => setWizardOpen(true)} sx={{ bgcolor: 'action.hover', border: 1, borderColor: 'divider' }}>
+            <Calculator size={18} />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Date nav */}
@@ -124,7 +203,6 @@ export default function DietaTab() {
           fontWeight={600}
           sx={{
             minWidth: 120, textAlign: 'center',
-            
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
             fontSize: '0.9rem',
@@ -154,7 +232,7 @@ export default function DietaTab() {
           <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 2 }}>
             <SummaryItem label="Consumido" value={totais.calorias} />
             <SummaryItem label="Meta" value={metas.calorias} />
-            <SummaryItem label="Restante" value={Math.max(0, metas.calorias - totais.calorias)} highlight />
+            <SummaryItem label="Restante" value={restante} highlight={!overLimit} warn={overLimit} />
           </Box>
 
           {/* Macro bars */}
@@ -215,8 +293,10 @@ export default function DietaTab() {
             expandido={expandido === refeicao.tipo}
             onToggle={() => setExpandido(expandido === refeicao.tipo ? null : refeicao.tipo)}
             onAdicionar={() => abrirPicker(refeicao.tipo)}
+            onQuickAdd={() => { setQuickAddTipo(refeicao.tipo); setQuickAddOpen(true); }}
             onRemoverItem={(itemId) => removerItem(refeicao.tipo, itemId)}
             onRemoverRefeicao={() => removerRefeicao(refeicao.tipo)}
+            metas={metas}
           />
         ))}
       </Box>
@@ -232,6 +312,21 @@ export default function DietaTab() {
       >
         Adicionar Refeição
       </Button>
+
+      {/* Daily totals footer */}
+      <Card sx={{ mt: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.02) : alpha('#000', 0.015) }}>
+        <CardContent sx={{ pb: '12px !important' }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.8rem', mb: 1, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Resumo do Dia
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+            <TotalRow label="Calorias" value={`${totais.calorias}`} unit="kcal" meta={`${metas.calorias}`} color={overLimit ? '#EF4444' : undefined} />
+            <TotalRow label="Proteína" value={`${totais.proteinas.toFixed(1)}`} unit="g" meta={`${metas.proteinas}`} color={corProteina} />
+            <TotalRow label="Carboidrato" value={`${totais.carboidratos.toFixed(1)}`} unit="g" meta={`${metas.carboidratos}`} color={corCarbo} />
+            <TotalRow label="Gordura" value={`${totais.gorduras.toFixed(1)}`} unit="g" meta={`${metas.gorduras}`} color={corGordura} />
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Dialogs */}
       <Dialog open={addRefeicaoOpen} onClose={() => setAddRefeicaoOpen(false)} maxWidth="xs" fullWidth>
@@ -262,17 +357,79 @@ export default function DietaTab() {
       )}
       <MetasDialog open={metasOpen} onClose={() => setMetasOpen(false)} metas={metas} onSalvar={atualizarMetas} />
       <AguaEditDialog open={aguaEditOpen} onClose={() => setAguaEditOpen(false)} meta={metas.agua || 2500} onSalvar={(agua) => atualizarMetas({ ...metas, agua })} />
+      <QuickAddDialog
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onAdd={(cal, nome) => {
+          adicionarItem(quickAddTipo, {
+            alimento: { id: `quick-${Date.now()}`, nome, porcao: 1, unidade: 'unidade', calorias: cal, proteinas: 0, carboidratos: 0, gorduras: 0 },
+            quantidade: 1,
+          });
+          setQuickAddOpen(false);
+          setSnackMsg(`${cal} kcal adicionado!`);
+        }}
+      />
       {wizardOpen && (
         <Suspense fallback={null}>
           <MetasWizard open={wizardOpen} onClose={() => setWizardOpen(false)} perfilInicial={perfil} onSalvar={handleWizardSalvar} />
         </Suspense>
       )}
+
+      {/* Confirmação de cópia */}
+      <Dialog open={confirmarCopiaOpen} onClose={() => setConfirmarCopiaOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Copiar dia anterior?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Todas as refeições e alimentos do dia anterior serão adicionados ao dia atual. Você poderá desfazer essa ação.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmarCopiaOpen(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={confirmarCopia}>Copiar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={!!snackMsg}
+        autoHideDuration={snapshotAntesDeCopiar ? 6000 : 3000}
+        onClose={() => { setSnackMsg(''); if (!snackMsg.includes('desfeita')) setSnapshotAntesDeCopiar(null); }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          onClose={() => setSnackMsg('')}
+          sx={{ width: '100%' }}
+          action={
+            snapshotAntesDeCopiar ? (
+              <Button color="inherit" size="small" onClick={desfazerCopia} sx={{ fontWeight: 700 }}>
+                DESFAZER
+              </Button>
+            ) : undefined
+          }
+        >
+          {snackMsg}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+/* ── Total Row ──────────────────────────── */
+function TotalRow({ label, value, unit, meta, color }: { label: string; value: string; unit: string; meta: string; color?: string }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>{label}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.3 }}>
+        <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.85rem', color: color || 'text.primary' }}>{value}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem' }}>/ {meta} {unit}</Typography>
+      </Box>
     </Box>
   );
 }
 
 /* ── Summary Item ────────────────────────── */
-function SummaryItem({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
+function SummaryItem({ label, value, highlight, warn }: { label: string; value: number; highlight?: boolean; warn?: boolean }) {
   return (
     <Box sx={{ textAlign: 'center' }}>
       <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -280,8 +437,8 @@ function SummaryItem({ label, value, highlight }: { label: string; value: number
       </Typography>
       <Typography
         variant="body2"
-        fontWeight={highlight ? 700 : 600}
-        color={highlight ? 'primary.main' : 'text.primary'}
+        fontWeight={highlight || warn ? 700 : 600}
+        color={warn ? 'error.main' : highlight ? 'primary.main' : 'text.primary'}
         sx={{ fontSize: '1rem' }}
       >
         {value}
@@ -295,14 +452,16 @@ function SummaryItem({ label, value, highlight }: { label: string; value: number
 
 /* ── Refeição Card ─────────────────────────── */
 function RefeicaoCard({
-  refeicao, expandido, onToggle, onAdicionar, onRemoverItem, onRemoverRefeicao,
+  refeicao, expandido, onToggle, onAdicionar, onQuickAdd, onRemoverItem, onRemoverRefeicao, metas,
 }: {
   refeicao: Refeicao;
   expandido: boolean;
   onToggle: () => void;
   onAdicionar: () => void;
+  onQuickAdd: () => void;
   onRemoverItem: (id: string) => void;
   onRemoverRefeicao: () => void;
+  metas: MetasDieta;
 }) {
   const macros = calcularMacrosRefeicao(refeicao);
   const deleteItem = useConfirmDelete();
@@ -328,12 +487,30 @@ function RefeicaoCard({
               {macros.calorias} kcal · {refeicao.itens.length} {refeicao.itens.length === 1 ? 'item' : 'itens'}
             </Typography>
           </Box>
+          {expandido ? <ChevronUp size={18} style={{ opacity: 0.4 }} /> : <ChevronDown size={18} style={{ opacity: 0.4 }} />}
           <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteRefeicao.requestDelete(); }} sx={{ ml: 0.5 }}>
             <Trash2 size={14} />
           </IconButton>
         </Box>
 
         <Collapse in={expandido}>
+          {/* Macro summary for this meal */}
+          {refeicao.itens.length > 0 && (
+            <Box sx={{
+              display: 'flex', gap: 2, py: 1, px: 1.5, mb: 1,
+              borderRadius: '8px',
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.02) : alpha('#000', 0.015),
+            }}>
+              <MiniMacro label="P" value={macros.proteinas} cor="#16A34A" />
+              <MiniMacro label="C" value={macros.carboidratos} cor="#FF6B2C" />
+              <MiniMacro label="G" value={macros.gorduras} cor="#7C3AED" />
+              <Box sx={{ ml: 'auto' }}>
+                <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.82rem' }}>{macros.calorias}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', ml: 0.3 }}>kcal</Typography>
+              </Box>
+            </Box>
+          )}
+
           {refeicao.itens.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 1.5, textAlign: 'center' }}>
               Nenhum alimento adicionado
@@ -347,18 +524,25 @@ function RefeicaoCard({
                   sx={{
                     display: 'flex', alignItems: 'center', py: 0.75,
                     borderBottom: 1, borderColor: 'divider',
-                    '&:last-child': { borderBottom: 0 },
+                    '&:last-of-type': { borderBottom: 0 },
                   }}
                 >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.85rem' }}>
                       {item.alimento.nome}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                      {item.alimento.unidade === 'g'
-                        ? `${Math.round(item.quantidade * item.alimento.porcao)}g`
-                        : `${item.quantidade}x ${item.alimento.porcao}${item.alimento.unidade}`} · {m.calorias} kcal
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        {item.alimento.unidade === 'g'
+                          ? `${Math.round(item.quantidade * item.alimento.porcao)}g`
+                          : `${item.quantidade}x ${item.alimento.porcao}${item.alimento.unidade}`}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>·</Typography>
+                      <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.65rem' }}>{m.calorias} kcal</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+                        P:{m.proteinas}g C:{m.carboidratos}g G:{m.gorduras}g
+                      </Typography>
+                    </Box>
                   </Box>
                   <IconButton size="small" onClick={() => deleteItem.requestDelete(item.id)}>
                     <Trash2 size={14} />
@@ -367,15 +551,27 @@ function RefeicaoCard({
               );
             })
           )}
-          <Button
-            size="small"
-            fullWidth
-            startIcon={<Plus size={14} />}
-            onClick={onAdicionar}
-            sx={{ mt: 1, py: 1, fontSize: '0.8rem', border: '1px dashed', borderColor: 'divider' }}
-          >
-            Adicionar alimento
-          </Button>
+
+          {/* Action buttons */}
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <Button
+              size="small"
+              fullWidth
+              startIcon={<Plus size={14} />}
+              onClick={onAdicionar}
+              sx={{ py: 1, fontSize: '0.75rem', border: '1px dashed', borderColor: 'divider', flex: 1 }}
+            >
+              Alimento
+            </Button>
+            <Button
+              size="small"
+              startIcon={<Zap size={14} />}
+              onClick={onQuickAdd}
+              sx={{ py: 1, fontSize: '0.75rem', border: '1px dashed', borderColor: 'divider', minWidth: 'auto', px: 2 }}
+            >
+              Rápido
+            </Button>
+          </Box>
         </Collapse>
       </CardContent>
 
@@ -399,15 +595,28 @@ function RefeicaoCard({
   );
 }
 
+/* ── Mini Macro ────────────────────────── */
+function MiniMacro({ label, value, cor }: { label: string; value: number; cor: string }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+      <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: cor }} />
+      <Typography variant="caption" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
+        {label}: {value.toFixed(0)}g
+      </Typography>
+    </Box>
+  );
+}
+
 /* ── Macro Bar ──────────────────────────── */
 function MacroBar({ label, valor, meta, cor }: { label: string; valor: number; meta: number; cor: string }) {
   const pct = Math.min((valor / meta) * 100, 100);
+  const over = valor > meta;
   return (
     <Box sx={{ flex: 1, textAlign: 'center' }}>
       <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         {label}
       </Typography>
-      <Typography variant="body2" fontWeight={700} sx={{}}>
+      <Typography variant="body2" fontWeight={700} sx={{ color: over ? '#EF4444' : 'text.primary' }}>
         {valor.toFixed(0)}g
       </Typography>
       <LinearProgress
@@ -415,13 +624,67 @@ function MacroBar({ label, valor, meta, cor }: { label: string; valor: number; m
         sx={{
           height: 4, borderRadius: 3, mt: 0.5,
           bgcolor: 'action.hover',
-          '& .MuiLinearProgress-bar': { bgcolor: cor, borderRadius: 3 },
+          '& .MuiLinearProgress-bar': { bgcolor: over ? '#EF4444' : cor, borderRadius: 3 },
         }}
       />
       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
         / {meta}g
       </Typography>
     </Box>
+  );
+}
+
+/* ── Quick Add Dialog ──────────────────── */
+function QuickAddDialog({
+  open, onClose, onAdd,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (cal: number, nome: string) => void;
+}) {
+  const [cal, setCal] = useState('');
+  const [nome, setNome] = useState('');
+
+  const handleAdd = () => {
+    const c = Number(cal);
+    if (c > 0) {
+      onAdd(c, nome.trim() || `Adição rápida (${c} kcal)`);
+      setCal('');
+      setNome('');
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth TransitionProps={{ onEnter: () => { setCal(''); setNome(''); } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Zap size={20} color="#FF6B2C" /> Adição Rápida
+      </DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '8px !important' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+          Adicione calorias rapidamente sem buscar um alimento.
+        </Typography>
+        <TextField
+          label="Calorias (kcal)"
+          type="number"
+          value={cal}
+          onChange={(e) => setCal(e.target.value)}
+          size="small"
+          autoFocus
+          slotProps={{ htmlInput: { min: 1, inputMode: 'numeric' } }}
+        />
+        <TextField
+          label="Descrição (opcional)"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          size="small"
+          placeholder="Ex: Lanchinho da tarde"
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button variant="contained" onClick={handleAdd} disabled={!cal || Number(cal) <= 0}>Adicionar</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

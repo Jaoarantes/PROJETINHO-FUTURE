@@ -63,6 +63,33 @@ function formatarSegundos(seg: number): string {
   return `${s}s`;
 }
 
+function formatarDataGrupo(isoString: string): string {
+  const data = new Date(isoString);
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const mesmodia = (a: Date, b: Date) =>
+    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (mesmodia(data, hoje)) return 'Hoje';
+  if (mesmodia(data, ontem)) return 'Ontem';
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(data);
+}
+
+function agruparHistoricoPorData(registros: any[]) {
+  const mapa = new Map<string, any[]>();
+  const ordemChaves: string[] = [];
+  for (const reg of registros) {
+    const d = new Date(reg.concluidoEm);
+    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!mapa.has(chave)) { mapa.set(chave, []); ordemChaves.push(chave); }
+    mapa.get(chave)!.push(reg);
+  }
+  return ordemChaves.map((chave) => {
+    const regs = mapa.get(chave)!;
+    return { chave, label: formatarDataGrupo(regs[0].concluidoEm), registros: regs };
+  });
+}
+
 const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
   musculacao: Dumbbell,
   corrida: Footprints,
@@ -517,12 +544,26 @@ export default function TreinoTab() {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {historico.map((reg) => {
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              {agruparHistoricoPorData(historico).map((grupo) => (
+                <Box key={grupo.chave}>
+                  {/* Date header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                    <Calendar size={15} style={{ opacity: 0.5 }} />
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem', letterSpacing: '0.03em' }}>
+                      {grupo.label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
+                      {grupo.registros.length} {grupo.registros.length === 1 ? 'treino' : 'treinos'}
+                    </Typography>
+                    <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 1 }} />
+                  </Box>
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {grupo.registros.map((reg) => {
                 const tipo = reg.tipo || 'musculacao';
                 const Icon = TIPO_ICONS[tipo];
                 const data = new Date(reg.concluidoEm);
-                const dataStr = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
                 const horaStr = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const isExpanded = expandedReg === reg.id;
 
@@ -572,7 +613,7 @@ export default function TreinoTab() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                           <Calendar size={14} style={{ opacity: 0.5 }} />
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
-                            {dataStr} às {horaStr}
+                            {horaStr}
                           </Typography>
                         </Box>
 
@@ -770,6 +811,9 @@ export default function TreinoTab() {
                   </Card>
                 );
               })}
+                  </Box>
+                </Box>
+              ))}
             </Box>
           )}
         </>
