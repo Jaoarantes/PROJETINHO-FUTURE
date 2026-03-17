@@ -23,6 +23,8 @@ export default function FeedTab() {
   const toggleLike = useFeedStore((s) => s.toggleLike);
   const deletarPost = useFeedStore((s) => s.deletarPost);
   const editarPost = useFeedStore((s) => s.editarPost);
+  const iniciarRealtime = useFeedStore((s) => s.iniciarRealtime);
+  const pararRealtime = useFeedStore((s) => s.pararRealtime);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const uid = user?.id;
   const [unreadCount, setUnreadCount] = useState(0);
@@ -34,18 +36,24 @@ export default function FeedTab() {
 
   const hasUsername = !!profile?.username;
 
-  // Carrega feed inicial
+  // Carrega feed inicial + inicia realtime
   useEffect(() => {
     if (uid && hasUsername && posts.length === 0) {
       carregarFeed(uid, true);
     }
+    if (uid && hasUsername) {
+      iniciarRealtime(uid);
+    }
+    return () => pararRealtime();
   }, [uid, hasUsername]);
 
-  // Contar notificações não lidas
+  // Contar notificações não lidas (poll a cada 15s)
   useEffect(() => {
-    if (uid && hasUsername) {
-      contarNotificacoesNaoLidas(uid).then(setUnreadCount).catch(() => {});
-    }
+    if (!uid || !hasUsername) return;
+    const fetch = () => contarNotificacoesNaoLidas(uid).then(setUnreadCount).catch(() => {});
+    fetch();
+    const interval = setInterval(fetch, 15000);
+    return () => clearInterval(interval);
   }, [uid, hasUsername]);
 
   // Infinite scroll
@@ -153,15 +161,7 @@ export default function FeedTab() {
           <Search size={22} />
         </IconButton>
 
-        <IconButton
-          onClick={() => navigate('/feed/novo')}
-          sx={{
-            width: 44, height: 44, color: '#fff',
-            bgcolor: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.08) : alpha('#000', 0.06),
-            borderRadius: '12px',
-            '&:active': { bgcolor: alpha('#FF6B2C', 0.15) },
-          }}
-        >
+        <IconButton onClick={() => navigate('/feed/novo')} sx={{ color: 'text.secondary', width: 42, height: 42 }}>
           <Plus size={24} />
         </IconButton>
 

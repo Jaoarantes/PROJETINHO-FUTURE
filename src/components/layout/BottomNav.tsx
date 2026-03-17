@@ -1,21 +1,33 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BottomNavigation, BottomNavigationAction, Box } from '@mui/material';
+import { BottomNavigation, BottomNavigationAction, Badge, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Dumbbell, User, Utensils, Home } from 'lucide-react';
-
-const tabs = [
-  { label: 'Treino', icon: <Dumbbell size={22} />, path: '/treino' },
-  { label: 'Refeição', icon: <Utensils size={22} />, path: '/dieta' },
-  { label: 'Feed', icon: <Home size={22} />, path: '/feed' },
-  { label: 'Perfil', icon: <User size={22} />, path: '/perfil' },
-];
+import { useAuthContext } from '../../contexts/AuthContext';
+import { contarNotificacoesNaoLidas } from '../../services/feedService';
 
 export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
+  const { user } = useAuthContext();
+  const [unread, setUnread] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const count = await contarNotificacoesNaoLidas(user.id);
+      setUnread(count);
+    } catch { /* ignore */ }
+  }, [user?.id]);
+
+  // Poll every 30s + on mount + on route change
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnread, location.pathname]);
 
   const currentTab = useMemo(() => {
     if (location.pathname.startsWith('/treino') || location.pathname.startsWith('/historico')) return 0;
@@ -24,6 +36,33 @@ export default function BottomNav() {
     if (location.pathname.startsWith('/perfil') || location.pathname.startsWith('/dashboard')) return 3;
     return 0;
   }, [location.pathname]);
+
+  const feedIcon = unread > 0 ? (
+    <Badge
+      variant="dot"
+      sx={{
+        '& .MuiBadge-dot': {
+          bgcolor: '#FF6B2C',
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          top: 2,
+          right: 2,
+        },
+      }}
+    >
+      <Home size={22} />
+    </Badge>
+  ) : (
+    <Home size={22} />
+  );
+
+  const tabs = [
+    { label: 'Treino', icon: <Dumbbell size={22} />, path: '/treino' },
+    { label: 'Refeição', icon: <Utensils size={22} />, path: '/dieta' },
+    { label: 'Feed', icon: feedIcon, path: '/feed' },
+    { label: 'Perfil', icon: <User size={22} />, path: '/perfil' },
+  ];
 
   return (
     <Box

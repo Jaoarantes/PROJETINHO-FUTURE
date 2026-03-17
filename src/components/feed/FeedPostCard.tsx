@@ -500,13 +500,13 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
           }}>
             {/* Photo slides */}
             {post.fotoUrls.map((url, i) => (
-              <Box key={i} sx={{ position: 'relative', minWidth: '100%', bgcolor: '#0a0a0a' }}>
+              <Box key={i} sx={{ position: 'relative', minWidth: '100%' }}>
                 <Box
                   component="img"
                   src={url}
                   alt=""
                   draggable={false}
-                  sx={{ width: '100%', height: 380, objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                  sx={{ width: '100%', maxHeight: 520, objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
                 />
               </Box>
             ))}
@@ -617,12 +617,28 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
         <Box sx={{ px: 2, pt: 0.5, pb: 1 }}>
           {visibleComments.map((c) => (
             <Box key={c.id} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, py: 0.5 }}>
-              <Avatar src={c.authorPhoto || undefined} sx={{ width: 24, height: 24, mt: 0.2 }}>
+              <Avatar
+                src={c.authorPhoto || undefined}
+                sx={{ width: 24, height: 24, mt: 0.2, cursor: 'pointer' }}
+                onClick={() => {
+                  if (c.userId === currentUserId) navigate('/feed/meus-posts');
+                  else navigate(`/feed/perfil/${c.userId}`);
+                }}
+              >
                 {c.authorName?.charAt(0).toUpperCase() || 'U'}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="caption" sx={{ fontSize: '0.78rem' }}>
-                  <Typography component="span" variant="caption" fontWeight={700} sx={{ fontSize: '0.78rem', mr: 0.5 }}>
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    fontWeight={700}
+                    sx={{ fontSize: '0.78rem', mr: 0.5, cursor: 'pointer', '&:active': { opacity: 0.6 } }}
+                    onClick={() => {
+                      if (c.userId === currentUserId) navigate('/feed/meus-posts');
+                      else navigate(`/feed/perfil/${c.userId}`);
+                    }}
+                  >
                     {c.authorName || 'Usuário'}
                   </Typography>
                   {c.texto}

@@ -1027,9 +1027,9 @@ function GamificacaoSection({ historico }: {
       </Box>
 
       {/* Conquistas */}
-      <Card sx={{ mb: 3, borderRadius: '8px' }}>
-        <CardContent sx={{ py: 1.5 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+      <Card sx={{ mb: 3, borderRadius: '8px', overflow: 'visible' }}>
+        <CardContent sx={{ py: 1.5, px: 1.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
             {conquistas.map((c) => (
               <Box
                 key={c.id}
@@ -1045,8 +1045,6 @@ function GamificacaoSection({ historico }: {
                   borderColor: c.desbloqueada ? `${c.cor}60` : 'divider',
                   bgcolor: c.desbloqueada ? `${c.cor}10` : 'transparent',
                   opacity: c.desbloqueada ? 1 : 0.4,
-                  minWidth: 'calc(50% - 4px)',
-                  flex: '1 1 calc(50% - 4px)',
                 }}
               >
                 <Box sx={{
@@ -1058,11 +1056,11 @@ function GamificacaoSection({ historico }: {
                 }}>
                   {c.icon}
                 </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" fontWeight={700} sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2 }}>
+                <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+                  <Typography variant="caption" fontWeight={700} sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2, wordBreak: 'break-word' }}>
                     {c.titulo}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', lineHeight: 1.2, wordBreak: 'break-word' }}>
                     {c.desc}
                   </Typography>
                 </Box>

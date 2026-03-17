@@ -129,8 +129,14 @@ export default function TimerDescanso({ open, onClose }: Props) {
             label={label}
             onClick={() => iniciar(seg)}
             variant={duracao === seg ? 'filled' : 'outlined'}
-            color={duracao === seg ? 'primary' : 'default'}
-            sx={{ flex: 1, fontWeight: duracao === seg ? 700 : 400 }}
+            sx={{
+              flex: 1,
+              fontWeight: duracao === seg ? 700 : 400,
+              ...(duracao === seg && {
+                bgcolor: '#FF6B2C !important',
+                color: '#fff !important',
+              }),
+            }}
           />
         ))}
       </Box>

@@ -4,7 +4,7 @@ import {
   Box, Typography, IconButton, CircularProgress, Avatar,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Heart, MessageCircle, Bell, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Bell, Trash2, X, UserPlus } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import {
   carregarNotificacoes, marcarNotificacoesLidas,
@@ -103,7 +103,10 @@ export default function Notificacoes() {
           {notifs.map((n) => (
             <Box
               key={n.id}
-              onClick={() => navigate(`/feed/${n.postId}`)}
+              onClick={() => {
+                if (n.tipo === 'follow' || n.tipo === 'follow_request') navigate(`/feed/perfil/${n.actorId}`);
+                else if (n.postId) navigate(`/feed/${n.postId}`);
+              }}
               sx={{
                 display: 'flex', alignItems: 'center', gap: 1.5,
                 p: 1.5, borderRadius: '14px', cursor: 'pointer',
@@ -113,28 +116,42 @@ export default function Notificacoes() {
                 '&:active': { bgcolor: alpha('#FF6B2C', 0.08) },
               }}
             >
-              <Box sx={{ position: 'relative' }}>
+              <Box
+                sx={{ position: 'relative', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (n.actorId) navigate(`/feed/perfil/${n.actorId}`);
+                }}
+              >
                 <Avatar src={n.actorPhoto || undefined} sx={{ width: 40, height: 40 }}>
                   {n.actorName?.charAt(0).toUpperCase() || 'U'}
                 </Avatar>
                 <Box sx={{
                   position: 'absolute', bottom: -2, right: -2,
                   width: 20, height: 20, borderRadius: '50%',
-                  bgcolor: n.tipo === 'like' ? '#EF4444' : '#FF6B2C',
+                  bgcolor: n.tipo === 'like' ? '#EF4444' : (n.tipo === 'follow' || n.tipo === 'follow_request') ? '#3B82F6' : '#FF6B2C',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: '2px solid',
                   borderColor: 'background.paper',
                 }}>
-                  {n.tipo === 'like' ? <Heart size={10} fill="#fff" color="#fff" /> : <MessageCircle size={10} color="#fff" />}
+                  {n.tipo === 'like' ? <Heart size={10} fill="#fff" color="#fff" /> : (n.tipo === 'follow' || n.tipo === 'follow_request') ? <UserPlus size={10} color="#fff" /> : <MessageCircle size={10} color="#fff" />}
                 </Box>
               </Box>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: '0.85rem', lineHeight: 1.3 }}>
-                  <Typography component="span" fontWeight={700} sx={{ fontSize: '0.85rem' }}>
+                  <Typography
+                    component="span"
+                    fontWeight={700}
+                    sx={{ fontSize: '0.85rem', cursor: 'pointer', '&:active': { opacity: 0.6 } }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (n.actorId) navigate(`/feed/perfil/${n.actorId}`);
+                    }}
+                  >
                     {n.actorName || 'Alguém'}
                   </Typography>
                   {' '}
-                  {n.tipo === 'like' ? 'curtiu seu post' : 'comentou no seu post'}
+                  {n.tipo === 'like' ? 'curtiu seu post' : n.tipo === 'follow' ? 'começou a seguir você' : n.tipo === 'follow_request' ? 'solicitou seguir você' : 'comentou no seu post'}
                 </Typography>
                 {n.texto && (
                   <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.75rem', display: 'block' }}>
