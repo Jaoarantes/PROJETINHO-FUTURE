@@ -40,7 +40,9 @@
       "WebFetch(domain:www.exercisedb.dev)",
       "WebFetch(domain:exercisedb.dev)",
       "Bash(curl -sI \"https://static.exercisedb.dev/media/EIeI8Vf.gif\")",
-      "Bash(curl -kI \"https://static.exercisedb.dev/media/EIeI8Vf.gif\")"
+      "Bash(curl -kI \"https://static.exercisedb.dev/media/EIeI8Vf.gif\")",
+      "Bash(npm run:*)",
+      "Bash(ls src/components/*/)"
     ]
   }
 }

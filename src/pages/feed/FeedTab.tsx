@@ -1,22 +1,20 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, CircularProgress, Skeleton, Avatar, IconButton, Badge } from '@mui/material';
+import { Box, Typography, CircularProgress, Skeleton, IconButton, Badge } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { Search, Plus, Bell, Rss } from 'lucide-react';
+import { Search, Plus, Bell, Rss, User } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import { contarNotificacoesNaoLidas } from '../../services/feedService';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 
 export default function FeedTab() {
-  const { user, profile } = useAuthContext();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
   const { posts, loading, hasMore, carregarFeed, carregarMais, toggleLike, deletarPost, editarPost } = useFeedStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const uid = user?.id;
   const [unreadCount, setUnreadCount] = useState(0);
-
-  const userPhoto = user?.user_metadata?.avatar_url || profile?.photoURL || null;
 
   // Carrega feed inicial
   useEffect(() => {
@@ -50,11 +48,11 @@ export default function FeedTab() {
   if (!uid) return null;
 
   return (
-    <Box sx={{ pt: 1, pb: 2 }}>
+    <Box sx={{ pt: 1, pb: 2, mx: -2.5 }}>
       {/* Top Bar - Search | + | Avatar(meus posts) | Bell(notificações) */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        mb: 2.5,
+        mb: 2.5, px: 2.5,
       }}>
         <IconButton sx={{ color: 'text.secondary', width: 42, height: 42 }}>
           <Search size={22} />
@@ -73,13 +71,12 @@ export default function FeedTab() {
         </IconButton>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Avatar
-            src={userPhoto || undefined}
-            sx={{ width: 32, height: 32, cursor: 'pointer' }}
+          <IconButton
             onClick={() => navigate('/feed/meus-posts')}
+            sx={{ color: 'text.secondary', width: 42, height: 42 }}
           >
-            {profile?.displayName?.charAt(0)?.toUpperCase() || 'U'}
-          </Avatar>
+            <User size={22} />
+          </IconButton>
           <IconButton
             onClick={() => { navigate('/feed/notificacoes'); setUnreadCount(0); }}
             sx={{ color: 'text.secondary' }}
@@ -104,7 +101,7 @@ export default function FeedTab() {
       {/* Empty State */}
       {!loading && posts.length === 0 && (
         <Box sx={{
-          textAlign: 'center', py: 8,
+          textAlign: 'center', py: 8, px: 2.5,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
         }}>
           <Box sx={{
@@ -127,7 +124,7 @@ export default function FeedTab() {
       {loading && posts.length === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {[1, 2, 3].map((i) => (
-            <Box key={i} sx={{ bgcolor: 'background.paper', borderRadius: '20px', border: '1px solid', borderColor: 'divider', p: 2 }}>
+            <Box key={i} sx={{ bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider', p: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                 <Skeleton variant="circular" width={44} height={44} />
                 <Box sx={{ flex: 1 }}>
@@ -144,7 +141,7 @@ export default function FeedTab() {
       )}
 
       {/* Posts */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {posts.map((post, idx) => (
           <Box key={post.id} ref={idx === posts.length - 1 ? lastPostRef : undefined}>
             <FeedPostCard
