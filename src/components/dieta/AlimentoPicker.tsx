@@ -18,6 +18,8 @@ import {
   useTheme,
 } from '@mui/material';
 import { X, Search, Plus, Minus, ScanBarcode, Trash2 } from 'lucide-react';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { alimentosPadrao } from '../../constants/alimentos-padrao';
 import { buscarAlimentos } from '../../services/openFoodFacts';
 import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaService';
@@ -83,6 +85,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
 
   // Barcode scanner
   const [scannerOpen, setScannerOpen] = useState(false);
+  const deleteCustomFood = useConfirmDelete();
 
   // Cadastro manual
   const [formOpen, setFormOpen] = useState(false);
@@ -384,7 +387,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
                     <IconButton
                       size="small"
                       edge="end"
-                      onClick={(e) => { e.stopPropagation(); handleDeletarCustom(alimento.id); }}
+                      onClick={(e) => { e.stopPropagation(); deleteCustomFood.requestDelete(alimento.id); }}
                       sx={{ opacity: 0.4, ml: 0.5 }}
                     >
                       <Trash2 size={14} />
@@ -532,6 +535,15 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
           </Box>
         </Box>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={deleteCustomFood.open}
+        loading={deleteCustomFood.loading}
+        title="Excluir alimento personalizado?"
+        message="Tem certeza que deseja excluir este alimento? Esta ação não pode ser desfeita."
+        onClose={deleteCustomFood.cancel}
+        onConfirm={() => deleteCustomFood.confirmDelete(async () => { await handleDeletarCustom(deleteCustomFood.payload); })}
+      />
     </>
   );
 }

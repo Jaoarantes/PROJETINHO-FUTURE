@@ -13,6 +13,8 @@ import { useTreinoStore } from '../store/treinoStore';
 import { useDietaStore } from '../store/dietaStore';
 import { carregarStravaAuth, desconectarStrava, salvarStravaAuth } from '../services/stravaService';
 import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '../services/dietaService';
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../hooks/useConfirmDelete';
 import type { RegistroPeso } from '../services/dietaService';
 import { STRAVA_AUTH_URL, getStravaActivities, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
@@ -23,9 +25,12 @@ import { uploadProfilePicture, removeProfilePicture } from '../services/userServ
 export default function Perfil() {
   const navigate = useNavigate();
   const { user, profile, signOut, refreshUser } = useAuthContext();
-  const { mode, setMode } = useThemeStore();
-  const { sessoes, historico, adicionarRegistro } = useTreinoStore();
-  const { metas } = useDietaStore();
+  const mode = useThemeStore((s) => s.mode);
+  const setMode = useThemeStore((s) => s.setMode);
+  const sessoes = useTreinoStore((s) => s.sessoes);
+  const historico = useTreinoStore((s) => s.historico);
+  const adicionarRegistro = useTreinoStore((s) => s.adicionarRegistro);
+  const metas = useDietaStore((s) => s.metas);
 
   const [stravaAuth, setStravaAuth] = useState<StravaAuthData | null | undefined>(undefined);
   const [syncing, setSyncing] = useState(false);
@@ -44,6 +49,8 @@ export default function Perfil() {
   const [pesoDialogOpen, setPesoDialogOpen] = useState(false);
   const [novoPeso, setNovoPeso] = useState('');
   const [novaDataPeso, setNovaDataPeso] = useState(new Date().toISOString().slice(0, 10));
+  const deletePeso = useConfirmDelete();
+  const deletePhoto = useConfirmDelete();
 
   useEffect(() => {
     if (user?.id) {
@@ -51,10 +58,6 @@ export default function Perfil() {
       carregarPesoHistorico(user.id).then(setPesoHistorico).catch(console.error);
     }
   }, [user?.id]);
-
-  useEffect(() => {
-    // Foto do auth só é usada como fallback extremo
-  }, [user?.user_metadata?.avatar_url]);
 
   const handleSalvarPeso = async () => {
     if (!user?.id || !novoPeso) return;
@@ -184,6 +187,7 @@ export default function Perfil() {
           elevationGainM: t.total_elevation_gain || 0,
           averageHeartrate: (t.has_heartrate || t.average_heartrate) ? Math.round(t.average_heartrate || 0) : undefined,
           calories: calorias,
+          summaryPolyline: t.map?.summary_polyline || undefined,
         }
       };
 
@@ -355,7 +359,7 @@ export default function Perfil() {
             variant="text"
             fullWidth
             color="error"
-            onClick={handleRemovePhoto}
+            onClick={() => deletePhoto.requestDelete()}
             disabled={!tempPhotoURL && !profile?.photoURL && !user?.user_metadata?.avatar_url}
             sx={{ py: 1.2, borderRadius: 1 }}
           >
@@ -477,7 +481,7 @@ export default function Perfil() {
                       {new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                     </Typography>
                     <Typography variant="body2" fontWeight={600}>{r.peso.toFixed(1)} kg</Typography>
-                    <IconButton size="small" onClick={() => handleDeletarPeso(r.id)} sx={{ ml: 0.5, opacity: 0.4 }}>
+                    <IconButton size="small" onClick={() => deletePeso.requestDelete(r.id)} sx={{ ml: 0.5, opacity: 0.4 }}>
                       <Trash2 size={12} />
                     </IconButton>
                   </Box>
@@ -739,6 +743,23 @@ export default function Perfil() {
           {snackMsg}
         </Alert>
       </Snackbar>
+      <ConfirmDeleteDialog
+        open={deletePeso.open}
+        loading={deletePeso.loading}
+        title="Excluir registro de peso?"
+        message="Tem certeza que deseja excluir este registro?"
+        onClose={deletePeso.cancel}
+        onConfirm={() => deletePeso.confirmDelete(async () => { await handleDeletarPeso(deletePeso.payload); })}
+      />
+      <ConfirmDeleteDialog
+        open={deletePhoto.open}
+        loading={deletePhoto.loading}
+        title="Remover foto de perfil?"
+        message="Tem certeza que deseja ficar sem foto de perfil?"
+        confirmLabel="Remover"
+        onClose={deletePhoto.cancel}
+        onConfirm={() => deletePhoto.confirmDelete(async () => { await handleRemovePhoto(); })}
+      />
     </Box>
   );
 }
@@ -1050,6 +1071,7 @@ function GamificacaoSection({ historico }: {
           </Box>
         </CardContent>
       </Card>
+
     </>
   );
 }

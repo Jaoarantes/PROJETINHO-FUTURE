@@ -7,6 +7,10 @@ import {
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
 import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge } from 'lucide-react';
+import { lazy, Suspense } from 'react';
+const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
+import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
 import type { TipoSessao, SessaoTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
@@ -259,7 +263,16 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
 
 export default function TreinoTab() {
   const navigate = useNavigate();
-  const { sessoes, historico, carregando, criarSessao, removerSessao, renomearSessao, reordenarSessoes, removerRegistro, iniciarTreino, treinoAtivo } = useTreinoStore();
+  const sessoes = useTreinoStore((s) => s.sessoes);
+  const historico = useTreinoStore((s) => s.historico);
+  const carregando = useTreinoStore((s) => s.carregando);
+  const criarSessao = useTreinoStore((s) => s.criarSessao);
+  const removerSessao = useTreinoStore((s) => s.removerSessao);
+  const renomearSessao = useTreinoStore((s) => s.renomearSessao);
+  const reordenarSessoes = useTreinoStore((s) => s.reordenarSessoes);
+  const removerRegistro = useTreinoStore((s) => s.removerRegistro);
+  const iniciarTreino = useTreinoStore((s) => s.iniciarTreino);
+  const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
   const [tabIndex, setTabIndex] = useState(0);
 
   // Listen for external tab switch (from ActiveWorkoutBar)
@@ -283,6 +296,8 @@ export default function TreinoTab() {
   const [menuSessaoId, setMenuSessaoId] = useState('');
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const deleteSessao = useConfirmDelete();
+  const deleteRegistro = useConfirmDelete();
 
   // Agrupamento + ordenação
   const sessoesAgrupadas = useMemo(() => {
@@ -381,8 +396,8 @@ export default function TreinoTab() {
   };
 
   const handleDeletar = () => {
-    removerSessao(menuSessaoId);
     setMenuAnchor(null);
+    deleteSessao.requestDelete(menuSessaoId);
   };
 
   return (
@@ -541,7 +556,7 @@ export default function TreinoTab() {
 
                         <IconButton
                           size="small" color="error"
-                          onClick={(e) => { e.stopPropagation(); removerRegistro(reg.id); }}
+                          onClick={(e) => { e.stopPropagation(); deleteRegistro.requestDelete(reg.id); }}
                           sx={{ opacity: 0.5 }}
                         >
                           <Trash2 size={14} />
@@ -661,6 +676,13 @@ export default function TreinoTab() {
                           </Box>
                         )}
 
+                        {/* Mapa da rota (Strava) */}
+                        {reg.stravaData?.summaryPolyline && (
+                          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={20} /></Box>}>
+                            <StravaRouteMap polyline={reg.stravaData.summaryPolyline} />
+                          </Suspense>
+                        )}
+
                         {/* Dados adicionais do Strava */}
                         {reg.stravaData && (
                           <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1.5, p: 1.5, bgcolor: 'rgba(252, 76, 2, 0.05)', borderRadius: 2, border: '1px solid rgba(252, 76, 2, 0.2)' }}>
@@ -742,6 +764,7 @@ export default function TreinoTab() {
 
                           </Box>
                         )}
+
                       </Box>
                     </Collapse>
                   </Card>
@@ -909,6 +932,26 @@ export default function TreinoTab() {
           })}
         </Box>
       </Drawer>
+
+      {/* Confirm delete sessão */}
+      <ConfirmDeleteDialog
+        open={deleteSessao.open}
+        loading={deleteSessao.loading}
+        title="Excluir treino?"
+        message="Tem certeza que deseja excluir este treino? Esta ação não pode ser desfeita."
+        onClose={deleteSessao.cancel}
+        onConfirm={() => deleteSessao.confirmDelete(async () => { removerSessao(deleteSessao.payload); })}
+      />
+
+      {/* Confirm delete registro */}
+      <ConfirmDeleteDialog
+        open={deleteRegistro.open}
+        loading={deleteRegistro.loading}
+        title="Excluir registro?"
+        message="Tem certeza que deseja excluir este registro do histórico?"
+        onClose={deleteRegistro.cancel}
+        onConfirm={() => deleteRegistro.confirmDelete(async () => { removerRegistro(deleteRegistro.payload); })}
+      />
     </Box>
   );
 }

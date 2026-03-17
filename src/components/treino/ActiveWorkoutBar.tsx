@@ -14,7 +14,12 @@ function formatTimer(seconds: number): string {
 
 export default function ActiveWorkoutBar() {
   const navigate = useNavigate();
-  const { treinoAtivo, sessoes, cancelarTreino, pausarTreino, retomarTreino, concluirTreino } = useTreinoStore();
+  const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
+  const sessoes = useTreinoStore((s) => s.sessoes);
+  const cancelarTreino = useTreinoStore((s) => s.cancelarTreino);
+  const pausarTreino = useTreinoStore((s) => s.pausarTreino);
+  const retomarTreino = useTreinoStore((s) => s.retomarTreino);
+  const concluirTreino = useTreinoStore((s) => s.concluirTreino);
   const [elapsed, setElapsed] = useState(0);
 
   const sessao = useMemo(

@@ -21,7 +21,7 @@ export default function PerfilUsuario() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { toggleLike } = useFeedStore();
+  const toggleLike = useFeedStore((s) => s.toggleLike);
 
   const [profileData, setProfileData] = useState<{
     displayName: string | null;
@@ -35,6 +35,8 @@ export default function PerfilUsuario() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const [showProfilePhoto, setShowProfilePhoto] = useState(false);
 
   // Dialog seguidores/seguindo
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
@@ -147,7 +149,8 @@ export default function PerfilUsuario() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <Avatar
             src={profileData?.photoURL || undefined}
-            sx={{ width: 80, height: 80, fontSize: '2rem' }}
+            sx={{ width: 80, height: 80, fontSize: '2rem', cursor: profileData?.photoURL ? 'pointer' : 'default' }}
+            onClick={() => { if (profileData?.photoURL) setShowProfilePhoto(true); }}
           >
             {displayName.charAt(0).toUpperCase()}
           </Avatar>
@@ -275,6 +278,58 @@ export default function PerfilUsuario() {
           ))}
         </Box>
       )}
+
+      {/* Profile photo fullscreen */}
+      <Dialog
+        open={showProfilePhoto}
+        onClose={() => setShowProfilePhoto(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'transparent',
+            boxShadow: 'none',
+            overflow: 'visible',
+            backgroundImage: 'none',
+            border: 'none',
+            outline: 'none',
+            '&::before, &::after': { display: 'none' },
+          },
+        }}
+        slotProps={{
+          backdrop: { sx: { bgcolor: 'rgba(0,0,0,0.9)' } },
+        }}
+      >
+        <Box sx={{ position: 'relative' }}>
+          <IconButton
+            onClick={() => setShowProfilePhoto(false)}
+            sx={{
+              position: 'absolute', top: -40, right: 0,
+              color: '#fff', bgcolor: 'rgba(0,0,0,0.5)',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+            }}
+          >
+            <X size={20} />
+          </IconButton>
+          {profileData?.photoURL && (
+            <Box
+              component="img"
+              src={profileData.photoURL}
+              alt={displayName}
+              sx={{
+                width: '280px',
+                height: '280px',
+                objectFit: 'cover',
+                borderRadius: '50%',
+                display: 'block',
+                mx: 'auto',
+                border: 'none',
+                outline: 'none',
+              }}
+            />
+          )}
+        </Box>
+      </Dialog>
 
       {/* Dialog: Seguidores / Seguindo */}
       <Dialog

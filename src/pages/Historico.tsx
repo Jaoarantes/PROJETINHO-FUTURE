@@ -4,6 +4,8 @@ import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigati
 import { useTreinoStore } from '../store/treinoStore';
 import { formatPace } from '../utils/geoUtils';
 import { calcularDistanciaCorrida, calcularDistanciaNatacao } from '../types/treino';
+import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../hooks/useConfirmDelete';
 
 function formatarData(isoString: string): string {
   const data = new Date(isoString);
@@ -25,7 +27,9 @@ function formatarDuracao(segundos?: number): string {
 
 export default function Historico() {
   const navigate = useNavigate();
-  const { historico, removerRegistro } = useTreinoStore();
+  const historico = useTreinoStore((s) => s.historico);
+  const removerRegistro = useTreinoStore((s) => s.removerRegistro);
+  const deleteReg = useConfirmDelete();
 
   if (historico.length === 0) {
     return (
@@ -94,7 +98,7 @@ export default function Historico() {
                   >
                     <Share2 size={17} />
                   </IconButton>
-                  <IconButton size="small" color="error" onClick={() => removerRegistro(reg.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                  <IconButton size="small" color="error" onClick={() => deleteReg.requestDelete(reg.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
                     <Trash2 size={18} />
                   </IconButton>
                 </Box>
@@ -165,6 +169,15 @@ export default function Historico() {
           );
         })}
       </Box>
+
+      <ConfirmDeleteDialog
+        open={deleteReg.open}
+        loading={deleteReg.loading}
+        title="Excluir registro?"
+        message="Tem certeza que deseja excluir este registro do histórico?"
+        onClose={deleteReg.cancel}
+        onConfirm={() => deleteReg.confirmDelete(async () => { removerRegistro(deleteReg.payload); })}
+      />
     </Box>
   );
 }
