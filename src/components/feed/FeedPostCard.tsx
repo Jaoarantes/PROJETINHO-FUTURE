@@ -1,15 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Avatar, IconButton, Button, Menu, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  Backdrop, Skeleton,
 } from '@mui/material';
+
+const StravaRouteMap = React.lazy(() => import('../treino/StravaRouteMap'));
 import { alpha } from '@mui/material/styles';
 import {
   Heart, MessageCircle, MoreVertical, Pencil, Trash2,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { FeedPost, FeedComment } from '../../types/feed';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
 import type { TipoSessao, TipoSerie } from '../../types/treino';
 import { toggleFollow, checkFollowStatus, carregarComentarios } from '../../services/feedService';
@@ -37,6 +42,13 @@ function formatVolume(v: number): string {
   return v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' kg';
 }
 
+function formatPaceFeed(paceMinPerKm: number): string {
+  if (paceMinPerKm <= 0 || !isFinite(paceMinPerKm)) return '--';
+  const min = Math.floor(paceMinPerKm);
+  const sec = Math.round((paceMinPerKm - min) * 60);
+  return `${min}'${sec.toString().padStart(2, '0')}''/km`;
+}
+
 const MAX_INLINE_COMMENTS = 4;
 
 interface Props {
@@ -47,7 +59,7 @@ interface Props {
   onEdit?: (postId: string, novoTexto: string) => void;
 }
 
-export default function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) {
+function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) {
   const navigate = useNavigate();
   const [slideIdx, setSlideIdx] = useState(0);
   const [showAllExercicios, setShowAllExercicios] = useState(false);
@@ -56,7 +68,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
   const [targetIsPrivate, setTargetIsPrivate] = useState(false);
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deletePost = useConfirmDelete();
   const [editDialog, setEditDialog] = useState(false);
   const [editTexto, setEditTexto] = useState(post.texto || '');
   const [inlineComments, setInlineComments] = useState<FeedComment[]>([]);
@@ -67,6 +79,8 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
   const isSwiping = useRef(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
 
   const isOwner = post.userId === currentUserId;
   const hasPhotos = post.fotoUrls.length > 0;
@@ -115,9 +129,10 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
   };
 
   const handleConfirmDelete = () => {
-    setConfirmDelete(false);
-    setMenuAnchor(null);
-    onDelete?.(post.id);
+    deletePost.confirmDelete(async () => {
+      setMenuAnchor(null);
+      onDelete?.(post.id);
+    });
   };
 
   const handleSaveEdit = () => {
@@ -126,17 +141,28 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     onEdit?.(post.id, editTexto.trim());
   };
 
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
+      // Double tap → like
+      if (singleTapTimer.current) { clearTimeout(singleTapTimer.current); singleTapTimer.current = null; }
       if (!post.likedByMe) onLike(post.id);
       setShowHeartAnim(true);
       setTimeout(() => setShowHeartAnim(false), 800);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
+      // Delay single tap to check for double tap
+      singleTapTimer.current = setTimeout(() => {
+        if (!isSwiping.current) {
+          setZoomImg(post.fotoUrls[slideIdx]);
+        }
+        singleTapTimer.current = null;
+      }, 300);
     }
-  }, [post.likedByMe, post.id, onLike]);
+  }, [post.likedByMe, post.id, onLike, post.fotoUrls, slideIdx]);
 
   const touchStartY = useRef(0);
   const isHorizontalSwipe = useRef(false);
@@ -167,17 +193,22 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
 
     if (isHorizontalSwipe.current) {
       e.preventDefault(); // prevent vertical scroll while swiping horizontally
+      setDragOffset(dx);
     }
   };
 
   const handleTouchEnd = () => {
-    if (!isSwiping.current || !isHorizontalSwipe.current) return;
+    if (!isSwiping.current || !isHorizontalSwipe.current) {
+      setDragOffset(0);
+      return;
+    }
     const threshold = 40;
     if (touchDeltaX.current < -threshold && slideIdx < totalSlides - 1) {
       setSlideIdx((i) => i + 1);
     } else if (touchDeltaX.current > threshold && slideIdx > 0) {
       setSlideIdx((i) => i - 1);
     }
+    setDragOffset(0);
     touchDeltaX.current = 0;
     isSwiping.current = false;
     isHorizontalSwipe.current = false;
@@ -269,9 +300,63 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     );
   };
 
+  const polyline = post.resumo?.summaryPolyline;
+
   // Render workout stats row
+  const isCorrida = post.tipoTreino === 'corrida';
+  const distKm = post.resumo?.distanciaKm ?? 0;
+  const paceMedio = distKm > 0 && post.duracaoSegundos
+    ? (post.duracaoSegundos / 60) / distKm
+    : 0;
+
   const renderStatsRow = () => {
     if (!post.tipoTreino) return null;
+
+    // Running-specific layout (matches Historico style)
+    if (isCorrida) {
+      return (
+        <Box sx={{
+          display: 'flex', alignItems: 'center',
+          mx: 2, py: 1.2,
+          borderTop: '1px solid', borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}>
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Distância
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.5 }}>
+              <Typography variant="h6" fontWeight={800} color="primary.main" sx={{ fontSize: '1.1rem', lineHeight: 1.2 }}>
+                {distKm.toFixed(2)}
+              </Typography>
+              <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+            </Box>
+          </Box>
+          {paceMedio > 0 && (
+            <Box sx={{ flex: 1, textAlign: 'center', borderLeft: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Ritmo Médio
+              </Typography>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ fontSize: '0.95rem', lineHeight: 1.2 }}>
+                {formatPaceFeed(paceMedio)}
+              </Typography>
+            </Box>
+          )}
+          {post.duracaoSegundos && (
+            <Box sx={{ flex: 1, textAlign: 'center', borderLeft: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Duração
+              </Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
+                {formatDuracao(post.duracaoSegundos)}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      );
+    }
+
+    // Default layout (musculação, natação)
     return (
       <Box sx={{
         display: 'flex', alignItems: 'center',
@@ -378,7 +463,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
             </MenuItem>
           )}
           {isOwner && onDelete && (
-            <MenuItem onClick={() => { setMenuAnchor(null); setConfirmDelete(true); }} sx={{ color: '#EF4444' }}>
+            <MenuItem onClick={() => { setMenuAnchor(null); deletePost.requestDelete(); }} sx={{ color: '#EF4444' }}>
               <Trash2 size={15} style={{ marginRight: 10 }} /> Excluir post
             </MenuItem>
           )}
@@ -400,46 +485,62 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
       {/* CASE 1: Has photos — carousel with photos + workout slide */}
       {hasPhotos && (
         <Box
-          sx={{ position: 'relative', userSelect: 'none', touchAction: 'pan-y' }}
+          sx={{ position: 'relative', userSelect: 'none', touchAction: 'pan-y', overflow: 'hidden' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onClick={!isOnWorkoutSlide ? handleDoubleTap : undefined}
         >
-          {/* Photo slides */}
-          {!isOnWorkoutSlide && (
-            <Box sx={{ position: 'relative', bgcolor: '#0a0a0a' }}>
-              <Box
-                component="img"
-                src={post.fotoUrls[slideIdx]}
-                alt=""
-                draggable={false}
-                sx={{ width: '100%', height: 380, objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
-              />
-              {showHeartAnim && (
-                <Box sx={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  animation: 'heartPop 0.8s ease-out forwards',
-                  '@keyframes heartPop': {
-                    '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' },
-                    '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.2)' },
-                    '30%': { transform: 'translate(-50%, -50%) scale(1)' },
-                    '70%': { opacity: 1 },
-                    '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)' },
-                  },
-                }}>
-                  <Heart size={80} fill="#fff" color="#fff" strokeWidth={1} />
-                </Box>
-              )}
-            </Box>
-          )}
+          {/* Sliding track */}
+          <Box sx={{
+            display: 'flex',
+            transform: `translateX(calc(-${slideIdx * 100}% + ${dragOffset}px))`,
+            transition: dragOffset !== 0 ? 'none' : 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            willChange: 'transform',
+          }}>
+            {/* Photo slides */}
+            {post.fotoUrls.map((url, i) => (
+              <Box key={i} sx={{ position: 'relative', minWidth: '100%', bgcolor: '#0a0a0a' }}>
+                <Box
+                  component="img"
+                  src={url}
+                  alt=""
+                  draggable={false}
+                  sx={{ width: '100%', height: 380, objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+                />
+              </Box>
+            ))}
+            {/* Workout detail slide */}
+            {hasWorkoutSlide && (
+              <Box sx={{ minWidth: '100%', minHeight: 380, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                {isCorrida && polyline && (
+                  <Box sx={{ '& > div': { mt: 0, borderRadius: 0, border: 'none' } }}>
+                    <Suspense fallback={<Skeleton variant="rectangular" height={180} />}>
+                      <StravaRouteMap polyline={polyline} height={180} />
+                    </Suspense>
+                  </Box>
+                )}
+                {renderStatsRow()}
+                {exercicios.length > 0 && renderExerciseList(true)}
+              </Box>
+            )}
+          </Box>
 
-          {/* Workout detail slide */}
-          {isOnWorkoutSlide && (
-            <Box sx={{ minHeight: 380, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              {renderStatsRow()}
-              {exercicios.length > 0 && renderExerciseList(true)}
+          {/* Heart animation overlay */}
+          {showHeartAnim && (
+            <Box sx={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)', zIndex: 2,
+              animation: 'heartPop 0.8s ease-out forwards',
+              '@keyframes heartPop': {
+                '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' },
+                '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.2)' },
+                '30%': { transform: 'translate(-50%, -50%) scale(1)' },
+                '70%': { opacity: 1 },
+                '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)' },
+              },
+            }}>
+              <Heart size={80} fill="#fff" color="#fff" strokeWidth={1} />
             </Box>
           )}
 
@@ -452,7 +553,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
               {Array.from({ length: totalSlides }).map((_, i) => (
                 <Box key={i} sx={{
                   width: i === slideIdx ? 18 : 6, height: 6, borderRadius: 3,
-                  bgcolor: i === slideIdx ? '#FF6B2C' : (theme) => alpha(theme.palette.text.primary, 0.2),
+                  bgcolor: i === slideIdx ? '#FF6B2C' : (t) => alpha(t.palette.text.primary, 0.2),
                   transition: 'all 0.3s',
                 }} />
               ))}
@@ -464,6 +565,13 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
       {/* CASE 2: No photos — show stats + exercises inline */}
       {!hasPhotos && (
         <>
+          {isCorrida && polyline && (
+            <Box sx={{ '& > div': { mt: 0, borderRadius: 0, border: 'none' } }}>
+              <Suspense fallback={<Skeleton variant="rectangular" height={200} />}>
+                <StravaRouteMap polyline={polyline} height={200} />
+              </Suspense>
+            </Box>
+          )}
           {renderStatsRow()}
           {exercicios.length > 0 && renderExerciseList()}
         </>
@@ -545,20 +653,41 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
       </Box>
 
       {/* Dialog: Confirmar exclusão */}
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogTitle sx={{ fontSize: '1.1rem', fontWeight: 700 }}>Excluir post?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)} sx={{ textTransform: 'none' }}>Cancelar</Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained" sx={{ textTransform: 'none' }}>
-            Excluir
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={deletePost.open}
+        loading={deletePost.loading}
+        title="Excluir post?"
+        message="Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita."
+        onClose={deletePost.cancel}
+        onConfirm={handleConfirmDelete}
+      />
+
+      {/* Fullscreen image zoom */}
+      <Backdrop
+        open={!!zoomImg}
+        onClick={() => setZoomImg(null)}
+        sx={{ zIndex: 1300, bgcolor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)' }}
+      >
+        {zoomImg && (
+          <Box
+            component="img"
+            src={zoomImg}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              objectFit: 'contain',
+              borderRadius: '8px',
+              animation: 'zoomIn 0.25s ease-out',
+              '@keyframes zoomIn': {
+                '0%': { opacity: 0, transform: 'scale(0.85)' },
+                '100%': { opacity: 1, transform: 'scale(1)' },
+              },
+            }}
+          />
+        )}
+      </Backdrop>
 
       {/* Dialog: Editar post */}
       <Dialog open={editDialog} onClose={() => setEditDialog(false)} fullWidth maxWidth="sm">
@@ -581,3 +710,5 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     </Box>
   );
 }
+
+export default React.memo(FeedPostCard);

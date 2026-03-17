@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import {
   Box, Typography, IconButton, Card, CardContent, Button,
   LinearProgress, Collapse, Dialog, DialogTitle, DialogContent,
@@ -9,10 +9,12 @@ import {
   UtensilsCrossed, Cookie, Moon, Droplets, Calculator,
   Minus, Pencil, Apple, Dumbbell, Sunset,
 } from 'lucide-react';
+import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useDietaStore } from '../../store/dietaStore';
-import AlimentoPicker from '../../components/dieta/AlimentoPicker';
+const AlimentoPicker = lazy(() => import('../../components/dieta/AlimentoPicker'));
 import CalorieRing from '../../components/dieta/CalorieRing';
-import MetasWizard from '../../components/dieta/MetasWizard';
+const MetasWizard = lazy(() => import('../../components/dieta/MetasWizard'));
 import {
   calcularMacrosItem, calcularMacrosRefeicao,
   calcularMacrosDia, REFEICAO_LABELS,
@@ -50,13 +52,25 @@ function navegarData(dataStr: string, delta: number) {
 }
 
 export default function DietaTab() {
-  const {
-    dataSelecionada, setData, getDiarioAtual, removerItem,
-    metas, atualizarMetas, adicionarAgua, adicionarRefeicao, removerRefeicao,
-    perfil, atualizarPerfil, carregando, uid,
-  } = useDietaStore();
+  const dataSelecionada = useDietaStore((s) => s.dataSelecionada);
+  const setData = useDietaStore((s) => s.setData);
+  const getDiarioAtual = useDietaStore((s) => s.getDiarioAtual);
+  const removerItem = useDietaStore((s) => s.removerItem);
+  const metas = useDietaStore((s) => s.metas);
+  const atualizarMetas = useDietaStore((s) => s.atualizarMetas);
+  const adicionarAgua = useDietaStore((s) => s.adicionarAgua);
+  const adicionarRefeicao = useDietaStore((s) => s.adicionarRefeicao);
+  const removerRefeicao = useDietaStore((s) => s.removerRefeicao);
+  const perfil = useDietaStore((s) => s.perfil);
+  const atualizarPerfil = useDietaStore((s) => s.atualizarPerfil);
+  const carregando = useDietaStore((s) => s.carregando);
+  const uid = useDietaStore((s) => s.uid);
   const diario = getDiarioAtual();
   const totais = calcularMacrosDia(diario.refeicoes);
+
+  const corProteina = '#16A34A';
+  const corCarbo = '#FF6B2C';
+  const corGordura = '#7C3AED';
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTipo, setPickerTipo] = useState<TipoRefeicao>('cafe');
@@ -145,9 +159,9 @@ export default function DietaTab() {
 
           {/* Macro bars */}
           <Box sx={{ display: 'flex', gap: 1.5, mt: 2.5 }}>
-            <MacroBar label="Proteína" valor={totais.proteinas} meta={metas.proteinas} cor="#00E676" />
-            <MacroBar label="Carboidrato" valor={totais.carboidratos} meta={metas.carboidratos} cor="#FF6B2C" />
-            <MacroBar label="Gordura" valor={totais.gorduras} meta={metas.gorduras} cor="#A855F7" />
+            <MacroBar label="Proteína" valor={totais.proteinas} meta={metas.proteinas} cor={corProteina} />
+            <MacroBar label="Carboidrato" valor={totais.carboidratos} meta={metas.carboidratos} cor={corCarbo} />
+            <MacroBar label="Gordura" valor={totais.gorduras} meta={metas.gorduras} cor={corGordura} />
           </Box>
         </CardContent>
       </Card>
@@ -241,10 +255,18 @@ export default function DietaTab() {
         </List>
       </Dialog>
 
-      <AlimentoPicker open={pickerOpen} onClose={() => setPickerOpen(false)} tipoRefeicao={pickerTipo} />
+      {pickerOpen && (
+        <Suspense fallback={null}>
+          <AlimentoPicker open={pickerOpen} onClose={() => setPickerOpen(false)} tipoRefeicao={pickerTipo} />
+        </Suspense>
+      )}
       <MetasDialog open={metasOpen} onClose={() => setMetasOpen(false)} metas={metas} onSalvar={atualizarMetas} />
       <AguaEditDialog open={aguaEditOpen} onClose={() => setAguaEditOpen(false)} meta={metas.agua || 2500} onSalvar={(agua) => atualizarMetas({ ...metas, agua })} />
-      <MetasWizard open={wizardOpen} onClose={() => setWizardOpen(false)} perfilInicial={perfil} onSalvar={handleWizardSalvar} />
+      {wizardOpen && (
+        <Suspense fallback={null}>
+          <MetasWizard open={wizardOpen} onClose={() => setWizardOpen(false)} perfilInicial={perfil} onSalvar={handleWizardSalvar} />
+        </Suspense>
+      )}
     </Box>
   );
 }
@@ -283,6 +305,8 @@ function RefeicaoCard({
   onRemoverRefeicao: () => void;
 }) {
   const macros = calcularMacrosRefeicao(refeicao);
+  const deleteItem = useConfirmDelete();
+  const deleteRefeicao = useConfirmDelete();
   const Icon = REFEICAO_ICONS[refeicao.tipo];
 
   return (
@@ -304,7 +328,7 @@ function RefeicaoCard({
               {macros.calorias} kcal · {refeicao.itens.length} {refeicao.itens.length === 1 ? 'item' : 'itens'}
             </Typography>
           </Box>
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onRemoverRefeicao(); }} sx={{ ml: 0.5 }}>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteRefeicao.requestDelete(); }} sx={{ ml: 0.5 }}>
             <Trash2 size={14} />
           </IconButton>
         </Box>
@@ -336,7 +360,7 @@ function RefeicaoCard({
                         : `${item.quantidade}x ${item.alimento.porcao}${item.alimento.unidade}`} · {m.calorias} kcal
                     </Typography>
                   </Box>
-                  <IconButton size="small" onClick={() => onRemoverItem(item.id)}>
+                  <IconButton size="small" onClick={() => deleteItem.requestDelete(item.id)}>
                     <Trash2 size={14} />
                   </IconButton>
                 </Box>
@@ -354,6 +378,23 @@ function RefeicaoCard({
           </Button>
         </Collapse>
       </CardContent>
+
+      <ConfirmDeleteDialog
+        open={deleteRefeicao.open}
+        loading={deleteRefeicao.loading}
+        title="Excluir refeição?"
+        message="Tem certeza que deseja excluir esta refeição e todos os alimentos?"
+        onClose={deleteRefeicao.cancel}
+        onConfirm={() => deleteRefeicao.confirmDelete(async () => { onRemoverRefeicao(); })}
+      />
+      <ConfirmDeleteDialog
+        open={deleteItem.open}
+        loading={deleteItem.loading}
+        title="Excluir alimento?"
+        message="Tem certeza que deseja remover este alimento da refeição?"
+        onClose={deleteItem.cancel}
+        onConfirm={() => deleteItem.confirmDelete(async () => { onRemoverItem(deleteItem.payload); })}
+      />
     </Card>
   );
 }

@@ -37,7 +37,7 @@ interface Props {
 export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { adicionarExercicio } = useTreinoStore();
+  const adicionarExercicio = useTreinoStore((s) => s.adicionarExercicio);
   const { exerciciosCustom } = useExerciciosCustom();
 
   const [step, setStep] = useState<'buscar' | 'configurar'>('buscar');
