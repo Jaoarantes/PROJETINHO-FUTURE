@@ -1,34 +1,45 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, CircularProgress, Skeleton, IconButton, Badge } from '@mui/material';
+import {
+  Box, Typography, CircularProgress, Skeleton, IconButton, Badge,
+  TextField, Button,
+} from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { Search, Plus, Bell, Rss, User } from 'lucide-react';
+import { Search, Plus, Bell, Rss, User, AtSign } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import { contarNotificacoesNaoLidas } from '../../services/feedService';
+import { checkUsernameAvailable, saveUsername } from '../../services/userService';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 
 export default function FeedTab() {
-  const { user } = useAuthContext();
+  const { user, profile, refreshUser } = useAuthContext();
   const navigate = useNavigate();
   const { posts, loading, hasMore, carregarFeed, carregarMais, toggleLike, deletarPost, editarPost } = useFeedStore();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const uid = user?.id;
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Username gate
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameSaving, setUsernameSaving] = useState(false);
+
+  const hasUsername = !!profile?.username;
+
   // Carrega feed inicial
   useEffect(() => {
-    if (uid && posts.length === 0) {
+    if (uid && hasUsername && posts.length === 0) {
       carregarFeed(uid, true);
     }
-  }, [uid]);
+  }, [uid, hasUsername]);
 
   // Contar notificações não lidas
   useEffect(() => {
-    if (uid) {
+    if (uid && hasUsername) {
       contarNotificacoesNaoLidas(uid).then(setUnreadCount).catch(() => {});
     }
-  }, [uid]);
+  }, [uid, hasUsername]);
 
   // Infinite scroll
   const lastPostRef = useCallback(
@@ -47,6 +58,83 @@ export default function FeedTab() {
 
   if (!uid) return null;
 
+  const handleSaveUsername = async () => {
+    if (usernameInput.length < 3) {
+      setUsernameError('Mínimo de 3 caracteres.');
+      return;
+    }
+    setUsernameSaving(true);
+    try {
+      const available = await checkUsernameAvailable(usernameInput, uid);
+      if (!available) {
+        setUsernameError('Este nome já está em uso. Escolha outro.');
+        setUsernameSaving(false);
+        return;
+      }
+      await saveUsername(uid, usernameInput);
+      await refreshUser();
+    } catch {
+      setUsernameError('Erro ao salvar. Tente novamente.');
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
+  // Username gate screen
+  if (!hasUsername) {
+    return (
+      <Box sx={{ pt: 6, pb: 4, px: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box sx={{
+          width: 80, height: 80, borderRadius: '24px',
+          background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          mb: 3,
+        }}>
+          <AtSign size={36} color="#FF6B2C" />
+        </Box>
+
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5, textAlign: 'center' }}>
+          Crie seu nome de usuário
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center', maxWidth: 300 }}>
+          Para acessar o feed, você precisa de um nome de usuário único. Ele será usado para te encontrarem.
+        </Typography>
+
+        <Box sx={{ width: '100%', maxWidth: 320 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="ex: Joao.Silva"
+            value={usernameInput}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^a-zA-Z0-9._]/g, '');
+              setUsernameInput(val);
+              setUsernameError('');
+            }}
+            error={!!usernameError}
+            helperText={usernameError || 'Letras, números, pontos e underlines.'}
+            slotProps={{ htmlInput: { maxLength: 30 } }}
+            sx={{ mb: 2, '& input': { fontSize: '1rem', textAlign: 'center' } }}
+          />
+
+          <Button
+            variant="contained"
+            fullWidth
+            disabled={usernameSaving || usernameInput.length < 3}
+            onClick={handleSaveUsername}
+            sx={{
+              py: 1.2, borderRadius: '12px', textTransform: 'none',
+              fontWeight: 700, fontSize: '0.95rem',
+              bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' },
+            }}
+          >
+            {usernameSaving ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Continuar'}
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ pt: 1, pb: 2, mx: -2.5 }}>
       {/* Top Bar - Search | + | Avatar(meus posts) | Bell(notificações) */}
@@ -54,7 +142,7 @@ export default function FeedTab() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         mb: 2.5, px: 2.5,
       }}>
-        <IconButton sx={{ color: 'text.secondary', width: 42, height: 42 }}>
+        <IconButton onClick={() => navigate('/feed/busca')} sx={{ color: 'text.secondary', width: 42, height: 42 }}>
           <Search size={22} />
         </IconButton>
 
