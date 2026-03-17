@@ -6,12 +6,13 @@ import {
   Menu, MenuItem,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Rss, Camera, X, ImagePlus, Trash2, Lock, Unlock } from 'lucide-react';
+import { ArrowLeft, Rss, Camera, X, ImagePlus, Trash2, Lock, Unlock, UserCheck, UserX, Users } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import {
   carregarMeusPosts, countFollowers, countFollowing,
-  listFollowers, listFollowing,
+  listFollowers, listFollowing, listPendingRequests,
+  acceptFollowRequest, rejectFollowRequest,
 } from '../../services/feedService';
 import type { FollowUser } from '../../services/feedService';
 import { uploadProfilePicture, removeProfilePicture, togglePrivateProfile } from '../../services/userService';
@@ -43,6 +44,11 @@ export default function MeusPosts() {
   const [followList, setFollowList] = useState<FollowUser[]>([]);
   const [followListLoading, setFollowListLoading] = useState(false);
 
+  // Solicitações pendentes
+  const [pendingRequests, setPendingRequests] = useState<FollowUser[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [showPending, setShowPending] = useState(false);
+
   const uid = user?.id;
   const userPhoto = user?.user_metadata?.avatar_url || profile?.photoURL || null;
   const displayName = profile?.displayName || user?.user_metadata?.full_name || 'Usuário';
@@ -56,6 +62,7 @@ export default function MeusPosts() {
 
       countFollowers(uid).then(setFollowers);
       countFollowing(uid).then(setFollowing);
+      listPendingRequests(uid).then(setPendingRequests).catch(() => {});
     }
   }, [uid]);
 
@@ -275,6 +282,83 @@ export default function MeusPosts() {
           </Typography>
         </Box>
       </Box>
+
+      {/* Solicitações pendentes */}
+      {isPrivate && pendingRequests.length > 0 && (
+        <Box sx={{ px: 2.5, pb: 2 }}>
+          <Box
+            onClick={() => setShowPending(!showPending)}
+            sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              py: 1.2, px: 2, borderRadius: '12px', cursor: 'pointer',
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,107,44,0.1)' : 'rgba(255,107,44,0.06)',
+              border: '1px solid', borderColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,107,44,0.2)' : 'rgba(255,107,44,0.15)',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Users size={18} color="#FF6B2C" />
+              <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.88rem', color: '#FF6B2C' }}>
+                {pendingRequests.length} {pendingRequests.length === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
+              </Typography>
+            </Box>
+          </Box>
+
+          {showPending && (
+            <List disablePadding sx={{ mt: 1 }}>
+              {pendingRequests.map((u) => (
+                <ListItem
+                  key={u.id}
+                  sx={{ px: 1, py: 0.8, borderRadius: '12px' }}
+                >
+                  <ListItemAvatar sx={{ minWidth: 48 }}>
+                    <Avatar
+                      src={u.photoURL || undefined}
+                      sx={{ width: 40, height: 40, cursor: 'pointer' }}
+                      onClick={() => navigate(`/feed/perfil/${u.id}`)}
+                    >
+                      {u.displayName?.charAt(0).toUpperCase() || 'U'}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={u.displayName || 'Usuário'}
+                    primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}
+                    onClick={() => navigate(`/feed/perfil/${u.id}`)}
+                  />
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <IconButton
+                      size="small"
+                      onClick={async () => {
+                        await acceptFollowRequest(u.id, uid);
+                        setPendingRequests((prev) => prev.filter((r) => r.id !== u.id));
+                        setFollowers((c) => c + 1);
+                      }}
+                      sx={{
+                        bgcolor: '#FF6B2C', color: '#fff', width: 32, height: 32,
+                        '&:hover': { bgcolor: '#e55a1b' },
+                      }}
+                    >
+                      <UserCheck size={16} />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={async () => {
+                        await rejectFollowRequest(u.id, uid);
+                        setPendingRequests((prev) => prev.filter((r) => r.id !== u.id));
+                      }}
+                      sx={{
+                        bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                        color: 'text.secondary', width: 32, height: 32,
+                      }}
+                    >
+                      <UserX size={16} />
+                    </IconButton>
+                  </Box>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+      )}
 
       {/* Divider */}
       <Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />
