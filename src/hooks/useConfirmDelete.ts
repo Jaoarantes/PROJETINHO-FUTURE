@@ -17,7 +17,7 @@ export function useConfirmDelete(): UseConfirmDeleteReturn {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [payload, setPayload] = useState<any>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const requestDelete = useCallback((p?: any) => {
     setPayload(p);
