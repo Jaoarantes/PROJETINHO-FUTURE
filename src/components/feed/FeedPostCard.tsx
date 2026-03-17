@@ -10,8 +10,8 @@ import {
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { FeedPost, FeedComment } from '../../types/feed';
-import { TIPO_SESSAO_LABELS } from '../../types/treino';
-import type { TipoSessao } from '../../types/treino';
+import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
+import type { TipoSessao, TipoSerie } from '../../types/treino';
 import { toggleFollow, checkFollowing, carregarComentarios } from '../../services/feedService';
 import { getExerciseImageUrl } from '../../constants/exercise-images';
 
@@ -32,8 +32,7 @@ function formatDuracao(seg: number): string {
 }
 
 function formatVolume(v: number): string {
-  if (v >= 1000) return `${(v / 1000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}KG`;
-  return `${v}KG`;
+  return v.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' kg';
 }
 
 const MAX_INLINE_COMMENTS = 4;
@@ -48,30 +47,20 @@ interface Props {
 
 export default function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) {
   const navigate = useNavigate();
-  const [photoIdx, setPhotoIdx] = useState(0);
+  const [slideIdx, setSlideIdx] = useState(0);
   const [showAllExercicios, setShowAllExercicios] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
 
-  // Menu 3 pontos
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-
-  // Dialog confirmar exclusão
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  // Dialog editar post
   const [editDialog, setEditDialog] = useState(false);
   const [editTexto, setEditTexto] = useState(post.texto || '');
-
-  // Comentários inline
   const [inlineComments, setInlineComments] = useState<FeedComment[]>([]);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
-
-  // Double tap like
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const lastTapRef = useRef(0);
 
-  // Touch swipe
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
   const isSwiping = useRef(false);
@@ -82,14 +71,17 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
   const VISIBLE_EXERCICIOS = 3;
   const hiddenCount = exercicios.length - VISIBLE_EXERCICIOS;
 
-  // Check follow status
+  // When post has photos + workout, slides = [photos..., workout detail]
+  const hasWorkoutSlide = hasPhotos && (exercicios.length > 0 || post.tipoTreino);
+  const totalSlides = hasPhotos ? post.fotoUrls.length + (hasWorkoutSlide ? 1 : 0) : 0;
+  const isOnWorkoutSlide = hasWorkoutSlide && slideIdx === totalSlides - 1;
+
   useEffect(() => {
     if (!isOwner && currentUserId) {
       checkFollowing(currentUserId, post.userId).then(setIsFollowing).catch(() => {});
     }
   }, [currentUserId, post.userId, isOwner]);
 
-  // Carregar comentários inline
   useEffect(() => {
     if (post.commentsCount > 0 && !commentsLoaded) {
       carregarComentarios(post.id)
@@ -123,13 +115,10 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     onEdit?.(post.id, editTexto.trim());
   };
 
-  // Double tap to like
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      if (!post.likedByMe) {
-        onLike(post.id);
-      }
+      if (!post.likedByMe) onLike(post.id);
       setShowHeartAnim(true);
       setTimeout(() => setShowHeartAnim(false), 800);
       lastTapRef.current = 0;
@@ -138,49 +127,196 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     }
   }, [post.likedByMe, post.id, onLike]);
 
-  // Touch swipe handlers for photos
+  const touchStartY = useRef(0);
+  const isHorizontalSwipe = useRef(false);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
     touchDeltaX.current = 0;
     isSwiping.current = false;
+    isHorizontalSwipe.current = false;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
-    if (Math.abs(touchDeltaX.current) > 10) {
-      isSwiping.current = true;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    touchDeltaX.current = dx;
+
+    // Detect if this is a horizontal swipe (once determined, lock it)
+    if (!isHorizontalSwipe.current && !isSwiping.current) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        isHorizontalSwipe.current = true;
+        isSwiping.current = true;
+      } else if (Math.abs(dy) > 10) {
+        // Vertical scroll — don't interfere
+        return;
+      }
+    }
+
+    if (isHorizontalSwipe.current) {
+      e.preventDefault(); // prevent vertical scroll while swiping horizontally
     }
   };
 
   const handleTouchEnd = () => {
-    if (!isSwiping.current) return;
-    const threshold = 50;
-    if (touchDeltaX.current < -threshold && photoIdx < post.fotoUrls.length - 1) {
-      setPhotoIdx((i) => i + 1);
-    } else if (touchDeltaX.current > threshold && photoIdx > 0) {
-      setPhotoIdx((i) => i - 1);
+    if (!isSwiping.current || !isHorizontalSwipe.current) return;
+    const threshold = 40;
+    if (touchDeltaX.current < -threshold && slideIdx < totalSlides - 1) {
+      setSlideIdx((i) => i + 1);
+    } else if (touchDeltaX.current > threshold && slideIdx > 0) {
+      setSlideIdx((i) => i - 1);
     }
     touchDeltaX.current = 0;
     isSwiping.current = false;
+    isHorizontalSwipe.current = false;
   };
 
   const visibleComments = inlineComments.slice(0, MAX_INLINE_COMMENTS);
   const hasMoreComments = inlineComments.length > MAX_INLINE_COMMENTS;
 
+  // Render exercise list with reps/weights badges
+  const renderExerciseList = (compact?: boolean) => {
+    const visible = showAllExercicios ? exercicios : exercicios.slice(0, VISIBLE_EXERCICIOS);
+    return (
+      <Box sx={{ px: 2, py: compact ? 1 : 1.5 }}>
+        {visible.map((ex, idx) => {
+          const gifUrl = ex.exercicioId ? getExerciseImageUrl(ex.exercicioId) : undefined;
+          return (
+            <Box key={idx} sx={{
+              py: compact ? 0.6 : 0.8,
+              borderBottom: idx < visible.length - 1 ? '1px solid' : 'none',
+              borderColor: 'divider',
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{
+                  width: compact ? 36 : 44, height: compact ? 36 : 44, borderRadius: compact ? '10px' : '12px',
+                  background: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.06) : alpha('#000', 0.04),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  overflow: 'hidden',
+                }}>
+                  {gifUrl ? (
+                    <Box component="img" src={gifUrl} alt={ex.nome} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                  ) : (
+                    <Typography sx={{ fontSize: compact ? '0.75rem' : '0.85rem', fontWeight: 700, color: 'text.secondary', opacity: 0.5 }}>✕</Typography>
+                  )}
+                </Box>
+                <Typography variant="body2" sx={{ fontSize: compact ? '0.82rem' : '0.88rem', fontWeight: 600, flex: 1, minWidth: 0 }} noWrap>
+                  {ex.nome}
+                </Typography>
+              </Box>
+              {/* Series badges */}
+              {ex.series?.length ? (
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: compact ? '48px' : '56px', mt: 0.5 }}>
+                  {ex.series.map((s, sIdx) => {
+                    const cor = TIPO_SERIE_CORES[(s.tipo as TipoSerie) || 'normal'] || TIPO_SERIE_CORES.normal;
+                    return (
+                      <Box key={sIdx} sx={{
+                        display: 'flex', alignItems: 'center', gap: 0.4,
+                        px: 0.8, py: 0.3, borderRadius: 1,
+                        bgcolor: `${cor}18`,
+                        border: `1px solid ${cor}40`,
+                      }}>
+                        <Box sx={{
+                          width: 16, height: 16, borderRadius: '4px',
+                          bgcolor: cor, color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.6rem', fontWeight: 700,
+                        }}>
+                          {sIdx + 1}
+                        </Box>
+                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                          {s.peso ? `${s.peso}kg` : '—'}x{s.reps}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              ) : (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', ml: compact ? '48px' : '56px' }}>
+                  {ex.sets} sets
+                </Typography>
+              )}
+            </Box>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <Button
+            onClick={() => setShowAllExercicios(!showAllExercicios)}
+            size="small"
+            endIcon={showAllExercicios ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            sx={{
+              mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
+              textTransform: 'none', fontWeight: 600, px: 0,
+              '&:hover': { bgcolor: 'transparent', color: '#FF6B2C' },
+            }}
+          >
+            {showAllExercicios ? 'Mostrar menos' : `Veja ${hiddenCount} mais exercícios`}
+          </Button>
+        )}
+      </Box>
+    );
+  };
+
+  // Render workout stats row
+  const renderStatsRow = () => {
+    if (!post.tipoTreino) return null;
+    return (
+      <Box sx={{
+        display: 'flex', alignItems: 'center',
+        mx: 2, py: 1.2,
+        borderTop: '1px solid', borderBottom: exercicios.length > 0 ? '1px solid' : 'none',
+        borderColor: 'divider',
+      }}>
+        {post.duracaoSegundos && (
+          <Box sx={{ flex: 1, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
+              Tempo
+            </Typography>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
+              {formatDuracao(post.duracaoSegundos)}
+            </Typography>
+          </Box>
+        )}
+        {post.resumo?.volumeTotal != null && post.resumo.volumeTotal > 0 && (
+          <Box sx={{
+            flex: 1, textAlign: 'center',
+            borderLeft: post.duracaoSegundos ? '1px solid' : 'none',
+            borderColor: 'divider',
+          }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
+              Volume
+            </Typography>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
+              {formatVolume(post.resumo.volumeTotal)}
+            </Typography>
+          </Box>
+        )}
+        <Box sx={{
+          flex: 1, textAlign: 'center',
+          borderLeft: '1px solid', borderColor: 'divider',
+        }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
+            Treino
+          </Typography>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
+            {post.nomeTreino || TIPO_SESSAO_LABELS[post.tipoTreino as TipoSessao] || 'Treino'}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <Box sx={{
       bgcolor: 'background.paper',
-      borderRadius: '20px',
-      border: '1px solid',
+      borderBottom: '1px solid',
       borderColor: 'divider',
       overflow: 'hidden',
     }}>
-      {/* Header: Avatar + Name + Time + Seguir + 3 pontos */}
+      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', px: 2, pt: 2, pb: 1.5 }}>
-        <Avatar
-          src={post.authorPhoto || undefined}
-          sx={{ width: 44, height: 44, mr: 1.5 }}
-        >
+        <Avatar src={post.authorPhoto || undefined} sx={{ width: 44, height: 44, mr: 1.5 }}>
           {post.authorName?.charAt(0).toUpperCase() || 'U'}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -206,22 +342,12 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
             {isFollowing ? 'Seguindo' : 'Seguir'}
           </Button>
         )}
-        <IconButton
-          size="small"
-          onClick={(e) => setMenuAnchor(e.currentTarget)}
-          sx={{ color: 'text.secondary', opacity: 0.5 }}
-        >
+        <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ color: 'text.secondary', opacity: 0.5 }}>
           <MoreVertical size={16} />
         </IconButton>
-
-        {/* Menu dos 3 pontos */}
-        <Menu
-          anchorEl={menuAnchor}
-          open={!!menuAnchor}
-          onClose={() => setMenuAnchor(null)}
+        <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        >
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}>
           {isOwner && onEdit && (
             <MenuItem onClick={() => { setMenuAnchor(null); setEditTexto(post.texto || ''); setEditDialog(true); }}>
               <Pencil size={15} style={{ marginRight: 10 }} /> Editar post
@@ -238,7 +364,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
         </Menu>
       </Box>
 
-      {/* Caption Text */}
+      {/* Caption */}
       {post.texto && (
         <Box sx={{ px: 2, pb: 1.5 }}>
           <Typography variant="body2" sx={{ fontSize: '0.92rem', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
@@ -247,199 +373,76 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
         </Box>
       )}
 
-      {/* Workout Stats Row: Tempo | Volume | Treino */}
-      {post.tipoTreino && (
-        <Box sx={{
-          display: 'flex', alignItems: 'center',
-          mx: 2, mb: 1.5, py: 1.2, px: 0,
-          borderTop: '1px solid', borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}>
-          {post.duracaoSegundos && (
-            <Box sx={{ flex: 1, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
-                Tempo
-              </Typography>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
-                {formatDuracao(post.duracaoSegundos)}
-              </Typography>
-            </Box>
-          )}
-          {post.resumo?.volumeTotal != null && post.resumo.volumeTotal > 0 && (
-            <Box sx={{
-              flex: 1, textAlign: 'center',
-              borderLeft: post.duracaoSegundos ? '1px solid' : 'none',
-              borderColor: 'divider',
-            }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
-                Volume
-              </Typography>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
-                {formatVolume(post.resumo.volumeTotal)}
-              </Typography>
-            </Box>
-          )}
-          <Box sx={{
-            flex: 1, textAlign: 'center',
-            borderLeft: '1px solid', borderColor: 'divider',
-          }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', display: 'block', letterSpacing: '0.03em' }}>
-              Treino
-            </Typography>
-            <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.2 }}>
-              {post.nomeTreino || TIPO_SESSAO_LABELS[post.tipoTreino as TipoSessao] || 'Treino'}
-            </Typography>
-          </Box>
-        </Box>
-      )}
-
-      {/* Exercise List with GIFs */}
-      {exercicios.length > 0 && !hasPhotos && (
-        <Box sx={{ px: 2, pb: 1.5 }}>
-          {exercicios.slice(0, showAllExercicios ? exercicios.length : VISIBLE_EXERCICIOS).map((ex, idx) => {
-            const gifUrl = ex.exercicioId ? getExerciseImageUrl(ex.exercicioId) : undefined;
-            return (
-              <Box key={idx} sx={{
-                display: 'flex', alignItems: 'center', gap: 1.5, py: 1,
-                borderBottom: idx < (showAllExercicios ? exercicios.length : VISIBLE_EXERCICIOS) - 1 ? '1px solid' : 'none',
-                borderColor: 'divider',
-              }}>
-                <Box sx={{
-                  width: 44, height: 44, borderRadius: '12px',
-                  background: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.06) : alpha('#000', 0.04),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  overflow: 'hidden',
-                }}>
-                  {gifUrl ? (
-                    <Box
-                      component="img"
-                      src={gifUrl}
-                      alt={ex.nome}
-                      sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <Box sx={{
-                      width: '100%', height: '100%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '1.2rem',
-                    }}>
-                      🏋️
-                    </Box>
-                  )}
-                </Box>
-                <Typography variant="body2" sx={{ fontSize: '0.88rem', fontWeight: 500 }}>
-                  {ex.sets} sets {ex.nome}
-                </Typography>
-              </Box>
-            );
-          })}
-          {hiddenCount > 0 && (
-            <Button
-              onClick={() => setShowAllExercicios(!showAllExercicios)}
-              size="small"
-              endIcon={showAllExercicios ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              sx={{
-                mt: 0.5, fontSize: '0.78rem', color: 'text.secondary',
-                textTransform: 'none', fontWeight: 600, px: 0,
-                '&:hover': { bgcolor: 'transparent', color: '#FF6B2C' },
-              }}
-            >
-              {showAllExercicios ? 'Mostrar menos' : `Veja ${hiddenCount} mais exercícios`}
-            </Button>
-          )}
-        </Box>
-      )}
-
-      {/* Photos with swipe + double tap */}
+      {/* CASE 1: Has photos — carousel with photos + workout slide */}
       {hasPhotos && (
         <Box
-          sx={{ position: 'relative', bgcolor: '#0a0a0a', userSelect: 'none' }}
+          sx={{ position: 'relative', userSelect: 'none', touchAction: 'pan-y' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          onClick={handleDoubleTap}
+          onClick={!isOnWorkoutSlide ? handleDoubleTap : undefined}
         >
-          <Box
-            component="img"
-            src={post.fotoUrls[photoIdx]}
-            alt=""
-            draggable={false}
-            sx={{ width: '100%', height: 320, objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
-          />
+          {/* Photo slides */}
+          {!isOnWorkoutSlide && (
+            <Box sx={{ position: 'relative', bgcolor: '#0a0a0a' }}>
+              <Box
+                component="img"
+                src={post.fotoUrls[slideIdx]}
+                alt=""
+                draggable={false}
+                sx={{ width: '100%', height: 380, objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+              />
+              {showHeartAnim && (
+                <Box sx={{
+                  position: 'absolute', top: '50%', left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  animation: 'heartPop 0.8s ease-out forwards',
+                  '@keyframes heartPop': {
+                    '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' },
+                    '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.2)' },
+                    '30%': { transform: 'translate(-50%, -50%) scale(1)' },
+                    '70%': { opacity: 1 },
+                    '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)' },
+                  },
+                }}>
+                  <Heart size={80} fill="#fff" color="#fff" strokeWidth={1} />
+                </Box>
+              )}
+            </Box>
+          )}
 
-          {/* Heart animation on double tap */}
-          {showHeartAnim && (
-            <Box sx={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              animation: 'heartPop 0.8s ease-out forwards',
-              '@keyframes heartPop': {
-                '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' },
-                '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.2)' },
-                '30%': { transform: 'translate(-50%, -50%) scale(1)' },
-                '70%': { opacity: 1 },
-                '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)' },
-              },
-            }}>
-              <Heart size={80} fill="#fff" color="#fff" strokeWidth={1} />
+          {/* Workout detail slide */}
+          {isOnWorkoutSlide && (
+            <Box sx={{ minHeight: 380, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {renderStatsRow()}
+              {exercicios.length > 0 && renderExerciseList(true)}
             </Box>
           )}
 
           {/* Dots indicator */}
-          {post.fotoUrls.length > 1 && (
-            <Box sx={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 0.5 }}>
-              {post.fotoUrls.map((_, i) => (
-                <Box key={i} sx={{ width: i === photoIdx ? 18 : 6, height: 6, borderRadius: 3, bgcolor: i === photoIdx ? '#FF6B2C' : 'rgba(255,255,255,0.5)', transition: 'all 0.3s' }} />
+          {totalSlides > 1 && (
+            <Box sx={{
+              display: 'flex', justifyContent: 'center', gap: 0.5,
+              py: 1,
+            }}>
+              {Array.from({ length: totalSlides }).map((_, i) => (
+                <Box key={i} sx={{
+                  width: i === slideIdx ? 18 : 6, height: 6, borderRadius: 3,
+                  bgcolor: i === slideIdx ? '#FF6B2C' : (theme) => alpha(theme.palette.text.primary, 0.2),
+                  transition: 'all 0.3s',
+                }} />
               ))}
             </Box>
           )}
         </Box>
       )}
 
-      {/* Exercise list BELOW photos (when both exist) */}
-      {exercicios.length > 0 && hasPhotos && (
-        <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
-          {exercicios.slice(0, showAllExercicios ? exercicios.length : VISIBLE_EXERCICIOS).map((ex, idx) => {
-            const gifUrl = ex.exercicioId ? getExerciseImageUrl(ex.exercicioId) : undefined;
-            return (
-              <Box key={idx} sx={{
-                display: 'flex', alignItems: 'center', gap: 1.5, py: 0.8,
-                borderBottom: idx < (showAllExercicios ? exercicios.length : VISIBLE_EXERCICIOS) - 1 ? '1px solid' : 'none',
-                borderColor: 'divider',
-              }}>
-                <Box sx={{
-                  width: 36, height: 36, borderRadius: '10px',
-                  background: (theme) => theme.palette.mode === 'dark' ? alpha('#fff', 0.06) : alpha('#000', 0.04),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  overflow: 'hidden',
-                }}>
-                  {gifUrl ? (
-                    <Box component="img" src={gifUrl} alt={ex.nome} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-                  ) : (
-                    <Box sx={{ fontSize: '0.9rem' }}>🏋️</Box>
-                  )}
-                </Box>
-                <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                  {ex.sets} sets {ex.nome}
-                </Typography>
-              </Box>
-            );
-          })}
-          {hiddenCount > 0 && (
-            <Button
-              onClick={() => setShowAllExercicios(!showAllExercicios)}
-              size="small"
-              endIcon={showAllExercicios ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              sx={{
-                mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
-                textTransform: 'none', fontWeight: 600, px: 0,
-              }}
-            >
-              {showAllExercicios ? 'Mostrar menos' : `Veja ${hiddenCount} mais exercícios`}
-            </Button>
-          )}
-        </Box>
+      {/* CASE 2: No photos — show stats + exercises inline */}
+      {!hasPhotos && (
+        <>
+          {renderStatsRow()}
+          {exercicios.length > 0 && renderExerciseList()}
+        </>
       )}
 
       {/* Actions: Like + Comment */}
@@ -457,7 +460,6 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
         <Typography variant="caption" fontWeight={700} sx={{ mr: 1.5, minWidth: 16, color: post.likedByMe ? '#EF4444' : 'text.secondary' }}>
           {post.likesCount > 0 ? post.likesCount : ''}
         </Typography>
-
         <IconButton onClick={() => navigate(`/feed/${post.id}`)} sx={{ color: 'text.secondary' }}>
           <MessageCircle size={22} />
         </IconButton>
@@ -478,7 +480,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
         </Box>
       )}
 
-      {/* Inline Comments (até 4) */}
+      {/* Inline Comments */}
       {visibleComments.length > 0 && (
         <Box sx={{ px: 2, pt: 0.5, pb: 1 }}>
           {visibleComments.map((c) => (
@@ -501,8 +503,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
           ))}
           {hasMoreComments && (
             <Typography
-              variant="caption"
-              color="text.secondary"
+              variant="caption" color="text.secondary"
               onClick={() => navigate(`/feed/${post.id}`)}
               sx={{ fontSize: '0.75rem', cursor: 'pointer', mt: 0.5, display: 'block', '&:active': { color: '#FF6B2C' } }}
             >
@@ -513,10 +514,7 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
       )}
 
       {/* Adicionar comentário */}
-      <Box
-        onClick={() => navigate(`/feed/${post.id}`)}
-        sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, pb: 2, cursor: 'pointer' }}
-      >
+      <Box onClick={() => navigate(`/feed/${post.id}`)} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, pb: 2, cursor: 'pointer' }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.78rem', opacity: 0.5 }}>
           Adicionar um comentário...
         </Typography>
@@ -543,12 +541,8 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
         <DialogTitle sx={{ fontSize: '1.1rem', fontWeight: 700 }}>Editar post</DialogTitle>
         <DialogContent>
           <TextField
-            multiline
-            minRows={3}
-            maxRows={6}
-            fullWidth
-            value={editTexto}
-            onChange={(e) => setEditTexto(e.target.value)}
+            multiline minRows={3} maxRows={6} fullWidth
+            value={editTexto} onChange={(e) => setEditTexto(e.target.value)}
             slotProps={{ htmlInput: { maxLength: 500 } }}
             sx={{ mt: 1 }}
           />

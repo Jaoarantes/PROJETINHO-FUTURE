@@ -40,6 +40,7 @@ function buildSummary(reg: RegistroTreino): WorkoutSummary {
     nome: e.exercicio.nome,
     sets: e.series.length,
     exercicioId: e.exercicio.id,
+    series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
   }));
   return {
     exerciciosCount: reg.exercicios.length,
@@ -57,6 +58,7 @@ function buildSummaryFromSessao(sessao: SessaoTreino): WorkoutSummary {
     nome: e.exercicio.nome,
     sets: e.series.length,
     exercicioId: e.exercicio.id,
+    series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
   }));
   return {
     exerciciosCount: sessao.exercicios.length,

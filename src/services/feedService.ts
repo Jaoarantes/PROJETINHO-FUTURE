@@ -388,6 +388,72 @@ export async function toggleFollow(followerId: string, followingId: string): Pro
   }
 }
 
+export async function countFollowers(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('following_id', userId);
+  if (error) return 0;
+  return count || 0;
+}
+
+export async function countFollowing(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('follower_id', userId);
+  if (error) return 0;
+  return count || 0;
+}
+
+export interface FollowUser {
+  id: string;
+  displayName: string | null;
+  photoURL: string | null;
+}
+
+export async function listFollowers(userId: string): Promise<FollowUser[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('follower_id')
+    .eq('following_id', userId);
+  if (error || !data || data.length === 0) return [];
+
+  const ids = data.map((row: any) => row.follower_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, display_name, photo_url')
+    .in('id', ids);
+  if (!profiles) return [];
+
+  return profiles.map((p: any) => ({
+    id: p.id,
+    displayName: p.display_name,
+    photoURL: p.photo_url,
+  }));
+}
+
+export async function listFollowing(userId: string): Promise<FollowUser[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', userId);
+  if (error || !data || data.length === 0) return [];
+
+  const ids = data.map((row: any) => row.following_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, display_name, photo_url')
+    .in('id', ids);
+  if (!profiles) return [];
+
+  return profiles.map((p: any) => ({
+    id: p.id,
+    displayName: p.display_name,
+    photoURL: p.photo_url,
+  }));
+}
+
 /** Comprime imagem antes do upload (max 1200px, JPEG 0.8) */
 export function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
