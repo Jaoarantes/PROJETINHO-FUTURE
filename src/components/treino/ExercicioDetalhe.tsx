@@ -10,6 +10,8 @@ import type { Exercicio } from '../../types/treino';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { getExerciseImageUrls } from '../../constants/exercise-images';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 interface Props {
   exercicio: Exercicio | null;
   open: boolean;
@@ -26,6 +28,7 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const deleteCustom = useConfirmDelete();
 
   useEffect(() => {
     setImgLoaded(false);
@@ -39,10 +42,8 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
     ? [exercicio.gifUrl]
     : (typeof exercicio.id === 'number' ? getExerciseImageUrls(exercicio.id) : undefined);
 
-  const handleDelete = async () => {
-    if (!user) return;
-    await removerExercicio(user.id, exercicio.id);
-    onClose();
+  const handleDelete = () => {
+    deleteCustom.requestDelete();
   };
 
   const steps = exercicio.descricao
@@ -181,6 +182,19 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
           </Button>
         </DialogActions>
       )}
+
+      <ConfirmDeleteDialog
+        open={deleteCustom.open}
+        loading={deleteCustom.loading}
+        title="Excluir exercício personalizado?"
+        message="Tem certeza que deseja excluir este exercício? Esta ação não pode ser desfeita."
+        onClose={deleteCustom.cancel}
+        onConfirm={() => deleteCustom.confirmDelete(async () => {
+          if (!user) return;
+          await removerExercicio(user.id, exercicio.id);
+          onClose();
+        })}
+      />
     </Dialog>
   );
 }

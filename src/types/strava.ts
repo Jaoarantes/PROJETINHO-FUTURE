@@ -39,4 +39,9 @@ export interface StravaActivity {
     max_heartrate?: number;
     calories?: number;
     kilojoules?: number;
+    map?: {
+        id: string;
+        summary_polyline: string | null;
+        resource_state: number;
+    };
 }

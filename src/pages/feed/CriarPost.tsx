@@ -49,6 +49,7 @@ function buildSummary(reg: RegistroTreino): WorkoutSummary {
     duracaoMin: reg.duracaoTotalSegundos ? Math.round(reg.duracaoTotalSegundos / 60) : undefined,
     gruposMusculares,
     exercicios,
+    summaryPolyline: reg.stravaData?.summaryPolyline || undefined,
   };
 }
 

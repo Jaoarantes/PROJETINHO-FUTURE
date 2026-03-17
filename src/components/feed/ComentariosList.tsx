@@ -7,6 +7,8 @@ import { alpha } from '@mui/material/styles';
 import { Send, Trash2, Pencil, CornerDownRight } from 'lucide-react';
 import type { FeedComment } from '../../types/feed';
 import { carregarComentarios, adicionarComentario, deletarComentario, editarComentario } from '../../services/feedService';
+import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 
 function tempoRelativo(data: string): string {
   const diff = (Date.now() - new Date(data).getTime()) / 1000;
@@ -40,6 +42,7 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
 
   // Confirmar exclusão
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const deleteComment = useConfirmDelete();
 
   // Expandir respostas
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
@@ -86,22 +89,21 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!deleteConfirmId) return;
     const id = deleteConfirmId;
-    setDeleteConfirmId(null);
-
-    // Contar quantos serão deletados (comentário + respostas)
-    const replies = comments.filter((c) => c.parentId === id);
-    const totalDeleted = 1 + replies.length;
-
-    setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
-    onCountChange(-totalDeleted);
-    try {
-      await deletarComentario(currentUserId, id, postId);
-    } catch (err) {
-      console.error('Erro ao deletar comentário:', err);
-    }
+    deleteComment.confirmDelete(async () => {
+      const replies = comments.filter((c) => c.parentId === id);
+      const totalDeleted = 1 + replies.length;
+      setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
+      onCountChange(-totalDeleted);
+      setDeleteConfirmId(null);
+      try {
+        await deletarComentario(currentUserId, id, postId);
+      } catch (err) {
+        console.error('Erro ao deletar comentário:', err);
+      }
+    });
   };
 
   const handleSaveEdit = async () => {
@@ -153,7 +155,7 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
               </IconButton>
               <IconButton
                 size="small"
-                onClick={() => setDeleteConfirmId(c.id)}
+                onClick={() => { setDeleteConfirmId(c.id); deleteComment.requestDelete(c.id); }}
                 sx={{ color: 'text.secondary', opacity: 0.4, p: 0.3 }}
               >
                 <Trash2 size={13} />
@@ -295,20 +297,14 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
       )}
 
       {/* Dialog confirmar exclusão de comentário */}
-      <Dialog open={!!deleteConfirmId} onClose={() => setDeleteConfirmId(null)}>
-        <DialogTitle sx={{ fontSize: '1.1rem', fontWeight: 700 }}>Excluir comentário?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            Tem certeza que deseja excluir este comentário?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmId(null)} sx={{ textTransform: 'none' }}>Cancelar</Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained" sx={{ textTransform: 'none' }}>
-            Excluir
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={deleteComment.open}
+        loading={deleteComment.loading}
+        title="Excluir comentário?"
+        message="Tem certeza que deseja excluir este comentário?"
+        onClose={() => { deleteComment.cancel(); setDeleteConfirmId(null); }}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Dialog editar comentário */}
       <Dialog open={!!editingId} onClose={() => setEditingId(null)} fullWidth maxWidth="sm">

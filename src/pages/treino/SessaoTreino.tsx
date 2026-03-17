@@ -8,6 +8,8 @@ import {
 import { alpha } from '@mui/material/styles';
 import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
+import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
+import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
@@ -36,8 +38,8 @@ export default function SessaoTreino() {
     const navigate = useNavigate();
     const { user } = useAuthContext();
     const store = useTreinoStore();
-    const criarPost = useFeedStore((s) => s.criarPost);
     const { sessoes, concluirTreino, treinoAtivo, carregando } = store;
+    const criarPost = useFeedStore((s) => s.criarPost);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [snackOpen, setSnackOpen] = useState(false);
     const [elapsed, setElapsed] = useState(0);
@@ -354,6 +356,8 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
     const { removerExercicio, atualizarSerie, adicionarSerie, removerSerie } = store;
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [menuTarget, setMenuTarget] = useState<{ sessaoId: string; exId: string; serieId: string } | null>(null);
+    const deleteExercicio = useConfirmDelete();
+    const deleteSerie = useConfirmDelete();
 
     const handleSerieClick = (e: React.MouseEvent<HTMLElement>, sessaoId: string, exId: string, serieId: string) => {
         setMenuAnchor(e.currentTarget);
@@ -400,7 +404,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                                         <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>{exTreino.exercicio.nome}</Typography>
                                         <Chip label={exTreino.exercicio.grupoMuscular} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem', mt: 0.2 }} />
                                     </Box>
-                                    <IconButton size="small" color="error" onClick={() => removerExercicio(sessao.id, exTreino.id)}>
+                                    <IconButton size="small" color="error" onClick={() => deleteExercicio.requestDelete({ sessaoId: sessao.id, exId: exTreino.id })}>
                                         <Trash2 size={16} />
                                     </IconButton>
                                 </Box>
@@ -458,7 +462,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                                                 sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                                                 slotProps={{ htmlInput: { min: 0, inputMode: 'numeric' } }}
                                             />
-                                            <IconButton size="small" onClick={() => removerSerie(sessao.id, exTreino.id, serie.id)} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
+                                            <IconButton size="small" onClick={() => deleteSerie.requestDelete({ sessaoId: sessao.id, exId: exTreino.id, serieId: serie.id })} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
                                                 <MinusCircle size={18} />
                                             </IconButton>
                                         </Box>
@@ -501,6 +505,29 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
             </Box>
 
             <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
+
+            <ConfirmDeleteDialog
+                open={deleteExercicio.open}
+                loading={deleteExercicio.loading}
+                title="Excluir exercício?"
+                message="Tem certeza que deseja remover este exercício do treino?"
+                onClose={deleteExercicio.cancel}
+                onConfirm={() => deleteExercicio.confirmDelete(async () => {
+                    const p = deleteExercicio.payload;
+                    removerExercicio(p.sessaoId, p.exId);
+                })}
+            />
+            <ConfirmDeleteDialog
+                open={deleteSerie.open}
+                loading={deleteSerie.loading}
+                title="Excluir série?"
+                message="Tem certeza que deseja remover esta série?"
+                onClose={deleteSerie.cancel}
+                onConfirm={() => deleteSerie.confirmDelete(async () => {
+                    const p = deleteSerie.payload;
+                    removerSerie(p.sessaoId, p.exId, p.serieId);
+                })}
+            />
         </>
     );
 }
@@ -517,6 +544,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
     const { adicionarEtapaCorrida, removerEtapaCorrida, atualizarEtapaCorrida } = store;
     const etapas = corrida?.etapas ?? [];
     const tracker = useGPSTracker();
+    const deleteEtapa = useConfirmDelete();
 
     // Ativar GPS automaticamente se a sessão for iniciada e for corrida
     useEffect(() => {
@@ -698,7 +726,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                     </Button>
                                 )}
 
-                                <IconButton size="small" color="error" onClick={() => removerEtapaCorrida(sessaoId, etapa.id)} disabled={etapas.length <= 1}>
+                                <IconButton size="small" color="error" onClick={() => deleteEtapa.requestDelete(etapa.id)} disabled={etapas.length <= 1}>
                                     <Trash2 size={14} />
                                 </IconButton>
                             </Box>
@@ -744,6 +772,17 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                     Adicionar Etapa
                 </Button>
             </Box>
+
+            <ConfirmDeleteDialog
+                open={deleteEtapa.open}
+                loading={deleteEtapa.loading}
+                title="Excluir etapa?"
+                message="Tem certeza que deseja remover esta etapa da corrida?"
+                onClose={deleteEtapa.cancel}
+                onConfirm={() => deleteEtapa.confirmDelete(async () => {
+                    removerEtapaCorrida(sessaoId, deleteEtapa.payload);
+                })}
+            />
         </>
     );
 }
@@ -758,6 +797,7 @@ function NatacaoView({ sessaoId, natacao, store }: {
     const etapas = natacao?.etapas ?? [];
     const distTotal = calcularDistanciaNatacao(etapas);
     const durTotal = calcularDuracaoNatacao(etapas);
+    const deleteEtapaN = useConfirmDelete();
 
     return (
         <>
@@ -795,7 +835,7 @@ function NatacaoView({ sessaoId, natacao, store }: {
                                     <Waves size={16} color="#000" />
                                 </Box>
                                 <Typography variant="subtitle2" fontWeight={600} sx={{ flex: 1 }}>Etapa {idx + 1}</Typography>
-                                <IconButton size="small" color="error" onClick={() => removerEtapaNatacao(sessaoId, etapa.id)} disabled={etapas.length <= 1}>
+                                <IconButton size="small" color="error" onClick={() => deleteEtapaN.requestDelete(etapa.id)} disabled={etapas.length <= 1}>
                                     <Trash2 size={14} />
                                 </IconButton>
                             </Box>
@@ -841,6 +881,17 @@ function NatacaoView({ sessaoId, natacao, store }: {
                     Adicionar Etapa
                 </Button>
             </Box>
+
+            <ConfirmDeleteDialog
+                open={deleteEtapaN.open}
+                loading={deleteEtapaN.loading}
+                title="Excluir etapa?"
+                message="Tem certeza que deseja remover esta etapa da natação?"
+                onClose={deleteEtapaN.cancel}
+                onConfirm={() => deleteEtapaN.confirmDelete(async () => {
+                    removerEtapaNatacao(sessaoId, deleteEtapaN.payload);
+                })}
+            />
         </>
     );
 }

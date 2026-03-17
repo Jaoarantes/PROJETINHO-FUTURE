@@ -297,7 +297,9 @@ const tooltipProps = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { historico, carregarHistorico, carregando } = useTreinoStore();
+  const historico = useTreinoStore((s) => s.historico);
+  const carregarHistorico = useTreinoStore((s) => s.carregarHistorico);
+  const carregando = useTreinoStore((s) => s.carregando);
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
 
