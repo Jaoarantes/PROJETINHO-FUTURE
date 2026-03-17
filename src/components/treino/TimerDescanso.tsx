@@ -160,7 +160,7 @@ export default function TimerDescanso({ open, onClose }: Props) {
             gap: 0.3,
           }}>
             <Typography sx={{
-              fontFamily: '"Oswald", sans-serif',
+              
               fontSize: concluido ? '2rem' : '2.2rem',
               fontWeight: 700,
               lineHeight: 1,

@@ -110,7 +110,7 @@ export default function DietaTab() {
           fontWeight={600}
           sx={{
             minWidth: 120, textAlign: 'center',
-            fontFamily: '"Oswald", sans-serif',
+            
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
             fontSize: '0.9rem',
@@ -260,7 +260,7 @@ function SummaryItem({ label, value, highlight }: { label: string; value: number
         variant="body2"
         fontWeight={highlight ? 700 : 600}
         color={highlight ? 'primary.main' : 'text.primary'}
-        sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1rem' }}
+        sx={{ fontSize: '1rem' }}
       >
         {value}
         <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.3, fontSize: '0.6rem' }}>
@@ -366,7 +366,7 @@ function MacroBar({ label, valor, meta, cor }: { label: string; valor: number; m
       <Typography variant="caption" color="text.secondary" display="block" lineHeight={1.2} sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         {label}
       </Typography>
-      <Typography variant="body2" fontWeight={700} sx={{ fontFamily: '"Oswald", sans-serif' }}>
+      <Typography variant="body2" fontWeight={700} sx={{}}>
         {valor.toFixed(0)}g
       </Typography>
       <LinearProgress

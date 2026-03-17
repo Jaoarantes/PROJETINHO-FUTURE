@@ -101,7 +101,7 @@ export default function ActiveWorkoutBar() {
         </Typography>
         <Typography
           sx={{
-            fontFamily: '"Oswald", sans-serif',
+            
             color: '#fff',
             fontWeight: 700,
             fontSize: '1rem',

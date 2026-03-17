@@ -35,8 +35,8 @@ export default function PostDetalhe() {
   if (!uid) return null;
 
   return (
-    <Box sx={{ pt: 1, pb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+    <Box sx={{ pt: 1, pb: 4, mx: -2.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 2.5 }}>
         <IconButton onClick={() => navigate('/feed')} sx={{ mr: 1, ml: -1 }}>
           <ArrowLeft size={22} />
         </IconButton>
@@ -53,7 +53,7 @@ export default function PostDetalhe() {
         onEdit={(id, texto) => editarPost(uid, id, texto)}
       />
 
-      <Box sx={{ mt: 2.5 }}>
+      <Box sx={{ mt: 2.5, px: 2.5 }}>
         <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1.5, fontSize: '0.95rem' }}>
           Comentários {post.commentsCount > 0 && `(${post.commentsCount})`}
         </Typography>

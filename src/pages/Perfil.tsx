@@ -297,7 +297,7 @@ export default function Perfil() {
                 sx={{
                   width: 65, height: 65,
                   background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
-                  fontFamily: '"Oswald", sans-serif',
+                  
                   fontSize: '1.5rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -449,7 +449,7 @@ export default function Perfil() {
             <>
               {/* Peso atual + variação */}
               <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 1.5 }}>
-                <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+                <Typography sx={{ fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
                   {pesoHistorico[0].peso.toFixed(1)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">kg</Typography>
@@ -791,7 +791,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <Box sx={{ color: 'primary.main', mb: 0.5 }}>{icon}</Box>
         <Typography
           variant="h6"
-          sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.3rem', lineHeight: 1 }}
+          sx={{ fontSize: '1.3rem', lineHeight: 1 }}
         >
           {value}
         </Typography>
@@ -935,7 +935,7 @@ function GamificacaoSection({ historico }: {
               boxShadow: '0 4px 16px rgba(255,107,44,0.3)',
             }}>
               <Typography sx={{
-                fontFamily: '"Oswald", sans-serif',
+                
                 fontSize: '1.4rem',
                 fontWeight: 700,
                 color: '#fff',
@@ -975,7 +975,7 @@ function GamificacaoSection({ historico }: {
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
         <Card sx={{ flex: 1, borderRadius: '4px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
-            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#F97316', lineHeight: 1 }}>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: '#F97316', lineHeight: 1 }}>
               {stats.streak}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -985,7 +985,7 @@ function GamificacaoSection({ historico }: {
         </Card>
         <Card sx={{ flex: 1, borderRadius: '8px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
-            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#FF6B2C', lineHeight: 1 }}>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: '#FF6B2C', lineHeight: 1 }}>
               {stats.volumeTotal > 1000 ? `${(stats.volumeTotal / 1000).toFixed(1)}t` : `${stats.volumeTotal}kg`}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -995,7 +995,7 @@ function GamificacaoSection({ historico }: {
         </Card>
         <Card sx={{ flex: 1, borderRadius: '8px' }}>
           <CardContent sx={{ textAlign: 'center', py: 1.5, px: 1 }}>
-            <Typography sx={{ fontFamily: '"Oswald", sans-serif', fontSize: '1.2rem', fontWeight: 700, color: '#10B981', lineHeight: 1 }}>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 700, color: '#10B981', lineHeight: 1 }}>
               {desbloqueadas}/{conquistas.length}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

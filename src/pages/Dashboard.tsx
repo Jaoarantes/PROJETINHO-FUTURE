@@ -608,7 +608,7 @@ export default function Dashboard() {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 2 }}>
         <Zap size={48} color={CORES.geral} style={{ animation: 'dash-glowPulse 1.5s infinite' }} />
-        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: '"Oswald", sans-serif', letterSpacing: '0.05em' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ letterSpacing: '0.05em' }}>
           CARREGANDO ESTATÍSTICAS...
         </Typography>
       </Box>
@@ -677,12 +677,12 @@ export default function Dashboard() {
               fontSize: '0.65rem',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
-              fontFamily: '"Oswald", sans-serif',
+              
             }}>
               {saudacao}{firstName ? `, ${firstName}` : ''}
             </Typography>
             <Typography variant="h5" sx={{
-              fontFamily: '"Oswald", sans-serif',
+              
               fontWeight: 700,
               fontSize: '1.6rem',
               lineHeight: 1.1,
@@ -715,7 +715,7 @@ export default function Dashboard() {
               }}>
                 <Flame size={14} color={CORES.geral} />
                 <Typography sx={{
-                  fontFamily: '"Oswald", sans-serif',
+                  
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   color: CORES.geral,
@@ -759,7 +759,7 @@ export default function Dashboard() {
                 borderRadius: '10px',
                 cursor: 'pointer',
                 flexShrink: 0,
-                fontFamily: '"Oswald", sans-serif',
+                
                 fontSize: '0.72rem',
                 fontWeight: 600,
                 letterSpacing: '0.05em',
@@ -813,7 +813,7 @@ export default function Dashboard() {
                   borderRadius: '12px',
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
                   fontSize: '0.82rem',
-                  fontFamily: '"DM Sans", sans-serif',
+                  
                   backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   color: 'inherit',
                   outline: 'none',
@@ -842,7 +842,7 @@ export default function Dashboard() {
                   borderRadius: '12px',
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
                   fontSize: '0.82rem',
-                  fontFamily: '"DM Sans", sans-serif',
+                  
                   backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   color: 'inherit',
                   outline: 'none',
@@ -1008,7 +1008,7 @@ export default function Dashboard() {
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
-                            <Typography sx={{ color: CORES.musculacao, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                            <Typography sx={{ color: CORES.musculacao, fontSize: '1.1rem', fontWeight: 700 }}>
                               {d.volume.toLocaleString('pt-BR')} kg
                             </Typography>
                             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1056,7 +1056,7 @@ export default function Dashboard() {
                            const d = payload[0].payload;
                            return (
                              <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 100 }}>
-                               <Typography sx={{ color: theme.palette.primary.main, fontFamily: '"Oswald", sans-serif', fontSize: '1rem', fontWeight: 700 }}>
+                               <Typography sx={{ color: theme.palette.primary.main, fontSize: '1rem', fontWeight: 700 }}>
                                  {d.value} séries
                                </Typography>
                                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1104,7 +1104,7 @@ export default function Dashboard() {
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
-                              <Typography sx={{ color: CORES.musculacao, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                              <Typography sx={{ color: CORES.musculacao, fontSize: '1.1rem', fontWeight: 700 }}>
                                 {d.volume.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
                               </Typography>
                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1151,7 +1151,7 @@ export default function Dashboard() {
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
-                            <Typography sx={{ color: CORES.recorde, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                            <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
                               {d.cargaMax.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
                             </Typography>
                             {d.exercicio && (
@@ -1193,7 +1193,7 @@ export default function Dashboard() {
                     sx={{
                       borderRadius: '12px',
                       textTransform: 'none',
-                      fontFamily: '"DM Sans", sans-serif',
+                      
                       fontWeight: 600,
                       fontSize: '0.8rem',
                       color: CORES.geral,
@@ -1258,7 +1258,7 @@ export default function Dashboard() {
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
-                            <Typography sx={{ color: CORES.corrida, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                            <Typography sx={{ color: CORES.corrida, fontSize: '1.1rem', fontWeight: 700 }}>
                               {formatPace(d.pace)} /km
                             </Typography>
                             {d.distancia > 0 && (
@@ -1309,7 +1309,7 @@ export default function Dashboard() {
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
-                              <Typography sx={{ color: CORES.corrida, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                              <Typography sx={{ color: CORES.corrida, fontSize: '1.1rem', fontWeight: 700 }}>
                                 {d.distancia} km
                               </Typography>
                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1378,7 +1378,7 @@ export default function Dashboard() {
                         const d = payload[0].payload;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
-                            <Typography sx={{ color: CORES.natacao, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                            <Typography sx={{ color: CORES.natacao, fontSize: '1.1rem', fontWeight: 700 }}>
                               {d.distancia} m
                             </Typography>
                             <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1427,7 +1427,7 @@ export default function Dashboard() {
                           const d = payload[0].payload;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
-                              <Typography sx={{ color: CORES.natacao, fontFamily: '"Oswald", sans-serif', fontSize: '1.1rem', fontWeight: 700 }}>
+                              <Typography sx={{ color: CORES.natacao, fontSize: '1.1rem', fontWeight: 700 }}>
                                 {formatPace(d.pace)} /100m
                               </Typography>
                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
@@ -1497,7 +1497,7 @@ function GlowStat({ icon, value, label, color, isDark }: {
           {icon}
         </Box>
         <Typography sx={{
-          fontFamily: '"Oswald", sans-serif',
+          
           fontSize: '1.3rem',
           fontWeight: 700,
           lineHeight: 1,
@@ -1537,7 +1537,7 @@ function TypePill({ icon, count, color, isDark }: {
     }}>
       <Box sx={{ color, display: 'flex', alignItems: 'center' }}>{icon}</Box>
       <Typography sx={{
-        fontFamily: '"Oswald", sans-serif',
+        
         fontSize: '0.9rem',
         fontWeight: 700,
         color,
@@ -1583,7 +1583,7 @@ function RecordBadge({ icon, label, value, color, isDark }: {
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{
-            fontFamily: '"Oswald", sans-serif',
+            
             fontSize: '1.1rem',
             fontWeight: 700,
             lineHeight: 1,
@@ -1619,7 +1619,7 @@ function SectionHeader({ icon, title, badge, isDark }: {
     }}>
       <Box sx={{ color: CORES.geral, display: 'flex', alignItems: 'center' }}>{icon}</Box>
       <Typography sx={{
-        fontFamily: '"Oswald", sans-serif',
+        
         fontSize: '0.9rem',
         fontWeight: 700,
         textTransform: 'uppercase',
@@ -1694,7 +1694,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
           <Box sx={{ display: 'flex', gap: 1.2, flexShrink: 0 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-                fontFamily: '"Oswald", sans-serif',
+                
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.musculacao,
@@ -1708,7 +1708,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
             </Box>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-                fontFamily: '"Oswald", sans-serif',
+                
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.recorde,
@@ -1743,7 +1743,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
                     const d = payload[0].payload;
                     return (
                       <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
-                        <Typography sx={{ color: CORES.recorde, fontFamily: '"Oswald", sans-serif', fontSize: '1rem', fontWeight: 700 }}>
+                        <Typography sx={{ color: CORES.recorde, fontSize: '1rem', fontWeight: 700 }}>
                           1RM: {d.umRM} kg
                         </Typography>
                         <Typography sx={{ color: CORES.musculacao, fontSize: '0.75rem', fontWeight: 600, mt: 0.2 }}>
@@ -1898,7 +1898,7 @@ function HeatmapCalendar({ data, totalSemanas, isDark }: { data: HeatmapCell[]; 
                 width: 12,
                 color: 'text.secondary',
                 fontWeight: 600,
-                fontFamily: '"Oswald", sans-serif',
+                
                 letterSpacing: '0.03em',
               }}
             >

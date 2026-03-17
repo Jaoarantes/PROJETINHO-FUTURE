@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BottomNavigation, BottomNavigationAction, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Dumbbell, User, Utensils, Users } from 'lucide-react';
+import { Dumbbell, User, Utensils, Home } from 'lucide-react';
 
 const tabs = [
   { label: 'Treino', icon: <Dumbbell size={22} />, path: '/treino' },
   { label: 'Refeição', icon: <Utensils size={22} />, path: '/dieta' },
-  { label: 'Feed', icon: <Users size={22} />, path: '/feed' },
+  { label: 'Feed', icon: <Home size={22} />, path: '/feed' },
   { label: 'Perfil', icon: <User size={22} />, path: '/perfil' },
 ];
 

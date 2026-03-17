@@ -22,6 +22,7 @@ const PostDetalhe = lazy(() => import('./pages/feed/PostDetalhe'));
 const CriarPost = lazy(() => import('./pages/feed/CriarPost'));
 const MeusPosts = lazy(() => import('./pages/feed/MeusPosts'));
 const Notificacoes = lazy(() => import('./pages/feed/Notificacoes'));
+const PerfilUsuario = lazy(() => import('./pages/feed/PerfilUsuario'));
 
 function Loading() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/feed/novo" element={<CriarPost />} />
             <Route path="/feed/meus-posts" element={<MeusPosts />} />
             <Route path="/feed/notificacoes" element={<Notificacoes />} />
+            <Route path="/feed/perfil/:userId" element={<PerfilUsuario />} />
             <Route path="/feed/:postId" element={<PostDetalhe />} />
           </Route>
 
