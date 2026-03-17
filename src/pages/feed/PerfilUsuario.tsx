@@ -10,9 +10,9 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import {
   carregarMeusPosts, countFollowers, countFollowing,
-  listFollowers, listFollowing, checkFollowing, toggleFollow,
+  listFollowers, listFollowing, checkFollowStatus, toggleFollow,
 } from '../../services/feedService';
-import type { FollowUser } from '../../services/feedService';
+import type { FollowUser, FollowStatus } from '../../services/feedService';
 import { getUserProfile } from '../../services/userService';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
@@ -32,7 +32,7 @@ export default function PerfilUsuario() {
   const [loading, setLoading] = useState(true);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
   const [followLoading, setFollowLoading] = useState(false);
 
   // Dialog seguidores/seguindo
@@ -58,7 +58,7 @@ export default function PerfilUsuario() {
     countFollowing(userId).then(setFollowingCount);
 
     if (uid && uid !== userId) {
-      checkFollowing(uid, userId).then(setIsFollowing);
+      checkFollowStatus(uid, userId).then(setFollowStatus);
     }
   }, [userId, uid]);
 
@@ -67,15 +67,22 @@ export default function PerfilUsuario() {
   const isOwner = uid === userId;
   const displayName = profileData?.displayName || 'Usuário';
   const isPrivate = profileData?.isPrivate || false;
+  const isFollowing = followStatus === 'accepted';
+  const isPending = followStatus === 'pending';
   const canSeeContent = isOwner || !isPrivate || isFollowing;
 
   const handleFollow = async () => {
     if (followLoading) return;
     setFollowLoading(true);
     try {
-      const nowFollowing = await toggleFollow(uid, userId);
-      setIsFollowing(nowFollowing);
-      setFollowersCount((c) => nowFollowing ? c + 1 : c - 1);
+      const result = await toggleFollow(uid, userId, isPrivate);
+      if (result === 'unfollowed') {
+        setFollowStatus(null);
+        if (isFollowing) setFollowersCount((c) => c - 1);
+      } else {
+        setFollowStatus(result);
+        if (result === 'accepted') setFollowersCount((c) => c + 1);
+      }
     } catch (err) {
       console.error('Erro ao seguir:', err);
     } finally {
@@ -105,6 +112,18 @@ export default function PerfilUsuario() {
     } finally {
       setFollowListLoading(false);
     }
+  };
+
+  const getFollowButtonLabel = () => {
+    if (isFollowing) return 'Seguindo';
+    if (isPending) return 'Solicitado';
+    return 'Seguir';
+  };
+
+  const getFollowButtonStyle = () => {
+    if (isFollowing) return { borderColor: 'divider', color: 'text.primary' };
+    if (isPending) return { borderColor: 'divider', color: 'text.secondary' };
+    return { bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' } };
   };
 
   return (
@@ -175,7 +194,7 @@ export default function PerfilUsuario() {
         {/* Botão Seguir */}
         {!isOwner && (
           <Button
-            variant={isFollowing ? 'outlined' : 'contained'}
+            variant={isFollowing || isPending ? 'outlined' : 'contained'}
             fullWidth
             size="small"
             onClick={handleFollow}
@@ -183,13 +202,10 @@ export default function PerfilUsuario() {
             sx={{
               mt: 2, textTransform: 'none', fontWeight: 700, borderRadius: '10px',
               fontSize: '0.9rem', py: 0.8,
-              ...(isFollowing
-                ? { borderColor: 'divider', color: 'text.primary' }
-                : { bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' } }
-              ),
+              ...getFollowButtonStyle(),
             }}
           >
-            {isFollowing ? 'Seguindo' : 'Seguir'}
+            {getFollowButtonLabel()}
           </Button>
         )}
       </Box>
@@ -215,7 +231,9 @@ export default function PerfilUsuario() {
               Conta Privada
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Siga esta conta para ver as publicações.
+              {isPending
+                ? 'Solicitação enviada. Aguarde a aprovação.'
+                : 'Siga esta conta para ver as publicações.'}
             </Typography>
           </Box>
         </Box>
