@@ -12,7 +12,9 @@ import {
 import type { FeedPost, FeedComment } from '../../types/feed';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
 import type { TipoSessao, TipoSerie } from '../../types/treino';
-import { toggleFollow, checkFollowing, carregarComentarios } from '../../services/feedService';
+import { toggleFollow, checkFollowStatus, carregarComentarios } from '../../services/feedService';
+import type { FollowStatus } from '../../services/feedService';
+import { getUserProfile } from '../../services/userService';
 import { getExerciseImageUrl } from '../../constants/exercise-images';
 
 function tempoRelativo(data: string): string {
@@ -49,8 +51,9 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
   const navigate = useNavigate();
   const [slideIdx, setSlideIdx] = useState(0);
   const [showAllExercicios, setShowAllExercicios] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [targetIsPrivate, setTargetIsPrivate] = useState(false);
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -78,7 +81,8 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
 
   useEffect(() => {
     if (!isOwner && currentUserId) {
-      checkFollowing(currentUserId, post.userId).then(setIsFollowing).catch(() => {});
+      checkFollowStatus(currentUserId, post.userId).then(setFollowStatus).catch(() => {});
+      getUserProfile(post.userId).then((p) => { if (p) setTargetIsPrivate(p.isPrivate || false); }).catch(() => {});
     }
   }, [currentUserId, post.userId, isOwner]);
 
@@ -90,12 +94,19 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
     }
   }, [post.id, post.commentsCount, commentsLoaded]);
 
+  const isFollowing = followStatus === 'accepted';
+  const isPending = followStatus === 'pending';
+
   const handleFollow = async () => {
     if (followLoading) return;
     setFollowLoading(true);
     try {
-      const nowFollowing = await toggleFollow(currentUserId, post.userId);
-      setIsFollowing(nowFollowing);
+      const result = await toggleFollow(currentUserId, post.userId, targetIsPrivate);
+      if (result === 'unfollowed') {
+        setFollowStatus(null);
+      } else {
+        setFollowStatus(result);
+      }
     } catch (err) {
       console.error('Erro ao seguir:', err);
     } finally {
@@ -347,12 +358,12 @@ export default function FeedPostCard({ post, currentUserId, onLike, onDelete, on
             disabled={followLoading}
             sx={{
               fontSize: '0.75rem', fontWeight: 700,
-              color: isFollowing ? 'text.secondary' : '#FF6B2C',
+              color: isFollowing ? 'text.secondary' : isPending ? 'text.secondary' : '#FF6B2C',
               textTransform: 'none', minWidth: 'auto', px: 1.5, py: 0.3,
               borderRadius: '8px', '&:active': { opacity: 0.7 },
             }}
           >
-            {isFollowing ? 'Seguindo' : 'Seguir'}
+            {isFollowing ? 'Seguindo' : isPending ? 'Solicitado' : 'Seguir'}
           </Button>
         )}
         <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ color: 'text.secondary', opacity: 0.5 }}>

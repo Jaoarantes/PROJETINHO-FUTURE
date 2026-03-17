@@ -359,40 +359,90 @@ export async function uploadFeedPhoto(uid: string, file: File): Promise<string> 
 
 // ─── Follow System ──────────────────────────────────────────────────────────
 
-export async function checkFollowing(followerId: string, followingId: string): Promise<boolean> {
+// Follow status: 'accepted' (public profiles or accepted request) | 'pending' (waiting approval)
+export type FollowStatus = 'accepted' | 'pending' | null;
+
+export async function checkFollowStatus(followerId: string, followingId: string): Promise<FollowStatus> {
   const { data, error } = await supabase
     .from('follows')
-    .select('id')
+    .select('status')
     .eq('follower_id', followerId)
     .eq('following_id', followingId)
     .maybeSingle();
-  if (error) return false;
-  return !!data;
+  if (error || !data) return null;
+  return (data.status as FollowStatus) || 'accepted';
 }
 
-export async function toggleFollow(followerId: string, followingId: string): Promise<boolean> {
-  const isFollowing = await checkFollowing(followerId, followingId);
-  if (isFollowing) {
+export async function checkFollowing(followerId: string, followingId: string): Promise<boolean> {
+  const status = await checkFollowStatus(followerId, followingId);
+  return status === 'accepted';
+}
+
+export async function toggleFollow(followerId: string, followingId: string, isPrivate = false): Promise<'accepted' | 'pending' | 'unfollowed'> {
+  const status = await checkFollowStatus(followerId, followingId);
+  if (status) {
+    // Already following or pending → unfollow / cancel request
     await supabase
       .from('follows')
       .delete()
       .eq('follower_id', followerId)
       .eq('following_id', followingId);
-    return false;
+    return 'unfollowed';
   } else {
+    // New follow
+    const newStatus = isPrivate ? 'pending' : 'accepted';
     const { error } = await supabase
       .from('follows')
-      .insert({ follower_id: followerId, following_id: followingId });
+      .insert({ follower_id: followerId, following_id: followingId, status: newStatus });
     if (error) throw error;
-    return true;
+    return newStatus;
   }
+}
+
+export async function acceptFollowRequest(followerId: string, followingId: string): Promise<void> {
+  await supabase
+    .from('follows')
+    .update({ status: 'accepted' })
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId);
+}
+
+export async function rejectFollowRequest(followerId: string, followingId: string): Promise<void> {
+  await supabase
+    .from('follows')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId);
+}
+
+export async function listPendingRequests(userId: string): Promise<FollowUser[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('follower_id')
+    .eq('following_id', userId)
+    .eq('status', 'pending');
+  if (error || !data || data.length === 0) return [];
+
+  const ids = data.map((row: any) => row.follower_id);
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, display_name, photo_url')
+    .in('id', ids);
+  if (!profiles) return [];
+
+  return profiles.map((p: any) => ({
+    id: p.id,
+    displayName: p.display_name,
+    photoURL: p.photo_url,
+  }));
 }
 
 export async function countFollowers(userId: string): Promise<number> {
   const { count, error } = await supabase
     .from('follows')
     .select('*', { count: 'exact', head: true })
-    .eq('following_id', userId);
+    .eq('following_id', userId)
+    .eq('status', 'accepted');
   if (error) return 0;
   return count || 0;
 }
@@ -401,7 +451,8 @@ export async function countFollowing(userId: string): Promise<number> {
   const { count, error } = await supabase
     .from('follows')
     .select('*', { count: 'exact', head: true })
-    .eq('follower_id', userId);
+    .eq('follower_id', userId)
+    .eq('status', 'accepted');
   if (error) return 0;
   return count || 0;
 }
@@ -416,7 +467,8 @@ export async function listFollowers(userId: string): Promise<FollowUser[]> {
   const { data, error } = await supabase
     .from('follows')
     .select('follower_id')
-    .eq('following_id', userId);
+    .eq('following_id', userId)
+    .eq('status', 'accepted');
   if (error || !data || data.length === 0) return [];
 
   const ids = data.map((row: any) => row.follower_id);
@@ -437,7 +489,8 @@ export async function listFollowing(userId: string): Promise<FollowUser[]> {
   const { data, error } = await supabase
     .from('follows')
     .select('following_id')
-    .eq('follower_id', userId);
+    .eq('follower_id', userId)
+    .eq('status', 'accepted');
   if (error || !data || data.length === 0) return [];
 
   const ids = data.map((row: any) => row.following_id);
