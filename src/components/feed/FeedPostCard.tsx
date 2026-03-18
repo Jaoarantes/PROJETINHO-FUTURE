@@ -9,7 +9,7 @@ import {
 const StravaRouteMap = React.lazy(() => import('../treino/StravaRouteMap'));
 import { alpha } from '@mui/material/styles';
 import {
-  Heart, MessageCircle, MoreVertical, Pencil, Trash2,
+  Flame, MessageCircle, MoreVertical, Pencil, Trash2,
   ChevronDown, ChevronUp,
 } from 'lucide-react';
 import type { FeedPost, FeedComment } from '../../types/feed';
@@ -65,6 +65,7 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
   const [showAllExercicios, setShowAllExercicios] = useState(false);
   const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followStatusLoaded, setFollowStatusLoaded] = useState(false);
   const [targetIsPrivate, setTargetIsPrivate] = useState(false);
 
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -95,8 +96,15 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
 
   useEffect(() => {
     if (!isOwner && currentUserId) {
-      checkFollowStatus(currentUserId, post.userId).then(setFollowStatus).catch(() => {});
-      getUserProfile(post.userId).then((p) => { if (p) setTargetIsPrivate(p.isPrivate || false); }).catch(() => {});
+      Promise.all([
+        checkFollowStatus(currentUserId, post.userId),
+        getUserProfile(post.userId),
+      ]).then(([status, profile]) => {
+        setFollowStatus(status);
+        if (profile) setTargetIsPrivate(profile.isPrivate || false);
+      }).catch(() => {}).finally(() => setFollowStatusLoaded(true));
+    } else {
+      setFollowStatusLoaded(true);
     }
   }, [currentUserId, post.userId, isOwner]);
 
@@ -436,7 +444,7 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
             {tempoRelativo(post.createdAt)}
           </Typography>
         </Box>
-        {!isOwner && (
+        {!isOwner && followStatusLoaded && (
           <Button
             size="small"
             onClick={handleFollow}
@@ -526,21 +534,50 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
             )}
           </Box>
 
-          {/* Heart animation overlay */}
+          {/* Flame animation overlay */}
           {showHeartAnim && (
             <Box sx={{
               position: 'absolute', top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)', zIndex: 2,
-              animation: 'heartPop 0.8s ease-out forwards',
-              '@keyframes heartPop': {
-                '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.3)' },
-                '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.2)' },
-                '30%': { transform: 'translate(-50%, -50%) scale(1)' },
-                '70%': { opacity: 1 },
-                '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.4)' },
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              animation: 'flamePop 1s ease-out forwards',
+              '@keyframes flamePop': {
+                '0%': { opacity: 0, transform: 'translate(-50%, -50%) scale(0.2)', filter: 'brightness(2)' },
+                '15%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.3)', filter: 'brightness(1.5)' },
+                '30%': { transform: 'translate(-50%, -50%) scale(1)', filter: 'brightness(1)' },
+                '60%': { opacity: 1, transform: 'translate(-50%, -50%) scale(1.05)' },
+                '100%': { opacity: 0, transform: 'translate(-50%, -50%) scale(1.5)', filter: 'brightness(1.8)' },
+              },
+              '@keyframes flameFlicker': {
+                '0%, 100%': { transform: 'scaleY(1) scaleX(1)' },
+                '25%': { transform: 'scaleY(1.05) scaleX(0.95)' },
+                '50%': { transform: 'scaleY(0.95) scaleX(1.05)' },
+                '75%': { transform: 'scaleY(1.03) scaleX(0.97)' },
               },
             }}>
-              <Heart size={80} fill="#fff" color="#fff" strokeWidth={1} />
+              {/* Multi-colored flame layers */}
+              <Box sx={{ position: 'relative', width: 80, height: 80 }}>
+                {/* Outer glow */}
+                <Flame size={80} fill="#FF6B2C" color="#FF6B2C" strokeWidth={1} style={{
+                  position: 'absolute', top: 0, left: 0, filter: 'blur(6px)', opacity: 0.5,
+                  animation: 'flameFlicker 0.3s ease-in-out infinite',
+                }} />
+                {/* Orange base */}
+                <Flame size={80} fill="#FF6B2C" color="#FF8C00" strokeWidth={1.5} style={{
+                  position: 'absolute', top: 0, left: 0,
+                  animation: 'flameFlicker 0.4s ease-in-out infinite',
+                }} />
+                {/* Yellow-red inner */}
+                <Flame size={56} fill="#FFD700" color="#FF4500" strokeWidth={1} style={{
+                  position: 'absolute', top: 8, left: 12,
+                  animation: 'flameFlicker 0.35s ease-in-out infinite reverse',
+                }} />
+                {/* White-yellow core */}
+                <Flame size={32} fill="#FFFACD" color="#FFD700" strokeWidth={0.5} style={{
+                  position: 'absolute', top: 20, left: 24, opacity: 0.9,
+                  animation: 'flameFlicker 0.25s ease-in-out infinite',
+                }} />
+              </Box>
             </Box>
           )}
 
@@ -577,19 +614,19 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
         </>
       )}
 
-      {/* Actions: Like + Comment */}
+      {/* Actions: Flame + Comment */}
       <Box sx={{ display: 'flex', alignItems: 'center', px: 1.5, pt: 1 }}>
         <IconButton
           onClick={() => onLike(post.id)}
           sx={{
-            color: post.likedByMe ? '#EF4444' : 'text.secondary',
+            color: post.likedByMe ? '#FF6B2C' : 'text.secondary',
             transition: 'all 0.2s',
             '&:active': { transform: 'scale(1.3)' },
           }}
         >
-          <Heart size={22} fill={post.likedByMe ? '#EF4444' : 'none'} />
+          <Flame size={22} fill={post.likedByMe ? '#FF6B2C' : 'none'} />
         </IconButton>
-        <Typography variant="caption" fontWeight={700} sx={{ mr: 1.5, minWidth: 16, color: post.likedByMe ? '#EF4444' : 'text.secondary' }}>
+        <Typography variant="caption" fontWeight={700} sx={{ mr: 1.5, minWidth: 16, color: post.likedByMe ? '#FF6B2C' : 'text.secondary' }}>
           {post.likesCount > 0 ? post.likesCount : ''}
         </Typography>
         <IconButton onClick={() => navigate(`/feed/${post.id}`)} sx={{ color: 'text.secondary' }}>
@@ -600,14 +637,14 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
         </Typography>
       </Box>
 
-      {/* Liked by */}
+      {/* Flames count */}
       {post.likesCount > 0 && (
         <Box sx={{ px: 2, pb: 0.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-            Gostado por{' '}
             <Typography component="span" variant="caption" fontWeight={700} color="text.primary" sx={{ fontSize: '0.75rem' }}>
-              {post.likesCount} {post.likesCount === 1 ? 'pessoa' : 'pessoas'}
+              {post.likesCount}
             </Typography>
+            {' '}{post.likesCount === 1 ? 'chama' : 'chamas'}
           </Typography>
         </Box>
       )}
