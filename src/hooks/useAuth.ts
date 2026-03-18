@@ -12,9 +12,18 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
-      const u = session?.user ?? null;
+      let u = session?.user ?? null;
+
+      // Fallback para iOS/PWA: se getSession falhou, tenta getUser (força refresh do token)
+      if (!u) {
+        try {
+          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+          if (refreshedUser) u = refreshedUser;
+        } catch { /* sem sessão válida */ }
+      }
+
       setUser(u);
       if (u) {
         loadProfile(u);

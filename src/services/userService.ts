@@ -97,6 +97,7 @@ export async function searchUsers(query: string, currentUserId: string): Promise
   const { data, error } = await supabase
     .from('profiles')
     .select('id, display_name, username, photo_url, is_private')
+    .not('username', 'is', null)
     .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
     .neq('id', currentUserId)
     .limit(20);

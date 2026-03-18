@@ -50,7 +50,7 @@ interface TreinoState {
   carregar: (uid: string) => Promise<void>;
   limpar: () => void;
 
-  criarSessao: (nome: string, tipo: TipoSessao, diaSemana?: string) => string;
+  criarSessao: (nome: string, tipo: TipoSessao, diaSemana?: string, tipoCustom?: string) => string;
   removerSessao: (id: string) => void;
   renomearSessao: (id: string, nome: string, diaSemana?: string) => void;
   reordenarSessoes: (novasSessoes: SessaoTreino[]) => void;
@@ -161,11 +161,12 @@ export const useTreinoStore = create<TreinoState>()(
         if (uid) syncTreinoAtivoDebounced(uid, novo);
       },
 
-      criarSessao: (nome, tipo, diaSemana) => {
+      criarSessao: (nome, tipo, diaSemana, tipoCustom) => {
         const nova: SessaoTreino = {
           id: gerarId(),
           nome,
           tipo,
+          tipoCustom: tipo === 'outro' ? tipoCustom : undefined,
           diaSemana,
           exercicios: [],
           corrida: tipo === 'corrida' ? { id: gerarId(), etapas: [{ id: gerarId(), tipo: 'moderado' }] } : undefined,
@@ -383,15 +384,15 @@ export const useTreinoStore = create<TreinoState>()(
 
         // Musculação: precisa de 20min + 3 exercícios
         // Corrida/Natação: precisa de 20min (não tem exercícios)
-        const isMusculacao = sessao.tipo === 'musculacao';
+        const isExerciciosBased = sessao.tipo === 'musculacao' || sessao.tipo === 'outro';
         const temTempoMinimo = (duracaoTotalSegundos || 0) >= TEMPO_MINIMO_SEGUNDOS;
-        const temExerciciosMinimos = isMusculacao ? sessao.exercicios.length >= MINIMO_EXERCICIOS : true;
+        const temExerciciosMinimos = isExerciciosBased ? sessao.exercicios.length >= MINIMO_EXERCICIOS : true;
 
         if (temTempoMinimo && temExerciciosMinimos) {
           xpParaGanhar = 100; // Base
 
-          // Bônus por volume alto em musculação
-          if (isMusculacao) {
+          // Bônus por volume alto em musculação/outro
+          if (isExerciciosBased) {
             const volume = calcularVolumeSessao(sessao.exercicios);
             if (volume > 5000) xpParaGanhar += 20;
           }
@@ -431,6 +432,7 @@ export const useTreinoStore = create<TreinoState>()(
           sessaoId: sessao.id,
           nome: sessao.nome,
           tipo: sessao.tipo || 'musculacao',
+          tipoCustom: sessao.tipoCustom,
           exercicios: sessao.exercicios,
           corrida: corridaClone,
           natacao: sessao.natacao,

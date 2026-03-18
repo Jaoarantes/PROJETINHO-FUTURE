@@ -9,12 +9,13 @@ export interface Exercicio {
   isCustom?: boolean;
 }
 
-export type TipoSessao = 'musculacao' | 'corrida' | 'natacao';
+export type TipoSessao = 'musculacao' | 'corrida' | 'natacao' | 'outro';
 
 export const TIPO_SESSAO_LABELS: Record<TipoSessao, string> = {
   musculacao: 'Musculação',
   corrida: 'Corrida',
   natacao: 'Natação',
+  outro: 'Outro',
 };
 
 export type TecnicaTreino = 'normal' | 'superset' | 'dropset' | 'restpause';
@@ -117,6 +118,7 @@ export interface SessaoTreino {
   id: string;
   nome: string;
   tipo: TipoSessao;
+  tipoCustom?: string;
   diaSemana?: string;
   exercicios: ExercicioTreino[];
   corrida?: TreinoCorrida;
@@ -131,6 +133,7 @@ export interface RegistroTreino {
   sessaoId: string;
   nome: string;
   tipo: TipoSessao;
+  tipoCustom?: string;
   exercicios: ExercicioTreino[];
   corrida?: TreinoCorrida;
   natacao?: TreinoNatacao;
