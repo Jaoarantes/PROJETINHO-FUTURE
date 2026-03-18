@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button } from '@mui/material';
 import { Square, Play, Pause, CheckCircle2 } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 
@@ -21,6 +21,7 @@ export default function ActiveWorkoutBar() {
   const retomarTreino = useTreinoStore((s) => s.retomarTreino);
   const concluirTreino = useTreinoStore((s) => s.concluirTreino);
   const [elapsed, setElapsed] = useState(0);
+  const [confirmAction, setConfirmAction] = useState<null | 'pausar' | 'retomar' | 'concluir' | 'cancelar'>(null);
 
   const sessao = useMemo(
     () => treinoAtivo ? sessoes.find((s) => s.id === treinoAtivo.sessaoId) : null,
@@ -43,26 +44,34 @@ export default function ActiveWorkoutBar() {
 
   const handleCancelar = (e: React.MouseEvent) => {
     e.stopPropagation();
-    cancelarTreino();
+    setConfirmAction('cancelar');
   };
 
   const handlePauseResume = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (treinoAtivo.pausadoEm) {
-      retomarTreino();
-    } else {
-      pausarTreino();
-    }
+    setConfirmAction(treinoAtivo.pausadoEm ? 'retomar' : 'pausar');
   };
 
-  const handleConcluir = async (e: React.MouseEvent) => {
+  const handleConcluir = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!treinoAtivo) return;
-    try {
-      await concluirTreino(treinoAtivo.sessaoId);
-    } catch (err) {
-      console.error('Erro ao concluir treino pela barra:', err);
-    }
+    setConfirmAction('concluir');
+  };
+
+  const confirmLabels: Record<string, { title: string; desc: string }> = {
+    pausar: { title: 'Pausar treino?', desc: 'O cronômetro será pausado.' },
+    retomar: { title: 'Retomar treino?', desc: 'O cronômetro continuará de onde parou.' },
+    concluir: { title: 'Concluir treino?', desc: 'O treino será salvo no histórico.' },
+    cancelar: { title: 'Parar treino?', desc: 'O treino será descartado e o progresso perdido.' },
+  };
+
+  const executeConfirmedAction = async () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === 'pausar') pausarTreino();
+    else if (action === 'retomar') retomarTreino();
+    else if (action === 'concluir') {
+      try { await concluirTreino(treinoAtivo.sessaoId); } catch (err) { console.error('Erro ao concluir treino pela barra:', err); }
+    } else if (action === 'cancelar') cancelarTreino();
   };
   const handleOpen = () => {
     navigate(`/treino/${sessao.id}`);
@@ -140,6 +149,29 @@ export default function ActiveWorkoutBar() {
           <Square size={16} fill="#fff" />
         </IconButton>
       </Box>
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onClick={(e) => e.stopPropagation()}
+        PaperProps={{ sx: { borderRadius: 3, px: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {confirmAction && confirmLabels[confirmAction]?.title}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {confirmAction && confirmLabels[confirmAction]?.desc}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmAction(null)} color="inherit">Cancelar</Button>
+          <Button onClick={executeConfirmedAction} variant="contained" color={confirmAction === 'cancelar' ? 'error' : 'primary'} sx={{ fontWeight: 700 }}>
+            Confirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
