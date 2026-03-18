@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Avatar, Divider,
   Card, CardContent, CircularProgress, Snackbar, Alert,
   Dialog, TextField, IconButton,
-  List, ListItem, Checkbox,
+  List, ListItem, Checkbox, Switch
 } from '@mui/material';
 import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +30,8 @@ export default function Perfil() {
   const sessoes = useTreinoStore((s) => s.sessoes);
   const historico = useTreinoStore((s) => s.historico);
   const adicionarRegistro = useTreinoStore((s) => s.adicionarRegistro);
+  const autoSyncDiet = useTreinoStore((s) => s.autoSyncDiet);
+  const setAutoSyncDiet = useTreinoStore((s) => s.setAutoSyncDiet);
   const metas = useDietaStore((s) => s.metas);
 
   const [stravaAuth, setStravaAuth] = useState<StravaAuthData | null | undefined>(undefined);
@@ -301,7 +303,7 @@ export default function Perfil() {
                 sx={{
                   width: 65, height: 65,
                   background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
-                  
+
                   fontSize: '1.5rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -614,6 +616,30 @@ export default function Perfil() {
           </Box>
         </Box>
       </Dialog>
+
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Settings Automations */}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}
+      >
+        Automações
+      </Typography>
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2 }}>
+          <Box sx={{ flex: 1, mr: 2 }}>
+            <Typography variant="subtitle2" fontWeight={700}>Sincronizar calorias com dieta</Typography>
+            <Typography variant="caption" color="text.secondary">Sincroniza as calorias gastas nos treinos, ajustando automaticamente a sua meta de consumo diário.</Typography>
+          </Box>
+          <Switch
+            checked={autoSyncDiet}
+            onChange={(e) => setAutoSyncDiet(e.target.checked)}
+            color="primary"
+          />
+        </CardContent>
+      </Card>
 
       <Divider sx={{ mb: 3 }} />
 
@@ -956,7 +982,7 @@ function GamificacaoSection({ historico }: {
               boxShadow: '0 4px 16px rgba(255,107,44,0.3)',
             }}>
               <Typography sx={{
-                
+
                 fontSize: '1.4rem',
                 fontWeight: 700,
                 color: '#fff',

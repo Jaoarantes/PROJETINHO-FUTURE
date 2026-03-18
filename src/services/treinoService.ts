@@ -113,6 +113,8 @@ export async function carregarHistorico(uid: string): Promise<RegistroTreino[]> 
       natacao: row.natacao,
       concluidoEm: row.concluido_em,
       duracaoTotalSegundos: row.duracao_total_segundos,
+      calorias: row.calorias,
+      aplicadoNaDieta: row.aplicado_na_dieta,
       xpEarned: row.xp_earned,
       stravaData: row.strava_data,
     }));
@@ -136,6 +138,8 @@ export async function salvarRegistro(uid: string, registro: RegistroTreino): Pro
       natacao: registro.natacao || null,
       concluido_em: registro.concluidoEm,
       duracao_total_segundos: registro.duracaoTotalSegundos || null,
+      calorias: registro.calorias || null,
+      aplicado_na_dieta: registro.aplicadoNaDieta || false,
       xp_earned: registro.xpEarned || 0,
       strava_data: registro.stravaData || null,
     }, { onConflict: 'id' });

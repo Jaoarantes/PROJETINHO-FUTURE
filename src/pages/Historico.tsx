@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip } from '@mui/material';
-import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation, Share2 } from 'lucide-react';
+import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation, Share2, Flame } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { formatPace } from '../utils/geoUtils';
+import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import { calcularDistanciaCorrida, calcularDistanciaNatacao } from '../types/treino';
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../hooks/useConfirmDelete';
@@ -34,7 +35,7 @@ function formatarDataGrupo(isoString: string): string {
   }).format(data);
 }
 
-function agruparPorData(registros: { concluidoEm: string; [key: string]: any }[]) {
+function agruparPorData(registros: { concluidoEm: string;[key: string]: any }[]) {
   const grupos: { data: string; label: string; registros: any[] }[] = [];
   const mapa = new Map<string, any[]>();
   const ordemChaves: string[] = [];
@@ -108,121 +109,129 @@ export default function Historico() {
             </Box>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {grupo.registros.map((reg) => {
-          const isCorrida = reg.tipo === 'corrida';
-          const isMusculacao = reg.tipo === 'musculacao';
-          const isNatacao = reg.tipo === 'natacao';
+              {grupo.registros.map((reg) => {
+                const isCorrida = reg.tipo === 'corrida';
+                const isMusculacao = reg.tipo === 'musculacao';
+                const isNatacao = reg.tipo === 'natacao';
 
-          let distTotal = 0;
-          let paceMedio = 0;
+                let distTotal = 0;
+                let paceMedio = 0;
 
-          if (isCorrida && reg.corrida) {
-            distTotal = calcularDistanciaCorrida(reg.corrida.etapas);
-            if (distTotal > 0 && reg.duracaoTotalSegundos) {
-              paceMedio = (reg.duracaoTotalSegundos / 60) / distTotal;
-            }
-          }
+                if (isCorrida && reg.corrida) {
+                  distTotal = calcularDistanciaCorrida(reg.corrida.etapas);
+                  if (distTotal > 0 && reg.duracaoTotalSegundos) {
+                    paceMedio = (reg.duracaoTotalSegundos / 60) / distTotal;
+                  }
+                }
 
-          if (isNatacao && reg.natacao) {
-            distTotal = calcularDistanciaNatacao(reg.natacao.etapas);
-          }
+                if (isNatacao && reg.natacao) {
+                  distTotal = calcularDistanciaNatacao(reg.natacao.etapas);
+                }
 
-          return (
-            <Card key={reg.id} variant="outlined" sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                {/* Header */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-                  <Box sx={{
-                    width: 36, height: 36, borderRadius: 2,
-                    bgcolor: isCorrida ? 'rgba(255, 107, 44, 0.1)' : isMusculacao ? 'rgba(171, 71, 188, 0.1)' : 'rgba(66, 165, 245, 0.1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5
-                  }}>
-                    {isCorrida ? <MapPin size={20} color="#FF6B2C" /> : isMusculacao ? <Dumbbell size={20} color="#AB47BC" /> : <Waves size={20} color="#42A5F5" />}
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{reg.nome}</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Calendar size={12} style={{ opacity: 0.5 }} />
-                      <Typography variant="caption" color="text.secondary">{formatarData(reg.concluidoEm)}</Typography>
-                    </Box>
-                  </Box>
-                  <IconButton
-                    size="small"
-                    onClick={() => navigate(`/feed/novo?registro=${reg.id}`)}
-                    sx={{ opacity: 0.5, '&:hover': { opacity: 1, color: '#FF6B2C' } }}
-                  >
-                    <Share2 size={17} />
-                  </IconButton>
-                  <IconButton size="small" color="error" onClick={() => deleteReg.requestDelete(reg.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
-                    <Trash2 size={18} />
-                  </IconButton>
-                </Box>
-
-                <Divider sx={{ mb: 1.5, borderStyle: 'dashed' }} />
-
-                {/* Stats Rack */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duração</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Clock size={14} style={{ opacity: 0.6 }} />
-                      <Typography variant="body2" fontWeight={700}>{formatarDuracao(reg.duracaoTotalSegundos)}</Typography>
-                    </Box>
-                  </Box>
-
-                  {isCorrida && (
-                    <>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                          <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
-                          <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                return (
+                  <Card key={reg.id} variant="outlined" sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                      {/* Header */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                        <Box sx={{
+                          width: 36, height: 36, borderRadius: 2,
+                          bgcolor: isCorrida ? 'rgba(255, 107, 44, 0.1)' : isMusculacao ? 'rgba(171, 71, 188, 0.1)' : 'rgba(66, 165, 245, 0.1)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5
+                        }}>
+                          {isCorrida ? <MapPin size={20} color="#FF6B2C" /> : isMusculacao ? <Dumbbell size={20} color="#AB47BC" /> : <Waves size={20} color="#42A5F5" />}
                         </Box>
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <Gauge size={14} color="#FF6B2C" />
-                          <Typography variant="body2" fontWeight={800}>{formatPace(paceMedio)}/km</Typography>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{reg.nome}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Calendar size={12} style={{ opacity: 0.5 }} />
+                            <Typography variant="caption" color="text.secondary">{formatarData(reg.concluidoEm)}</Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                      {reg.stravaData && (
-                        <Chip
-                          icon={<Navigation size={12} fill="#FC4C02" />}
-                          label="STRAVA"
+                        <IconButton
                           size="small"
-                          sx={{
-                            height: 20,
-                            fontSize: '0.6rem',
-                            fontWeight: 800,
-                            bgcolor: 'rgba(252, 76, 2, 0.1)',
-                            color: '#FC4C02',
-                            border: '1px solid rgba(252, 76, 2, 0.2)',
-                            ml: 'auto'
-                          }}
-                        />
-                      )}
-                    </>
-                  )}
+                          onClick={() => navigate(`/feed/novo?registro=${reg.id}`)}
+                          sx={{ opacity: 0.5, '&:hover': { opacity: 1, color: '#FF6B2C' } }}
+                        >
+                          <Share2 size={17} />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => deleteReg.requestDelete(reg.id)} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                          <Trash2 size={18} />
+                        </IconButton>
+                      </Box>
 
-                  {isMusculacao && (
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volume</Typography>
-                      <Typography variant="body2" fontWeight={700}>{reg.exercicios.length} exercícios</Typography>
-                    </Box>
-                  )}
+                      <Divider sx={{ mb: 1.5, borderStyle: 'dashed' }} />
 
-                  {isNatacao && (
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
-                      <Typography variant="body2" fontWeight={700}>{distTotal} m</Typography>
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          );
-        })}
+                      {/* Stats Rack */}
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duração</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Clock size={14} style={{ opacity: 0.6 }} />
+                            <Typography variant="body2" fontWeight={700}>{formatarDuracao(reg.duracaoTotalSegundos)}</Typography>
+                          </Box>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Calorias</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Flame size={14} color="#FF6B2C" />
+                            <Typography variant="body2" fontWeight={700}>{Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg))} kcal</Typography>
+                          </Box>
+                        </Box>
+
+                        {isCorrida && (
+                          <>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                                <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
+                                <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                              </Box>
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Gauge size={14} color="#FF6B2C" />
+                                <Typography variant="body2" fontWeight={800}>{formatPace(paceMedio)}/km</Typography>
+                              </Box>
+                            </Box>
+                            {reg.stravaData && (
+                              <Chip
+                                icon={<Navigation size={12} fill="#FC4C02" />}
+                                label="STRAVA"
+                                size="small"
+                                sx={{
+                                  height: 20,
+                                  fontSize: '0.6rem',
+                                  fontWeight: 800,
+                                  bgcolor: 'rgba(252, 76, 2, 0.1)',
+                                  color: '#FC4C02',
+                                  border: '1px solid rgba(252, 76, 2, 0.2)',
+                                  ml: 'auto'
+                                }}
+                              />
+                            )}
+                          </>
+                        )}
+
+                        {isMusculacao && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volume</Typography>
+                            <Typography variant="body2" fontWeight={700}>{reg.exercicios.length} exercícios</Typography>
+                          </Box>
+                        )}
+
+                        {isNatacao && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
+                            <Typography variant="body2" fontWeight={700}>{distTotal} m</Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </Box>
           </Box>
         ))}
