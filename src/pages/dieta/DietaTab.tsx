@@ -169,8 +169,9 @@ export default function DietaTab() {
   const refeicoesFaltantes = ALL_REFEICOES.filter((t) => !tiposExistentes.includes(t));
 
   // Calorie balance
-  const restante = Math.max(0, metas.calorias - totais.calorias);
-  const overLimit = totais.calorias > metas.calorias;
+  const metaCaloriasDia = diario.metaCalorias || metas.calorias;
+  const restante = Math.max(0, metaCaloriasDia - totais.calorias);
+  const overLimit = totais.calorias > metaCaloriasDia;
 
   return (
     <Box sx={{ pt: 1, pb: 10 }}>
@@ -225,12 +226,12 @@ export default function DietaTab() {
             <Pencil size={14} />
           </IconButton>
 
-          <CalorieRing consumido={totais.calorias} meta={metas.calorias} />
+          <CalorieRing consumido={totais.calorias} meta={metaCaloriasDia} />
 
           {/* Summary */}
           <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 2 }}>
             <SummaryItem label="Consumido" value={totais.calorias} />
-            <SummaryItem label="Meta" value={metas.calorias} />
+            <SummaryItem label="Meta" value={metaCaloriasDia} />
             <SummaryItem label="Restante" value={restante} highlight={!overLimit} warn={overLimit} />
           </Box>
 
@@ -319,7 +320,7 @@ export default function DietaTab() {
             Resumo do Dia
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-            <TotalRow label="Calorias" value={`${totais.calorias}`} unit="kcal" meta={`${metas.calorias}`} color={overLimit ? '#EF4444' : undefined} />
+            <TotalRow label="Calorias" value={`${totais.calorias}`} unit="kcal" meta={`${metaCaloriasDia}`} color={overLimit ? '#EF4444' : undefined} />
             <TotalRow label="Proteína" value={`${totais.proteinas.toFixed(1)}`} unit="g" meta={`${metas.proteinas}`} color={corProteina} />
             <TotalRow label="Carboidrato" value={`${totais.carboidratos.toFixed(1)}`} unit="g" meta={`${metas.carboidratos}`} color={corCarbo} />
             <TotalRow label="Gordura" value={`${totais.gorduras.toFixed(1)}`} unit="g" meta={`${metas.gorduras}`} color={corGordura} />
