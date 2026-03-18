@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, IconButton, Button, Card, CardContent,
     TextField, Chip, MenuItem as SelectItem, Snackbar, Alert, Menu, MenuItem,
-    CircularProgress, Dialog,
+    CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send } from 'lucide-react';
@@ -51,6 +51,7 @@ export default function SessaoTreino() {
     const [shareTexto, setShareTexto] = useState('');
     const [sharePhotos, setSharePhotos] = useState<File[]>([]);
     const [sharePosting, setSharePosting] = useState(false);
+    const [confirmConcluir, setConfirmConcluir] = useState(false);
     const sessao = sessoes.find((s) => s.id === id);
 
     const isAtivo = treinoAtivo?.sessaoId === id;
@@ -180,7 +181,7 @@ export default function SessaoTreino() {
                         {sessao.nome}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
-                        <Chip label={TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 18, fontSize: '0.6rem' }} />
+                        <Chip label={tipo === 'outro' && sessao.tipoCustom ? sessao.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 18, fontSize: '0.6rem' }} />
                         {sessao.diaSemana && (
                             <Typography variant="caption" color="primary.main" fontWeight={600}>
                                 {sessao.diaSemana}
@@ -206,7 +207,7 @@ export default function SessaoTreino() {
             </Box>
 
             {/* Render based on type */}
-            {tipo === 'musculacao' && (
+            {(tipo === 'musculacao' || tipo === 'outro') && (
                 <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} />
             )}
             {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} isAtivo={isAtivo} onConcluir={(dist) => handleConcluir(dist)} salvando={salvando} />}
@@ -220,12 +221,24 @@ export default function SessaoTreino() {
                     fullWidth
                     disabled={salvando}
                     startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : <CheckCircle size={20} />}
-                    onClick={() => handleConcluir()}
+                    onClick={() => setConfirmConcluir(true)}
                     sx={{ mt: 3, py: 1.5, fontWeight: 700, fontSize: '0.95rem', borderRadius: 1.5 }}
                 >
                     {salvando ? 'Salvando...' : 'Concluir Treino'}
                 </Button>
             )}
+
+            {/* Confirmation Dialog - Concluir Treino */}
+            <Dialog open={confirmConcluir} onClose={() => setConfirmConcluir(false)} PaperProps={{ sx: { borderRadius: 3, px: 1 } }}>
+                <DialogTitle sx={{ fontWeight: 700 }}>Concluir treino?</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary">O treino será salvo no histórico.</Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setConfirmConcluir(false)} color="inherit">Cancelar</Button>
+                    <Button onClick={() => { setConfirmConcluir(false); handleConcluir(); }} variant="contained" color="success" sx={{ fontWeight: 700 }}>Confirmar</Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Snackbar de sucesso */}
             <Snackbar open={snackOpen} autoHideDuration={3000} onClose={() => setSnackOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
@@ -457,10 +470,11 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                                             />
                                             <TextField
                                                 size="small" type="number"
-                                                value={serie.repeticoes}
-                                                onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { repeticoes: Number(e.target.value) || 0 })}
+                                                value={serie.repeticoes || ''}
+                                                onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { repeticoes: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0 })}
                                                 sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                                                 slotProps={{ htmlInput: { min: 0, inputMode: 'numeric' } }}
+                                                placeholder="0"
                                             />
                                             <IconButton size="small" onClick={() => deleteSerie.requestDelete({ sessaoId: sessao.id, exId: exTreino.id, serieId: serie.id })} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
                                                 <MinusCircle size={18} />
@@ -545,6 +559,23 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
     const etapas = corrida?.etapas ?? [];
     const tracker = useGPSTracker();
     const deleteEtapa = useConfirmDelete();
+    const [confirmAction, setConfirmAction] = useState<null | 'pausar' | 'retomar' | 'concluir' | 'cancelar'>(null);
+
+    const confirmLabels: Record<string, { title: string; desc: string }> = {
+        pausar: { title: 'Pausar treino?', desc: 'O cronômetro e GPS serão pausados.' },
+        retomar: { title: 'Retomar treino?', desc: 'O cronômetro e GPS continuarão.' },
+        concluir: { title: 'Concluir treino?', desc: 'O treino será salvo no histórico.' },
+        cancelar: { title: 'Parar treino?', desc: 'O treino será descartado e o progresso perdido.' },
+    };
+
+    const executeConfirmedAction = () => {
+        const action = confirmAction;
+        setConfirmAction(null);
+        if (action === 'pausar') { store.pausarTreino(); tracker.pauseTracking(); }
+        else if (action === 'retomar') { store.retomarTreino(); tracker.resumeTracking(); }
+        else if (action === 'concluir') { tracker.stopTracking(); onConcluir(tracker.distanceKm); }
+        else if (action === 'cancelar') { store.cancelarTreino(); }
+    };
 
     // Ativar GPS automaticamente se a sessão for iniciada e for corrida
     useEffect(() => {
@@ -614,15 +645,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                 fullWidth
                                 disabled={salvando}
                                 startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : (store.treinoAtivo?.pausadoEm ? <Play size={22} fill="currentColor" /> : <Pause size={22} fill="currentColor" />)}
-                                onClick={() => {
-                                    if (store.treinoAtivo?.pausadoEm) {
-                                        store.retomarTreino();
-                                        tracker.resumeTracking();
-                                    } else {
-                                        store.pausarTreino();
-                                        tracker.pauseTracking();
-                                    }
-                                }}
+                                onClick={() => setConfirmAction(store.treinoAtivo?.pausadoEm ? 'retomar' : 'pausar')}
                                 sx={{
                                     bgcolor: '#FF6B2C',
                                     color: '#fff',
@@ -644,10 +667,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                 fullWidth
                                 disabled={salvando}
                                 startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : <CheckCircle size={22} />}
-                                onClick={() => {
-                                    tracker.stopTracking();
-                                    onConcluir(tracker.distanceKm);
-                                }}
+                                onClick={() => setConfirmAction('concluir')}
                                 sx={{
                                     bgcolor: 'success.main',
                                     color: '#fff',
@@ -665,7 +685,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                             </Button>
 
                             <IconButton
-                                onClick={() => store.cancelarTreino()}
+                                onClick={() => setConfirmAction('cancelar')}
                                 sx={{
                                     border: '1px solid',
                                     borderColor: 'divider',
@@ -694,6 +714,18 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
             `}
                     </style>
                 </Box>
+
+                {/* Confirmation Dialog */}
+                <Dialog open={!!confirmAction} onClose={() => setConfirmAction(null)} PaperProps={{ sx: { borderRadius: 3, px: 1 } }}>
+                    <DialogTitle sx={{ fontWeight: 700 }}>{confirmAction && confirmLabels[confirmAction]?.title}</DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2" color="text.secondary">{confirmAction && confirmLabels[confirmAction]?.desc}</Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setConfirmAction(null)} color="inherit">Cancelar</Button>
+                        <Button onClick={executeConfirmedAction} variant="contained" color={confirmAction === 'cancelar' ? 'error' : 'primary'} sx={{ fontWeight: 700 }}>Confirmar</Button>
+                    </DialogActions>
+                </Dialog>
             </>
         );
     }

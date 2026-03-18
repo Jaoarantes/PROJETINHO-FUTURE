@@ -116,12 +116,12 @@ const GIF_MAP: Record<number, string> = {
   // ─── GLÚTEOS ───────────────────────────────
   8001: 'qKBpF7I',   // Hip Thrust com Barra → barbell glute bridge
   8002: 'u0cNiij',   // Elevação Pélvica no Banco → low glute bridge on floor
-  8003: 'HEJ6DIX',   // Glúteo no Cabo (Kickback) → cable kickback
+  8003: 'Kpajagk',   // Glúteo no Cabo (Kickback) → cable standing hip extension
   8004: 'HsvHqgf',   // Agachamento Sumô com Halter → dumbbell squat
   8005: 'RRWFUcw',   // Avanço com Passada Longa → dumbbell lunge
   8006: 'OPqShYN',   // Glúteo na Máquina → lever hip extension v. 2
   8007: 'qKBpF7I',   // Hip Thrust com Halter → barbell glute bridge
-  8008: 'HEJ6DIX',   // Glúteo 4 Apoios na Polia → cable kickback
+  8008: 'Kpajagk',   // Glúteo 4 Apoios na Polia → cable standing hip extension
   8009: '7WaDzyL',   // Abdução de Quadril no Cabo → side hip abduction
 
   // ─── ABDÔMEN ───────────────────────────────
@@ -182,7 +182,7 @@ const GIF_MAP: Record<number, string> = {
   3017: 'PzQanLE',  // Desenvolvimento no Cabo → cable shoulder press
   3018: '67n3r98',  // Desenvolvimento na Máquina → lever shoulder press
   3019: 'hxyTtWj',  // Elevação Lateral Sentado → dumbbell seated lateral raise
-  3020: 'v3xmPAR',  // Crucifixo Inverso Máquina → lever seated fly (reversed)
+  3020: 'myfUsKf',  // Crucifixo Inverso Máquina → lever seated reverse fly
   3021: 'goJ6ezq',  // Elevação Lateral Unilateral → cable lateral raise
   3022: 'vmwLyCg',  // W Press → dumbbell w-press
   3023: 'RJa4tCo',  // Battle Ropes → battling ropes
@@ -202,7 +202,7 @@ const GIF_MAP: Record<number, string> = {
   5016: 'BRImeP8',  // Tríceps Mergulho Máquina → lever seated dip
   5017: 'Ser9eQp',  // Tríceps Extensão Máquina → lever triceps extension
   5018: 'ThKP69G',  // Tríceps Pulley Reverso → cable reverse grip triceps pushdown
-  5019: 'YTur5nR',  // Tríceps Unilateral Cabo → cable one arm curl (adapted)
+  5019: 'qRZ5S1N',  // Tríceps Unilateral Cabo → cable one arm tricep pushdown
   5020: '6MfS53i',  // Tríceps Testa Alternado → dumbbell lying single extension
   5021: 'soIB2rj',  // Flexão Diamante → diamond push-up
 
@@ -214,8 +214,8 @@ const GIF_MAP: Record<number, string> = {
   6025: 'SSsBDwB',  // Avanço Reverso → dumbbell rear lunge
   6026: 'Qa55kX1',  // Hack Machine → sled hack squat
   6027: 'o6LqKKP',  // Levantamento Terra Romeno → traditional barbell romanian deadlift
-  6028: 'VPPtusI',  // Flexão Nórdica → inverted row bent knees (similar pattern)
-  6029: 'qXTaZnJ',  // Sissy Squat → barbell full squat (closest match)
+  6028: 'Vvwjz6N',  // Flexão Nórdica → glute-ham raise (closest to nordic curl)
+  6029: 'xdYPUtE',  // Sissy Squat → sissy squat
   6030: '10Z2DXU',  // Prensa de Pernas → sled 45° leg press
   6031: 'TDYiji6',  // Agachamento com Salto → jump squat v. 2
   6032: 'py1HSzx',  // Passada Lateral → barbell lateral lunge
@@ -237,7 +237,7 @@ const GIF_MAP: Record<number, string> = {
   // ─── ABDÔMEN (adicionais) ────────────────
   9012: 'fhZQPlV',  // Woodchop no Cabo → cable twist (up-down)
   9013: 'WhuFnR7',  // Elevação Pernas Deitado → lying leg raise flat bench
-  9014: 'VBAWRPG',  // Dead Bug → weighted front plank (closest)
+  9014: 'iny3m5y',  // Dead Bug → dead bug
   9015: '9pa4H5m',  // Pallof Press → band horizontal pallof press
   9016: 'BMMolZ3',  // V-Up → tuck crunch
   9017: 'Kzg30R7',  // Crunch no Cabo em Pé → band standing crunch
@@ -255,17 +255,17 @@ const GIF_MAP: Record<number, string> = {
 
   // ─── TRAPÉZIO ────────────────────────────
   12001: 'dG7tG5y',  // Encolhimento por Trás → barbell shrug (similar)
-  12002: '1DN3iz4',  // Encolhimento no Smith → smith upright row
+  12002: 'OUQ0ZyW',  // Encolhimento no Smith → smith shrug
   12003: 'SpsOSXk',  // Face Pull → cable rear pulldown
   12004: 'NJzBsGJ',  // Encolhimento Inclinado → dumbbell shrug (similar)
 
   // ─── CARDIO (adicionais) ─────────────────
-  11008: 'TDYiji6',  // Box Jump → jump squat v. 2
+  11008: 'iPm26QU',  // Box Jump → box jump (down with stabilization)
   11009: 'RJgzwny',  // Mountain Climber → mountain climber
   11010: '1g5bPpA',  // Jumping Jack → jack jump
   11011: '0Yz8WdV',  // Bear Crawl → bear crawl
   11012: 'rjtuP6X',  // Stair Climber → walk elliptical
-  11013: 'dK9394r',  // Sprint → burpee (closest cardio)
+  11013: 'oLrKqDH',  // Sprint → run
   11014: 'J9zIWig',  // High Knees → walking high knees lunge
   11015: '0JtKWum',  // Dumbbell Burpee → dumbbell burpee
 };

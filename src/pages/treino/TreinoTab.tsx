@@ -6,7 +6,7 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
@@ -94,18 +94,21 @@ const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
   musculacao: Dumbbell,
   corrida: Footprints,
   natacao: Waves,
+  outro: CircleEllipsis,
 };
 
 const TIPO_CORES: Record<TipoSessao, string> = {
   musculacao: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', // Vermelho
   corrida: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',    // Laranja
   natacao: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',    // Azul
+  outro: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',      // Roxo
 };
 
 const TIPO_PLACEHOLDERS: Record<TipoSessao, string> = {
   musculacao: 'Ex: Treino A — Peito e Tríceps',
   corrida: 'Ex: Corrida matinal',
   natacao: 'Ex: Natação 1km',
+  outro: 'Ex: Pedal matinal',
 };
 
 // Ordena por posição (se existir) senão por dia da semana
@@ -122,7 +125,7 @@ function ordenarTreinos(sessoes: SessaoTreino[]): SessaoTreino[] {
 
 // Agrupa por TipoSessao
 function agruparPorTipo(sessoes: SessaoTreino[]): Record<TipoSessao, SessaoTreino[]> {
-  const grupos: Record<TipoSessao, SessaoTreino[]> = { musculacao: [], corrida: [], natacao: [] };
+  const grupos: Record<TipoSessao, SessaoTreino[]> = { musculacao: [], corrida: [], natacao: [], outro: [] };
   sessoes.forEach((s) => {
     const tipo = s.tipo || 'musculacao';
     if (!grupos[tipo]) grupos[tipo] = [];
@@ -144,7 +147,8 @@ function getSessaoSubtitle(sessao: SessaoTreino) {
     return `${dist > 0 ? dist + ' m · ' : ''}${etapas} etapa${etapas !== 1 ? 's' : ''}`;
   }
   const count = sessao.exercicios?.length ?? 0;
-  return `${count} exercício${count !== 1 ? 's' : ''}`;
+  const prefix = tipo === 'outro' && sessao.tipoCustom ? `${sessao.tipoCustom} · ` : '';
+  return `${prefix}${count} exercício${count !== 1 ? 's' : ''}`;
 }
 
 interface SortableTreinoCardProps {
@@ -318,6 +322,7 @@ export default function TreinoTab() {
   const [editId, setEditId] = useState('');
   const [nome, setNome] = useState('');
   const [tipoSessao, setTipoSessao] = useState<TipoSessao>('musculacao');
+  const [tipoCustom, setTipoCustom] = useState('');
   const [diaSelecionado, setDiaSelecionado] = useState<string | undefined>();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuSessaoId, setMenuSessaoId] = useState('');
@@ -333,6 +338,7 @@ export default function TreinoTab() {
       musculacao: ordenarTreinos(grupos.musculacao),
       corrida: ordenarTreinos(grupos.corrida),
       natacao: ordenarTreinos(grupos.natacao),
+      outro: ordenarTreinos(grupos.outro),
     };
   }, [sessoes]);
 
@@ -385,9 +391,11 @@ export default function TreinoTab() {
 
   const handleCriar = () => {
     if (!nome.trim()) return;
-    const newId = criarSessao(nome.trim(), tipoSessao, diaSelecionado);
+    if (tipoSessao === 'outro' && !tipoCustom.trim()) return;
+    const newId = criarSessao(nome.trim(), tipoSessao, diaSelecionado, tipoCustom.trim() || undefined);
     setNome('');
     setTipoSessao('musculacao');
+    setTipoCustom('');
     setDiaSelecionado(undefined);
     setDialogOpen(false);
 
@@ -483,7 +491,7 @@ export default function TreinoTab() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                             <Icon size={18} />
                             <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
-                              {TIPO_SESSAO_LABELS[tipo]}
+                              {tipo === 'outro' ? 'Outros' : TIPO_SESSAO_LABELS[tipo]}
                             </Typography>
                             <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
                           </Box>
@@ -583,7 +591,7 @@ export default function TreinoTab() {
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Typography variant="subtitle2" fontWeight={600} noWrap>{reg.nome}</Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                            <Chip label={TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
+                            <Chip label={tipo === 'outro' && reg.tipoCustom ? reg.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
                             {reg.duracaoTotalSegundos && (
                               <>
                                 <Typography variant="caption" color="text.secondary">·</Typography>
@@ -861,14 +869,22 @@ export default function TreinoTab() {
               return <Icon size={14} color="#fff" />;
             })()}
           </Box>
-          <Typography fontWeight={700}>Novo Treino de {TIPO_SESSAO_LABELS[tipoSessao]}</Typography>
+          <Typography fontWeight={700}>{tipoSessao === 'outro' ? 'Novo Treino Personalizado' : `Novo Treino de ${TIPO_SESSAO_LABELS[tipoSessao]}`}</Typography>
         </DialogTitle>
         <DialogContent sx={{ pt: 1 }}>
+          {tipoSessao === 'outro' && (
+            <TextField
+              autoFocus label="Tipo de treino"
+              placeholder="Ex: Bicicleta, Cardio, Yoga..."
+              fullWidth value={tipoCustom} onChange={(e) => setTipoCustom(e.target.value)}
+              sx={{ mb: 2, mt: 1 }}
+            />
+          )}
           <TextField
-            autoFocus label="Nome do treino"
+            autoFocus={tipoSessao !== 'outro'} label="Nome do treino"
             placeholder={TIPO_PLACEHOLDERS[tipoSessao]}
             fullWidth value={nome} onChange={(e) => setNome(e.target.value)}
-            sx={{ mb: 2, mt: 1 }}
+            sx={{ mb: 2, ...(tipoSessao !== 'outro' && { mt: 1 }) }}
           />
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Dia da semana (opcional)</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -890,7 +906,7 @@ export default function TreinoTab() {
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
           <Button onClick={() => setDialogOpen(false)} color="inherit">Cancelar</Button>
-          <Button onClick={handleCriar} variant="contained" disabled={!nome.trim()}>Criar</Button>
+          <Button onClick={handleCriar} variant="contained" disabled={!nome.trim() || (tipoSessao === 'outro' && !tipoCustom.trim())}>Criar</Button>
         </DialogActions>
       </Dialog>
 
@@ -963,6 +979,7 @@ export default function TreinoTab() {
                 }}
                 onClick={() => {
                   setTipoSessao(key);
+                  setTipoCustom('');
                   setDrawerOpen(false);
                   setNome('');
                   setDiaSelecionado(undefined);
