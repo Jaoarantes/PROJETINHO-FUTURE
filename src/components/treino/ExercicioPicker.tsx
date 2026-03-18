@@ -227,7 +227,7 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
           </DialogContent>
         ) : (
           <>
-            <DialogContent sx={{ px: 3 }}>
+            <DialogContent sx={{ px: 3, '& .MuiSlider-root': { touchAction: 'none' } }}>
               {/* Imagem do exercício */}
               {selecionado && (() => {
                 const imgUrl = selecionado.gifUrl || (typeof selecionado.id === 'number' ? getExerciseImageUrl(selecionado.id) : undefined);
@@ -260,7 +260,17 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                 step={1}
                 marks
                 valueLabelDisplay="auto"
-                sx={{ mb: 4 }}
+                sx={{
+                  mb: 4,
+                  '& .MuiSlider-thumb': {
+                    width: 28,
+                    height: 28,
+                    touchAction: 'none',
+                  },
+                  '& .MuiSlider-rail, & .MuiSlider-track': {
+                    height: 6,
+                  },
+                }}
               />
 
               <Typography variant="subtitle2" gutterBottom>
@@ -281,6 +291,16 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                   { value: 30, label: '30' },
                 ]}
                 valueLabelDisplay="auto"
+                sx={{
+                  '& .MuiSlider-thumb': {
+                    width: 28,
+                    height: 28,
+                    touchAction: 'none',
+                  },
+                  '& .MuiSlider-rail, & .MuiSlider-track': {
+                    height: 6,
+                  },
+                }}
               />
 
               <Box
