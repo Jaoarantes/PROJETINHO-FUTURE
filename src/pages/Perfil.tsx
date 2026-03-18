@@ -5,7 +5,7 @@ import {
   Dialog, TextField, IconButton,
   List, ListItem, Checkbox, Switch
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, Check } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, ChevronDown, ChevronUp, Check, Rss, Users, MessageCircle, Camera, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
@@ -21,6 +21,8 @@ import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 
 import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
+import { carregarSocialStats } from '../services/feedService';
+import type { SocialStats } from '../services/feedService';
 
 export default function Perfil() {
   const navigate = useNavigate();
@@ -414,7 +416,7 @@ export default function Perfil() {
       <Divider sx={{ mb: 3 }} />
 
       {/* Gamificação */}
-      <GamificacaoSection historico={historico} />
+      <GamificacaoSection historico={historico} uid={user?.id || ''} />
 
       <Divider sx={{ mb: 3 }} />
 
@@ -858,6 +860,7 @@ interface Conquista {
   desc: string;
   desbloqueada: boolean;
   cor: string;
+  xp: number;
 }
 
 // Filtra apenas treinos válidos: 20min+ e 3+ exercícios para musculação
@@ -907,23 +910,26 @@ function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['h
   return streak;
 }
 
-function GamificacaoSection({ historico }: {
+function GamificacaoSection({ historico, uid }: {
   historico: ReturnType<typeof useTreinoStore.getState>['historico'];
+  uid: string;
 }) {
-  const stats = useMemo(() => {
-    // Apenas treinos válidos contam para gamificação
+  const [socialStats, setSocialStats] = useState<SocialStats>({
+    totalPosts: 0, postsComFoto: 0, totalChamasRecebidas: 0, totalSeguidores: 0, totalComentariosRecebidos: 0,
+  });
+
+  useEffect(() => {
+    carregarSocialStats(uid).then(setSocialStats).catch(console.error);
+  }, [uid]);
+
+  const [showAllConquistas, setShowAllConquistas] = useState(false);
+  const CONQUISTAS_PREVIEW = 6;
+
+  // Base stats (sem XP de conquistas — usado para checar unlock)
+  const baseStats = useMemo(() => {
     const validos = filtrarTreinosValidos(historico);
     const totalTreinos = validos.length;
-    const totalXP = validos.reduce((acc, r) => acc + (r.xpEarned || 0), 0);
-
-    const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
-
-    const xpParaEsteLevel = (level - 1) * (level - 1) * 100;
-    const xpParaProximoLevel = level * level * 100;
-
-    const xpNoLevel = totalXP - xpParaEsteLevel;
-    const xpNecessario = xpParaProximoLevel - xpParaEsteLevel;
-    const progresso = xpNecessario > 0 ? xpNoLevel / xpNecessario : 0;
+    const treinoXP = validos.reduce((acc, r) => acc + (r.xpEarned || 0), 0);
 
     const volumeTotal = validos.reduce((acc, r) => {
       if (r.tipo !== 'musculacao') return acc;
@@ -936,26 +942,55 @@ function GamificacaoSection({ historico }: {
     });
 
     const streak = calcularStreak(historico);
-
     const tempoTotal = validos.reduce((acc, r) => acc + (r.duracaoTotalSegundos || 0), 0);
 
-    return { totalTreinos, totalXP, level, progresso, xpNoLevel, xpParaEsteLevel, xpParaProximoLevel, xpNecessario, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
+    return { totalTreinos, treinoXP, volumeTotal, exerciciosUnicos: exerciciosUnicos.size, streak, tempoTotal };
   }, [historico]);
 
+  // Conquistas com XP
   const conquistas: Conquista[] = useMemo(() => [
-    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: stats.totalTreinos >= 1, cor: '#FFD700' },
-    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: stats.totalTreinos >= 5, cor: '#FF6B2C' },
-    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: stats.totalTreinos >= 10, cor: '#3B82F6' },
-    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: stats.totalTreinos >= 25, cor: '#EF4444' },
-    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: stats.totalTreinos >= 50, cor: '#F59E0B' },
-    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: stats.totalTreinos >= 100, cor: '#10B981' },
-    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: stats.streak >= 3, cor: '#F97316' },
-    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: stats.volumeTotal >= 1000, cor: '#0EA5E9' },
-    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: stats.volumeTotal >= 10000, cor: '#EF4444' },
-    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: stats.exerciciosUnicos >= 10, cor: '#14B8A6' },
-  ], [stats]);
+    // Treino
+    { id: 'primeiro', icon: <Star size={18} />, titulo: 'Primeiro Passo', desc: 'Complete seu primeiro treino', desbloqueada: baseStats.totalTreinos >= 1, cor: '#FFD700', xp: 50 },
+    { id: 'cinco', icon: <Zap size={18} />, titulo: 'Esquentando', desc: 'Complete 5 treinos', desbloqueada: baseStats.totalTreinos >= 5, cor: '#FF6B2C', xp: 100 },
+    { id: 'dez', icon: <Target size={18} />, titulo: 'Consistente', desc: 'Complete 10 treinos', desbloqueada: baseStats.totalTreinos >= 10, cor: '#3B82F6', xp: 200 },
+    { id: 'vinte5', icon: <Flame size={18} />, titulo: 'Dedicado', desc: 'Complete 25 treinos', desbloqueada: baseStats.totalTreinos >= 25, cor: '#EF4444', xp: 400 },
+    { id: 'cinquenta', icon: <Crown size={18} />, titulo: 'Imparável', desc: 'Complete 50 treinos', desbloqueada: baseStats.totalTreinos >= 50, cor: '#F59E0B', xp: 750 },
+    { id: 'cem', icon: <Trophy size={18} />, titulo: 'Lenda', desc: 'Complete 100 treinos', desbloqueada: baseStats.totalTreinos >= 100, cor: '#10B981', xp: 1500 },
+    { id: 'streak3', icon: <TrendingUp size={18} />, titulo: 'Em Chamas', desc: '3 semanas seguidas treinando', desbloqueada: baseStats.streak >= 3, cor: '#F97316', xp: 300 },
+    { id: '1ton', icon: <Dumbbell size={18} />, titulo: '1 Tonelada', desc: 'Levante 1.000 kg de volume total', desbloqueada: baseStats.volumeTotal >= 1000, cor: '#0EA5E9', xp: 200 },
+    { id: '10ton', icon: <Dumbbell size={18} />, titulo: 'Monstro', desc: 'Levante 10.000 kg de volume total', desbloqueada: baseStats.volumeTotal >= 10000, cor: '#EF4444', xp: 500 },
+    { id: 'variado', icon: <Star size={18} />, titulo: 'Versátil', desc: 'Treine 10 exercícios diferentes', desbloqueada: baseStats.exerciciosUnicos >= 10, cor: '#14B8A6', xp: 250 },
+    // Social
+    { id: 'social_primeiro', icon: <Rss size={18} />, titulo: 'Estreia', desc: 'Publique seu primeiro treino no feed', desbloqueada: socialStats.totalPosts >= 1, cor: '#8B5CF6', xp: 50 },
+    { id: 'social_foto', icon: <Camera size={18} />, titulo: 'Fotogênico', desc: 'Publique um treino com foto', desbloqueada: socialStats.postsComFoto >= 1, cor: '#EC4899', xp: 75 },
+    { id: 'social_5fotos', icon: <Camera size={18} />, titulo: 'Influencer', desc: 'Publique 5 treinos com foto', desbloqueada: socialStats.postsComFoto >= 5, cor: '#D946EF', xp: 300 },
+    { id: 'social_10posts', icon: <Rss size={18} />, titulo: 'Criador', desc: 'Publique 10 treinos no feed', desbloqueada: socialStats.totalPosts >= 10, cor: '#6366F1', xp: 400 },
+    { id: 'social_chamas10', icon: <Flame size={18} />, titulo: 'Aquecido', desc: 'Receba 10 chamas nos seus posts', desbloqueada: socialStats.totalChamasRecebidas >= 10, cor: '#F97316', xp: 150 },
+    { id: 'social_chamas50', icon: <Flame size={18} />, titulo: 'Em Brasa', desc: 'Receba 50 chamas nos seus posts', desbloqueada: socialStats.totalChamasRecebidas >= 50, cor: '#EF4444', xp: 500 },
+    { id: 'social_seguidores5', icon: <Users size={18} />, titulo: 'Popular', desc: 'Tenha 5 seguidores', desbloqueada: socialStats.totalSeguidores >= 5, cor: '#0EA5E9', xp: 200 },
+    { id: 'social_seguidores25', icon: <Users size={18} />, titulo: 'Referência', desc: 'Tenha 25 seguidores', desbloqueada: socialStats.totalSeguidores >= 25, cor: '#0284C7', xp: 600 },
+    { id: 'social_comentarios', icon: <MessageCircle size={18} />, titulo: 'Engajado', desc: 'Receba 10 comentários', desbloqueada: socialStats.totalComentariosRecebidos >= 10, cor: '#14B8A6', xp: 200 },
+    { id: 'social_chamas100', icon: <Trophy size={18} />, titulo: 'Viral', desc: 'Receba 100 chamas nos seus posts', desbloqueada: socialStats.totalChamasRecebidas >= 100, cor: '#FFD700', xp: 1000 },
+  ], [baseStats, socialStats]);
+
+  // XP total = treino XP + conquistas XP
+  const conquistaXP = conquistas.filter((c) => c.desbloqueada).reduce((acc, c) => acc + c.xp, 0);
+  const totalXP = baseStats.treinoXP + conquistaXP;
+
+  const stats = useMemo(() => {
+    const level = Math.floor(Math.sqrt(totalXP / 100)) + 1;
+    const xpParaEsteLevel = (level - 1) * (level - 1) * 100;
+    const xpParaProximoLevel = level * level * 100;
+    const xpNoLevel = totalXP - xpParaEsteLevel;
+    const xpNecessario = xpParaProximoLevel - xpParaEsteLevel;
+    const progresso = xpNecessario > 0 ? xpNoLevel / xpNecessario : 0;
+
+    return { ...baseStats, totalXP, level, progresso, xpNoLevel, xpParaEsteLevel, xpParaProximoLevel, xpNecessario };
+  }, [baseStats, totalXP]);
 
   const desbloqueadas = conquistas.filter((c) => c.desbloqueada).length;
+  const conquistasVisiveis = showAllConquistas ? conquistas : conquistas.slice(0, CONQUISTAS_PREVIEW);
+  const temMaisConquistas = conquistas.length > CONQUISTAS_PREVIEW;
 
   return (
     <>
@@ -1056,7 +1091,7 @@ function GamificacaoSection({ historico }: {
       <Card sx={{ mb: 3, borderRadius: '8px', overflow: 'visible' }}>
         <CardContent sx={{ py: 1.5, px: 1.5 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-            {conquistas.map((c) => (
+            {conquistasVisiveis.map((c) => (
               <Box
                 key={c.id}
                 sx={{
@@ -1082,7 +1117,7 @@ function GamificacaoSection({ historico }: {
                 }}>
                   {c.icon}
                 </Box>
-                <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+                <Box sx={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
                   <Typography variant="caption" fontWeight={700} sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.2, wordBreak: 'break-word' }}>
                     {c.titulo}
                   </Typography>
@@ -1090,9 +1125,30 @@ function GamificacaoSection({ historico }: {
                     {c.desc}
                   </Typography>
                 </Box>
+                <Typography variant="caption" sx={{
+                  fontSize: '0.55rem', fontWeight: 700, flexShrink: 0,
+                  color: c.desbloqueada ? c.cor : 'text.disabled',
+                }}>
+                  +{c.xp}
+                </Typography>
               </Box>
             ))}
           </Box>
+          {temMaisConquistas && (
+            <Button
+              onClick={() => setShowAllConquistas(!showAllConquistas)}
+              size="small"
+              fullWidth
+              endIcon={showAllConquistas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              sx={{
+                mt: 1.5, fontSize: '0.75rem', color: 'text.secondary',
+                textTransform: 'none', fontWeight: 600,
+                '&:hover': { bgcolor: 'transparent', color: '#FF6B2C' },
+              }}
+            >
+              {showAllConquistas ? 'Mostrar menos' : `Ver todas (${conquistas.length})`}
+            </Button>
+          )}
         </CardContent>
       </Card>
 

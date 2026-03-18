@@ -405,20 +405,78 @@ export async function uploadFeedPhoto(uid: string, file: File): Promise<string> 
   return `${publicUrl}?t=${timestamp}`;
 }
 
+// ─── Social Stats (para conquistas) ─────────────────────────────────────────
+
+export interface SocialStats {
+  totalPosts: number;
+  postsComFoto: number;
+  totalChamasRecebidas: number;
+  totalSeguidores: number;
+  totalComentariosRecebidos: number;
+}
+
+export async function carregarSocialStats(uid: string): Promise<SocialStats> {
+  // Primeiro busca posts do usuário (necessário para queries dependentes)
+  const [postsRes, followersRes] = await Promise.all([
+    supabase.from('feed_posts').select('id, foto_urls').eq('user_id', uid),
+    supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', uid).eq('status', 'accepted'),
+  ]);
+
+  const posts = postsRes.data || [];
+  const postIds = posts.map((p: any) => p.id);
+  const totalPosts = posts.length;
+  const postsComFoto = posts.filter((p: any) => p.foto_urls && p.foto_urls.length > 0).length;
+
+  let totalChamasRecebidas = 0;
+  let totalComentariosRecebidos = 0;
+
+  if (postIds.length > 0) {
+    const [likesRes, commentsRes] = await Promise.all([
+      supabase.from('feed_likes').select('id', { count: 'exact', head: true }).in('post_id', postIds),
+      supabase.from('feed_comments').select('id', { count: 'exact', head: true }).in('post_id', postIds).neq('user_id', uid),
+    ]);
+    totalChamasRecebidas = likesRes.count || 0;
+    totalComentariosRecebidos = commentsRes.count || 0;
+  }
+
+  return {
+    totalPosts,
+    postsComFoto,
+    totalChamasRecebidas,
+    totalSeguidores: followersRes.count || 0,
+    totalComentariosRecebidos,
+  };
+}
+
 // ─── Follow System ──────────────────────────────────────────────────────────
 
 // Follow status: 'accepted' (public profiles or accepted request) | 'pending' (waiting approval)
 export type FollowStatus = 'accepted' | 'pending' | null;
 
+// Cache de follow status para evitar chamadas repetidas por sessão
+const followStatusCache = new Map<string, { status: FollowStatus; ts: number }>();
+const FOLLOW_CACHE_TTL = 30_000; // 30 segundos
+
+export function invalidateFollowCache(followerId: string, followingId: string) {
+  followStatusCache.delete(`${followerId}:${followingId}`);
+}
+
 export async function checkFollowStatus(followerId: string, followingId: string): Promise<FollowStatus> {
+  const key = `${followerId}:${followingId}`;
+  const cached = followStatusCache.get(key);
+  if (cached && Date.now() - cached.ts < FOLLOW_CACHE_TTL) {
+    return cached.status;
+  }
+
   const { data, error } = await supabase
     .from('follows')
     .select('status')
     .eq('follower_id', followerId)
     .eq('following_id', followingId)
     .maybeSingle();
-  if (error || !data) return null;
-  return (data.status as FollowStatus) || 'accepted';
+  const status: FollowStatus = (error || !data) ? null : ((data.status as FollowStatus) || 'accepted');
+  followStatusCache.set(key, { status, ts: Date.now() });
+  return status;
 }
 
 export async function checkFollowing(followerId: string, followingId: string): Promise<boolean> {
@@ -427,6 +485,7 @@ export async function checkFollowing(followerId: string, followingId: string): P
 }
 
 export async function toggleFollow(followerId: string, followingId: string, isPrivate = false): Promise<'accepted' | 'pending' | 'unfollowed'> {
+  invalidateFollowCache(followerId, followingId);
   const status = await checkFollowStatus(followerId, followingId);
   if (status) {
     // Already following or pending → unfollow / cancel request
@@ -435,6 +494,7 @@ export async function toggleFollow(followerId: string, followingId: string, isPr
       .delete()
       .eq('follower_id', followerId)
       .eq('following_id', followingId);
+    invalidateFollowCache(followerId, followingId);
     return 'unfollowed';
   } else {
     // New follow
