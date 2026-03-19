@@ -213,12 +213,9 @@ export const useTreinoStore = create<TreinoState>()(
         set((state) => ({ sessoes: [...state.sessoes, nova] }));
         const { uid } = get();
         if (uid) {
-          console.log('[treinoStore] Salvando nova sessão no Supabase:', { id: nova.id, nome: nova.nome, tipo: nova.tipo });
           salvarSessao(uid, nova)
-            .then(() => console.log('[treinoStore] Sessão salva com sucesso:', nova.id))
-            .catch((err) => console.error('[treinoStore] Erro ao salvar sessão:', err));
+            .catch(() => {});
         } else {
-          console.warn('[treinoStore] UID não disponível! Sessão NÃO foi salva no Supabase:', nova.id);
         }
         return nova.id;
       },

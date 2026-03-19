@@ -37,8 +37,13 @@ export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const store = useTreinoStore();
-    const { sessoes, concluirTreino, treinoAtivo, carregando } = store;
+    const sessoes = useTreinoStore((s) => s.sessoes);
+    const concluirTreino = useTreinoStore((s) => s.concluirTreino);
+    const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
+    const carregando = useTreinoStore((s) => s.carregando);
+    const pausarTreino = useTreinoStore((s) => s.pausarTreino);
+    const retomarTreino = useTreinoStore((s) => s.retomarTreino);
+    const cancelarTreino = useTreinoStore((s) => s.cancelarTreino);
     const criarPost = useFeedStore((s) => s.criarPost);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [snackOpen, setSnackOpen] = useState(false);
@@ -571,10 +576,10 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
     const executeConfirmedAction = () => {
         const action = confirmAction;
         setConfirmAction(null);
-        if (action === 'pausar') { store.pausarTreino(); tracker.pauseTracking(); }
-        else if (action === 'retomar') { store.retomarTreino(); tracker.resumeTracking(); }
+        if (action === 'pausar') { pausarTreino(); tracker.pauseTracking(); }
+        else if (action === 'retomar') { retomarTreino(); tracker.resumeTracking(); }
         else if (action === 'concluir') { tracker.stopTracking(); onConcluir(tracker.distanceKm); }
-        else if (action === 'cancelar') { store.cancelarTreino(); }
+        else if (action === 'cancelar') { cancelarTreino(); }
     };
 
     // Ativar GPS automaticamente se a sessão for iniciada e for corrida
@@ -644,8 +649,8 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                 variant="contained"
                                 fullWidth
                                 disabled={salvando}
-                                startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : (store.treinoAtivo?.pausadoEm ? <Play size={22} fill="currentColor" /> : <Pause size={22} fill="currentColor" />)}
-                                onClick={() => setConfirmAction(store.treinoAtivo?.pausadoEm ? 'retomar' : 'pausar')}
+                                startIcon={salvando ? <CircularProgress size={20} color="inherit" /> : (treinoAtivo?.pausadoEm ? <Play size={22} fill="currentColor" /> : <Pause size={22} fill="currentColor" />)}
+                                onClick={() => setConfirmAction(treinoAtivo?.pausadoEm ? 'retomar' : 'pausar')}
                                 sx={{
                                     bgcolor: '#FF6B2C',
                                     color: '#fff',
@@ -659,7 +664,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
                                     boxShadow: '0 4px 14px 0 rgba(255, 107, 44, 0.39)',
                                 }}
                             >
-                                {salvando ? 'SALVANDO...' : (store.treinoAtivo?.pausadoEm ? 'RETOMAR' : 'PAUSAR')}
+                                {salvando ? 'SALVANDO...' : (treinoAtivo?.pausadoEm ? 'RETOMAR' : 'PAUSAR')}
                             </Button>
 
                             <Button
