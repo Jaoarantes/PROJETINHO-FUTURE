@@ -139,6 +139,8 @@ export interface RegistroTreino {
   natacao?: TreinoNatacao;
   concluidoEm: string;
   duracaoTotalSegundos?: number; // Tempo total do treino
+  calorias?: number; // Calorias gastas (calculadas ou vindas do Strava)
+  aplicadoNaDieta?: boolean; // Se as calorias já foram compensadas na meta do dia
   xpEarned?: number; // XP ganho neste treino
   stravaData?: {
     id: number;

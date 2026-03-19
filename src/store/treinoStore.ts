@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, TipoSessao, EtapaCorrida, EtapaNatacao } from '../types/treino';
-import { carregarSessoes, salvarSessao, deletarSessao, carregarHistorico as loadHistorico, salvarRegistro, deletarRegistro, carregarTreinoAtivo, salvarTreinoAtivo } from '../services/treinoService';
+import type { TipoSessao, SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, EtapaCorrida, EtapaNatacao } from '../types/treino';
+import { carregarSessoes, salvarSessao, deletarSessao, salvarRegistro, deletarRegistro, carregarHistorico as loadHistorico, salvarTreinoAtivo, carregarTreinoAtivo } from '../services/treinoService';
 import { calcularVolumeSessao } from '../types/treino';
-
+import { calcularCaloriasTreino } from '../utils/calorieCalculator';
+import { useDietaStore } from './dietaStore';
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function syncDebounced(uid: string, sessao: SessaoTreino) {
   const existing = syncTimers.get(sessao.id);
@@ -80,6 +81,9 @@ interface TreinoState {
   atualizarGPSAtivo: (distanciaKm: number, coordenadas: { latitude: number; longitude: number; timestamp: number }[]) => void;
   removerRegistro: (id: string) => void;
   adicionarRegistro: (registro: RegistroTreino) => Promise<void>;
+  toggleDietaSync: (id: string, aplicado: boolean) => Promise<void>;
+  autoSyncDiet: boolean;
+  setAutoSyncDiet: (val: boolean) => void;
 }
 
 export const useTreinoStore = create<TreinoState>()(
@@ -90,6 +94,39 @@ export const useTreinoStore = create<TreinoState>()(
       historico: [],
       carregando: false,
       treinoAtivo: null,
+      autoSyncDiet: false,
+
+      setAutoSyncDiet: (val) => {
+        const { historico, uid } = get();
+        const { adicionarGastoCalorico } = useDietaStore.getState();
+
+        if (val) {
+          // ATIVANDO: aplicar calorias de todos os treinos ainda não sincronizados
+          const naoSincronizados = historico.filter((r) => !r.aplicadoNaDieta);
+          for (const reg of naoSincronizados) {
+            const cal = Math.round(Number(reg.calorias) || Number(reg.stravaData?.calories) || calcularCaloriasTreino(reg));
+            if (cal > 0) {
+              reg.aplicadoNaDieta = true;
+              reg.calorias = cal;
+              adicionarGastoCalorico(reg.concluidoEm.split('T')[0], cal);
+              if (uid) salvarRegistro(uid, reg).catch(console.error);
+            }
+          }
+        } else {
+          // DESATIVANDO: reverter calorias de todos os treinos sincronizados
+          const sincronizados = historico.filter((r) => r.aplicadoNaDieta);
+          for (const reg of sincronizados) {
+            const cal = Math.round(Number(reg.calorias) || Number(reg.stravaData?.calories) || calcularCaloriasTreino(reg));
+            if (cal > 0) {
+              reg.aplicadoNaDieta = false;
+              adicionarGastoCalorico(reg.concluidoEm.split('T')[0], -cal);
+              if (uid) salvarRegistro(uid, reg).catch(console.error);
+            }
+          }
+        }
+
+        set({ autoSyncDiet: val, historico: [...historico] });
+      },
 
       setUid: (uid) => set({ uid }),
 
@@ -440,6 +477,13 @@ export const useTreinoStore = create<TreinoState>()(
           duracaoTotalSegundos,
           xpEarned: xpParaGanhar,
         };
+        registro.calorias = Math.round(calcularCaloriasTreino(registro));
+
+        if (get().autoSyncDiet) {
+          registro.aplicadoNaDieta = true;
+          const { adicionarGastoCalorico } = useDietaStore.getState();
+          adicionarGastoCalorico(registro.concluidoEm.split('T')[0], registro.calorias);
+        }
 
         try {
           await salvarRegistro(uid, registro);
@@ -465,6 +509,16 @@ export const useTreinoStore = create<TreinoState>()(
         // Evitar duplicatas
         if (historico.some((r) => r.id === registro.id)) return;
 
+        // Auto-sync diet para importações (Strava etc.)
+        if (get().autoSyncDiet) {
+          const calorias = Math.round(Number(registro.calorias) || Number(registro.stravaData?.calories) || 0);
+          if (calorias > 0) {
+            registro.aplicadoNaDieta = true;
+            const { adicionarGastoCalorico } = useDietaStore.getState();
+            adicionarGastoCalorico(registro.concluidoEm.split('T')[0], calorias);
+          }
+        }
+
         // Salvar no Supabase PRIMEIRO, depois atualizar estado local
         try {
           await salvarRegistro(uid, registro);
@@ -474,10 +528,26 @@ export const useTreinoStore = create<TreinoState>()(
           throw err;
         }
       },
+
+      toggleDietaSync: async (id, aplicado) => {
+        const { historico, uid } = get();
+        if (!uid) return;
+        const registro = historico.find(r => r.id === id);
+        if (!registro) return;
+
+        const atualizado = { ...registro, aplicadoNaDieta: aplicado };
+        try {
+          await salvarRegistro(uid, atualizado);
+          set({ historico: historico.map(r => r.id === id ? atualizado : r) });
+        } catch (err) {
+          console.error('[treinoStore] Erro ao salvar status da dieta:', err);
+          throw err;
+        }
+      },
     }),
     {
       name: 'treino-storage',
-      partialize: (state) => ({ treinoAtivo: state.treinoAtivo }),
+      partialize: (state) => ({ treinoAtivo: state.treinoAtivo, autoSyncDiet: state.autoSyncDiet }),
     },
   ),
 );
