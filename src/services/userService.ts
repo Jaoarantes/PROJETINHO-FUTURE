@@ -10,7 +10,16 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+// Cache de perfis para evitar chamadas repetidas no feed
+const profileCache = new Map<string, { profile: UserProfile; ts: number }>();
+const PROFILE_CACHE_TTL = 60_000; // 60 segundos
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  const cached = profileCache.get(uid);
+  if (cached && Date.now() - cached.ts < PROFILE_CACHE_TTL) {
+    return cached.profile;
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -23,7 +32,7 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   }
   if (!data) return null;
 
-  return {
+  const profile: UserProfile = {
     uid: data.id,
     displayName: data.display_name,
     username: data.username || null,
@@ -32,6 +41,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     isPrivate: data.is_private || false,
     updatedAt: data.updated_at,
   };
+  profileCache.set(uid, { profile, ts: Date.now() });
+  return profile;
 }
 
 export async function saveUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {

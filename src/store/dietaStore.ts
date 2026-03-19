@@ -70,6 +70,7 @@ interface DietaState {
   adicionarAgua: (ml: number) => void;
   adicionarRefeicao: (tipo: TipoRefeicao) => void;
   removerRefeicao: (tipo: TipoRefeicao) => void;
+  adicionarGastoCalorico: (dataStr: string, caloriasGasto: number) => void;
 
   atualizarMetas: (metas: MetasDieta) => void;
   atualizarPerfil: (perfil: PerfilCorporal) => void;
@@ -249,6 +250,29 @@ export const useDietaStore = create<DietaState>()((set, get) => ({
     const { uid, diarios } = get();
     const diario = diarios.find((d) => d.id === dataSelecionada);
     if (uid && diario) salvarDiario(uid, diario).catch(console.error);
+  },
+
+  adicionarGastoCalorico: (dataStr, caloriasGasto) => {
+    const { metas } = get();
+
+    set((state) => {
+      let diario = state.diarios.find((d) => d.id === dataStr);
+      if (!diario) {
+        diario = criarDiarioVazio(dataStr, metas);
+      }
+      const diarioAtualizado: DiarioDieta = {
+        ...diario,
+        metaCalorias: (diario.metaCalorias || metas.calorias) + caloriasGasto,
+      };
+      const diarios = state.diarios.some((d) => d.id === dataStr)
+        ? state.diarios.map((d) => (d.id === dataStr ? diarioAtualizado : d))
+        : [...state.diarios, diarioAtualizado];
+      return { diarios };
+    });
+
+    const { uid, diarios } = get();
+    const diario = diarios.find((d) => d.id === dataStr);
+    if (uid && diario) syncDebounced(uid, diario);
   },
 
   atualizarMetas: (metas) => {
