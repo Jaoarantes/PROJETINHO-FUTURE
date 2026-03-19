@@ -73,7 +73,7 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
   const [editDialog, setEditDialog] = useState(false);
   const [editTexto, setEditTexto] = useState(post.texto || '');
   const [inlineComments, setInlineComments] = useState<FeedComment[]>([]);
-  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [, setCommentsLoaded] = useState(false);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const lastTapRef = useRef(0);
 
