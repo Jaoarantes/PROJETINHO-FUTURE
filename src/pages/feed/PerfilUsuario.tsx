@@ -35,6 +35,7 @@ export default function PerfilUsuario() {
   const [followingCount, setFollowingCount] = useState(0);
   const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followStatusLoaded, setFollowStatusLoaded] = useState(false);
 
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
 
@@ -61,7 +62,9 @@ export default function PerfilUsuario() {
     countFollowing(userId).then(setFollowingCount);
 
     if (uid && uid !== userId) {
-      checkFollowStatus(uid, userId).then(setFollowStatus);
+      checkFollowStatus(uid, userId).then(setFollowStatus).finally(() => setFollowStatusLoaded(true));
+    } else {
+      setFollowStatusLoaded(true);
     }
   }, [userId, uid]);
 
@@ -201,7 +204,7 @@ export default function PerfilUsuario() {
         )}
 
         {/* Botão Seguir */}
-        {!isOwner && (
+        {!isOwner && followStatusLoaded && (
           <Button
             variant={isFollowing || isPending ? 'outlined' : 'contained'}
             fullWidth

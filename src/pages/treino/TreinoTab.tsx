@@ -6,14 +6,16 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis, Check, Utensils } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
+import { useDietaStore } from '../../store/dietaStore';
 import type { TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
+import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
 import type { TipoSerie } from '../../types/treino';
 import {
   DndContext,
@@ -304,6 +306,9 @@ export default function TreinoTab() {
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const iniciarTreino = useTreinoStore((s) => s.iniciarTreino);
   const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
+  const toggleDietaSync = useTreinoStore((s) => s.toggleDietaSync);
+  const autoSyncDiet = useTreinoStore((s) => s.autoSyncDiet);
+  const adicionarGastoCalorico = useDietaStore((s) => s.adicionarGastoCalorico);
   const [tabIndex, setTabIndex] = useState(0);
 
   // Listen for external tab switch (from ActiveWorkoutBar)
@@ -568,257 +573,299 @@ export default function TreinoTab() {
                   </Box>
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {grupo.registros.map((reg) => {
-                const tipo = reg.tipo || 'musculacao';
-                const Icon = TIPO_ICONS[tipo];
-                const data = new Date(reg.concluidoEm);
-                const horaStr = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const isExpanded = expandedReg === reg.id;
+                    {grupo.registros.map((reg) => {
+                      const tipo = reg.tipo || 'musculacao';
+                      const Icon = TIPO_ICONS[tipo];
+                      const data = new Date(reg.concluidoEm);
+                      const horaStr = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                      const isExpanded = expandedReg === reg.id;
 
-                return (
-                  <Card key={reg.id}>
-                    <CardActionArea onClick={() => setExpandedReg(isExpanded ? null : reg.id)}>
-                      <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
-                        <Box sx={{
-                          width: 40, height: 40, borderRadius: '10px',
-                          background: TIPO_CORES[tipo],
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          mr: 1.5, flexShrink: 0,
-                        }}>
-                          <Icon size={20} color="#fff" />
-                        </Box>
+                      return (
+                        <Card key={reg.id}>
+                          <CardActionArea onClick={() => setExpandedReg(isExpanded ? null : reg.id)}>
+                            <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
+                              <Box sx={{
+                                width: 40, height: 40, borderRadius: '10px',
+                                background: TIPO_CORES[tipo],
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                mr: 1.5, flexShrink: 0,
+                              }}>
+                                <Icon size={20} color="#fff" />
+                              </Box>
 
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="subtitle2" fontWeight={600} noWrap>{reg.nome}</Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                            <Chip label={tipo === 'outro' && reg.tipoCustom ? reg.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
-                            {reg.duracaoTotalSegundos && (
-                              <>
-                                <Typography variant="caption" color="text.secondary">·</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                  {formatarSegundos(reg.duracaoTotalSegundos)}
-                                </Typography>
-                              </>
-                            )}
-                          </Box>
-                        </Box>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="subtitle2" fontWeight={600} noWrap>{reg.nome}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
+                                  <Chip label={tipo === 'outro' && reg.tipoCustom ? reg.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
+                                  {reg.duracaoTotalSegundos && (
+                                    <>
+                                      <Typography variant="caption" color="text.secondary">·</Typography>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                        {formatarSegundos(reg.duracaoTotalSegundos)}
+                                      </Typography>
+                                    </>
+                                  )}
+                                </Box>
+                              </Box>
 
-                        <IconButton
-                          size="small" color="error"
-                          onClick={(e) => { e.stopPropagation(); deleteRegistro.requestDelete(reg.id); }}
-                          sx={{ opacity: 0.5 }}
-                        >
-                          <Trash2 size={14} />
-                        </IconButton>
-                      </CardContent>
-                    </CardActionArea>
+                              <IconButton
+                                size="small" color="error"
+                                onClick={(e) => { e.stopPropagation(); deleteRegistro.requestDelete(reg.id); }}
+                                sx={{ opacity: 0.5 }}
+                              >
+                                <Trash2 size={14} />
+                              </IconButton>
+                            </CardContent>
+                          </CardActionArea>
 
-                    {/* Detalhes expandidos */}
-                    <Collapse in={isExpanded}>
-                      <Divider />
-                      <Box sx={{ px: 2, py: 1.5 }}>
-                        {/* Data e Hora completas da sessão */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                          <Calendar size={14} style={{ opacity: 0.5 }} />
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
-                            {horaStr}
-                          </Typography>
-                        </Box>
-
-                        {/* Exercícios de musculação */}
-                        {tipo === 'musculacao' && reg.exercicios.length > 0 && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {reg.exercicios.map((ex) => (
-                              <Box key={ex.id}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                  <Dumbbell size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
-                                  <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.82rem', flex: 1 }}>
-                                    {ex.exercicio.nome}
+                          {/* Detalhes expandidos */}
+                          <Collapse in={isExpanded}>
+                            <Divider />
+                            <Box sx={{ px: 2, py: 1.5 }}>
+                              {/* Data e Hora completas e Calorias da sessão */}
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Calendar size={14} style={{ opacity: 0.5 }} />
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                                    {horaStr}
                                   </Typography>
                                 </Box>
-                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 3 }}>
-                                  {ex.series.map((s, idx) => {
-                                    const tipoSerie: TipoSerie = (s as { tipo?: TipoSerie }).tipo || 'normal';
-                                    const cor = TIPO_SERIE_CORES[tipoSerie];
-                                    return (
-                                      <Box key={s.id} sx={{
-                                        display: 'flex', alignItems: 'center', gap: 0.4,
-                                        px: 0.8, py: 0.3, borderRadius: 1,
-                                        bgcolor: `${cor}18`,
-                                        border: `1px solid ${cor}40`,
-                                      }}>
-                                        <Box sx={{
-                                          width: 16, height: 16, borderRadius: '4px',
-                                          bgcolor: cor, color: '#fff',
-                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                          fontSize: '0.6rem', fontWeight: 700,
-                                        }}>
-                                          {idx + 1}
-                                        </Box>
-                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                          {s.peso ? `${s.peso}kg` : '—'}×{s.repeticoes}
+
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Flame size={14} color="#FF6B2C" />
+                                  <Typography variant="body2" fontWeight={600} sx={{ color: '#FF6B2C', fontSize: '0.82rem' }}>
+                                    {Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg))} kcal
+                                  </Typography>
+                                </Box>
+                              </Box>
+
+                              {/* Instância do Botão Compensar Dieta */}
+                              {!autoSyncDiet && (
+                                <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+                                  <Button
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const gasto = Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg));
+                                      if (gasto <= 0) return;
+
+                                      const dateStr = reg.concluidoEm.split('T')[0];
+
+                                      if (reg.aplicadoNaDieta) {
+                                        // Desfazer
+                                        await toggleDietaSync(reg.id, false);
+                                        adicionarGastoCalorico(dateStr, -gasto);
+                                      } else {
+                                        // Aplicar
+                                        await toggleDietaSync(reg.id, true);
+                                        adicionarGastoCalorico(dateStr, gasto);
+                                      }
+                                    }}
+                                    startIcon={reg.aplicadoNaDieta ? <Check size={14} /> : <Utensils size={14} />}
+                                    sx={{
+                                      borderRadius: 8,
+                                      py: 0.3,
+                                      px: 2,
+                                      fontSize: '0.7rem',
+                                      textTransform: 'none',
+                                      color: reg.aplicadoNaDieta ? 'success.main' : 'warning.main',
+                                      borderColor: reg.aplicadoNaDieta ? 'success.main' : 'warning.main',
+                                      '&:hover': {
+                                        borderColor: reg.aplicadoNaDieta ? 'error.main' : 'warning.dark',
+                                        color: reg.aplicadoNaDieta ? 'error.main' : 'warning.main'
+                                      }
+                                    }}
+                                  >
+                                    {reg.aplicadoNaDieta ? 'Desfazer compensação' : 'Compensar gasto na Dieta'}
+                                  </Button>
+                                </Box>
+                              )}
+
+                              {/* Exercícios de musculação */}
+                              {tipo === 'musculacao' && reg.exercicios.length > 0 && (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                  {reg.exercicios.map((ex) => (
+                                    <Box key={ex.id}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                        <Dumbbell size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
+                                        <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.82rem', flex: 1 }}>
+                                          {ex.exercicio.nome}
                                         </Typography>
                                       </Box>
-                                    );
-                                  })}
-                                </Box>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-
-                        {tipo === 'musculacao' && reg.exercicios.length === 0 && (
-                          <Typography variant="caption" color="text.secondary">Nenhum exercício registrado</Typography>
-                        )}
-
-                        {/* Etapas de corrida - PREMIUM VIEW */}
-                        {tipo === 'corrida' && (
-                          <Box sx={{ mt: 1 }}>
-                            {/* Stats Rack similar to Historico.tsx */}
-                            <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
-                              {(() => {
-                                const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
-                                const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
-                                  ? (reg.duracaoTotalSegundos / 60) / distTotal
-                                  : 0;
-
-                                return (
-                                  <>
-                                    <Box sx={{ flex: 1 }}>
-                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
-                                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                                        <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
-                                        <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 3 }}>
+                                        {ex.series.map((s, idx) => {
+                                          const tipoSerie: TipoSerie = (s as { tipo?: TipoSerie }).tipo || 'normal';
+                                          const cor = TIPO_SERIE_CORES[tipoSerie];
+                                          return (
+                                            <Box key={s.id} sx={{
+                                              display: 'flex', alignItems: 'center', gap: 0.4,
+                                              px: 0.8, py: 0.3, borderRadius: 1,
+                                              bgcolor: `${cor}18`,
+                                              border: `1px solid ${cor}40`,
+                                            }}>
+                                              <Box sx={{
+                                                width: 16, height: 16, borderRadius: '4px',
+                                                bgcolor: cor, color: '#fff',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: '0.6rem', fontWeight: 700,
+                                              }}>
+                                                {idx + 1}
+                                              </Box>
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                                {s.peso ? `${s.peso}kg` : '—'}×{s.repeticoes}
+                                              </Typography>
+                                            </Box>
+                                          );
+                                        })}
                                       </Box>
                                     </Box>
-                                    <Box sx={{ flex: 1 }}>
-                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
+                                  ))}
+                                </Box>
+                              )}
+
+                              {tipo === 'musculacao' && reg.exercicios.length === 0 && (
+                                <Typography variant="caption" color="text.secondary">Nenhum exercício registrado</Typography>
+                              )}
+
+                              {/* Etapas de corrida - PREMIUM VIEW */}
+                              {tipo === 'corrida' && (
+                                <Box sx={{ mt: 1 }}>
+                                  {/* Stats Rack similar to Historico.tsx */}
+                                  <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
+                                    {(() => {
+                                      const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
+                                      const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
+                                        ? (reg.duracaoTotalSegundos / 60) / distTotal
+                                        : 0;
+
+                                      return (
+                                        <>
+                                          <Box sx={{ flex: 1 }}>
+                                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                                              <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
+                                              <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                                            </Box>
+                                          </Box>
+                                          <Box sx={{ flex: 1 }}>
+                                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                              <Gauge size={14} color="#FF6B2C" />
+                                              <Typography variant="body2" fontWeight={800}>{formatarPace(1000 / (paceMedio * 60))}</Typography>
+                                            </Box>
+                                          </Box>
+                                          {reg.stravaData && (
+                                            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
+                                              <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.6rem' }}>STRAVA</Typography>
+                                            </Box>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </Box>
+                                </Box>
+                              )}
+
+                              {/* Etapas de natação */}
+                              {tipo === 'natacao' && reg.natacao?.etapas && (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                  {reg.natacao.etapas.map((et, i) => (
+                                    <Typography key={et.id} variant="body2" sx={{ fontSize: '0.82rem' }}>
+                                      <Waves size={14} style={{ verticalAlign: 'middle', opacity: 0.4, marginRight: 6 }} />
+                                      Etapa {i + 1}
+                                      {et.distanciaM ? ` · ${et.distanciaM} m` : ''}
+                                      {et.duracaoSegundos ? ` · ${formatarSegundos(et.duracaoSegundos)}` : et.duracaoMin ? ` · ${et.duracaoMin} min` : ''}
+                                      {et.estilo ? ` · ${et.estilo}` : ''}
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              )}
+
+                              {/* Mapa da rota (Strava) */}
+                              {reg.stravaData?.summaryPolyline && (
+                                <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={20} /></Box>}>
+                                  <StravaRouteMap polyline={reg.stravaData.summaryPolyline} />
+                                </Suspense>
+                              )}
+
+                              {/* Dados adicionais do Strava */}
+                              {reg.stravaData && (
+                                <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1.5, p: 1.5, bgcolor: 'rgba(252, 76, 2, 0.05)', borderRadius: 2, border: '1px solid rgba(252, 76, 2, 0.2)' }}>
+
+                                  {/* Corridas/Pedal (Pace e Elevação) */}
+                                  {tipo === 'corrida' && (
+                                    <>
                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Gauge size={14} color="#FF6B2C" />
-                                        <Typography variant="body2" fontWeight={800}>{formatarPace(1000 / (paceMedio * 60))}</Typography>
+                                        <Clock size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Pace Médio</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {formatarPace(reg.stravaData.averageSpeedMps)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Zap size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Max Pace</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {formatarPace(reg.stravaData.maxSpeedMps)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+
+                                      {reg.stravaData.elevationGainM > 0 && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                          <TrendingUp size={14} color="#FC4C02" />
+                                          <Box>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Elevação</Typography>
+                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                              {reg.stravaData.elevationGainM}m
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                      )}
+                                    </>
+                                  )}
+
+                                  {/* Natação (Ritmo /100m) */}
+                                  {tipo === 'natacao' && reg.stravaData.averageSpeedMps > 0 && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Clock size={14} color="#FC4C02" />
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Ritmo /100m</Typography>
+                                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                          {formatarPaceNatacao(reg.stravaData.averageSpeedMps)}
+                                        </Typography>
                                       </Box>
                                     </Box>
-                                    {reg.stravaData && (
-                                      <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
-                                        <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.6rem' }}>STRAVA</Typography>
+                                  )}
+
+                                  {/* Genérico: Batimentos e Calorias */}
+                                  {reg.stravaData.averageHeartrate !== undefined && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Heart size={14} color="#FC4C02" />
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>FC Média</Typography>
+                                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                          {Math.round(reg.stravaData.averageHeartrate)} bpm
+                                        </Typography>
                                       </Box>
-                                    )}
-                                  </>
-                                );
-                              })()}
+                                    </Box>
+                                  )}
+
+
+
+                                </Box>
+                              )}
+
                             </Box>
-                          </Box>
-                        )}
-
-                        {/* Etapas de natação */}
-                        {tipo === 'natacao' && reg.natacao?.etapas && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            {reg.natacao.etapas.map((et, i) => (
-                              <Typography key={et.id} variant="body2" sx={{ fontSize: '0.82rem' }}>
-                                <Waves size={14} style={{ verticalAlign: 'middle', opacity: 0.4, marginRight: 6 }} />
-                                Etapa {i + 1}
-                                {et.distanciaM ? ` · ${et.distanciaM} m` : ''}
-                                {et.duracaoSegundos ? ` · ${formatarSegundos(et.duracaoSegundos)}` : et.duracaoMin ? ` · ${et.duracaoMin} min` : ''}
-                                {et.estilo ? ` · ${et.estilo}` : ''}
-                              </Typography>
-                            ))}
-                          </Box>
-                        )}
-
-                        {/* Mapa da rota (Strava) */}
-                        {reg.stravaData?.summaryPolyline && (
-                          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={20} /></Box>}>
-                            <StravaRouteMap polyline={reg.stravaData.summaryPolyline} />
-                          </Suspense>
-                        )}
-
-                        {/* Dados adicionais do Strava */}
-                        {reg.stravaData && (
-                          <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1.5, p: 1.5, bgcolor: 'rgba(252, 76, 2, 0.05)', borderRadius: 2, border: '1px solid rgba(252, 76, 2, 0.2)' }}>
-
-                            {/* Corridas/Pedal (Pace e Elevação) */}
-                            {tipo === 'corrida' && (
-                              <>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Clock size={14} color="#FC4C02" />
-                                  <Box>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Pace Médio</Typography>
-                                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                      {formatarPace(reg.stravaData.averageSpeedMps)}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Zap size={14} color="#FC4C02" />
-                                  <Box>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Max Pace</Typography>
-                                    <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                      {formatarPace(reg.stravaData.maxSpeedMps)}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-
-                                {reg.stravaData.elevationGainM > 0 && (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <TrendingUp size={14} color="#FC4C02" />
-                                    <Box>
-                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Elevação</Typography>
-                                      <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                        {reg.stravaData.elevationGainM}m
-                                      </Typography>
-                                    </Box>
-                                  </Box>
-                                )}
-                              </>
-                            )}
-
-                            {/* Natação (Ritmo /100m) */}
-                            {tipo === 'natacao' && reg.stravaData.averageSpeedMps > 0 && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Clock size={14} color="#FC4C02" />
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Ritmo /100m</Typography>
-                                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                    {formatarPaceNatacao(reg.stravaData.averageSpeedMps)}
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            )}
-
-                            {/* Genérico: Batimentos e Calorias */}
-                            {reg.stravaData.averageHeartrate !== undefined && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Heart size={14} color="#FC4C02" />
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>FC Média</Typography>
-                                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                    {Math.round(reg.stravaData.averageHeartrate)} bpm
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            )}
-
-                            {reg.stravaData.calories !== undefined && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Flame size={14} color="#FC4C02" />
-                                <Box>
-                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Gasto</Typography>
-                                  <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                    {reg.stravaData.calories} kcal
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            )}
-
-                          </Box>
-                        )}
-
-                      </Box>
-                    </Collapse>
-                  </Card>
-                );
-              })}
+                          </Collapse>
+                        </Card>
+                      );
+                    })}
                   </Box>
                 </Box>
               ))}

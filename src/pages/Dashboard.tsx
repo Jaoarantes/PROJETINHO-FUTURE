@@ -13,6 +13,7 @@ import {
   calcularDistanciaCorrida, calcularDistanciaNatacao,
 } from '../types/treino';
 import type { RegistroTreino } from '../types/treino';
+import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, CartesianGrid, Cell,
@@ -373,6 +374,7 @@ export default function Dashboard() {
     const natacao = historicoFiltrado.filter((r) => r.tipo === 'natacao');
 
     const tempoTotal = historicoFiltrado.reduce((a, r) => a + (r.duracaoTotalSegundos || 0), 0);
+    const caloriasTotais = historicoFiltrado.reduce((a, r) => a + Math.round(Number(r.calorias) || calcularCaloriasTreino(r)), 0);
 
     const volumeData = [...musculacao]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
@@ -568,7 +570,7 @@ export default function Dashboard() {
 
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
-      tempoTotal, volumeData, exercicioEvolucao, paceData, corridaDistData,
+      tempoTotal, caloriasTotais, volumeData, exercicioEvolucao, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, temMaisExercicios: exercicioEvolucaoFull.length > 3,
       streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—'
@@ -679,12 +681,12 @@ export default function Dashboard() {
               fontSize: '0.65rem',
               textTransform: 'uppercase',
               letterSpacing: '0.1em',
-              
+
             }}>
               {saudacao}{firstName ? `, ${firstName}` : ''}
             </Typography>
             <Typography variant="h5" sx={{
-              
+
               fontWeight: 700,
               fontSize: '1.6rem',
               lineHeight: 1.1,
@@ -717,7 +719,7 @@ export default function Dashboard() {
               }}>
                 <Flame size={14} color={CORES.geral} />
                 <Typography sx={{
-                  
+
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   color: CORES.geral,
@@ -761,7 +763,7 @@ export default function Dashboard() {
                 borderRadius: '10px',
                 cursor: 'pointer',
                 flexShrink: 0,
-                
+
                 fontSize: '0.72rem',
                 fontWeight: 600,
                 letterSpacing: '0.05em',
@@ -815,7 +817,7 @@ export default function Dashboard() {
                   borderRadius: '12px',
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
                   fontSize: '0.82rem',
-                  
+
                   backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   color: 'inherit',
                   outline: 'none',
@@ -844,7 +846,7 @@ export default function Dashboard() {
                   borderRadius: '12px',
                   border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
                   fontSize: '0.82rem',
-                  
+
                   backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   color: 'inherit',
                   outline: 'none',
@@ -858,7 +860,7 @@ export default function Dashboard() {
       {/* ═══ STAT CARDS ═══ */}
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
+        gridTemplateColumns: '1fr 1fr',
         gap: 1,
         mb: 1,
         animation: 'dash-fadeUp 0.5s ease-out 0.15s both',
@@ -868,6 +870,13 @@ export default function Dashboard() {
           value={stats.total}
           label="Treinos"
           color={CORES.geral}
+          isDark={isDark}
+        />
+        <GlowStat
+          icon={<Flame size={16} />}
+          value={`${Math.round(stats.caloriasTotais)}`}
+          label="Kcal Queimadas"
+          color="#FF6B2C"
           isDark={isDark}
         />
         <GlowStat
@@ -1030,11 +1039,11 @@ export default function Dashboard() {
           </Card>
 
           {/* Distribuição Muscular */}
-          <SectionHeader 
-            icon={<Target size={15} />} 
-            title="Distribuição Muscular" 
+          <SectionHeader
+            icon={<Target size={15} />}
+            title="Distribuição Muscular"
             badge={stats.topMuscle !== '—' ? `Foco: ${stats.topMuscle}` : ''}
-            isDark={isDark} 
+            isDark={isDark}
           />
           <Card sx={{ mb: 3, borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 1 }}>
@@ -1043,30 +1052,30 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats.muscleData} layout="vertical" margin={{ left: -10, right: 20 }}>
                       <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={70} 
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={70}
                         tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
                         axisLine={false}
                         tickLine={false}
                       />
-                      <Tooltip 
-                         {...tooltipProps}
-                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
-                           if (!payload || !payload.length) return null;
-                           const d = payload[0].payload;
-                           return (
-                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 100 }}>
-                               <Typography sx={{ color: theme.palette.primary.main, fontSize: '1rem', fontWeight: 700 }}>
-                                 {d.value} séries
-                               </Typography>
-                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
-                                 {d.name}
-                               </Typography>
-                             </Box>
-                           );
-                         }} />}
+                      <Tooltip
+                        {...tooltipProps}
+                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
+                          const d = payload[0].payload;
+                          return (
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 100 }}>
+                              <Typography sx={{ color: theme.palette.primary.main, fontSize: '1rem', fontWeight: 700 }}>
+                                {d.value} séries
+                              </Typography>
+                              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
+                                {d.name}
+                              </Typography>
+                            </Box>
+                          );
+                        }} />}
                       />
                       <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                         {stats.muscleData.map((_, index) => (
@@ -1195,7 +1204,7 @@ export default function Dashboard() {
                     sx={{
                       borderRadius: '12px',
                       textTransform: 'none',
-                      
+
                       fontWeight: 600,
                       fontSize: '0.8rem',
                       color: CORES.geral,
@@ -1499,7 +1508,7 @@ function GlowStat({ icon, value, label, color, isDark }: {
           {icon}
         </Box>
         <Typography sx={{
-          
+
           fontSize: '1.3rem',
           fontWeight: 700,
           lineHeight: 1,
@@ -1539,7 +1548,7 @@ function TypePill({ icon, count, color, isDark }: {
     }}>
       <Box sx={{ color, display: 'flex', alignItems: 'center' }}>{icon}</Box>
       <Typography sx={{
-        
+
         fontSize: '0.9rem',
         fontWeight: 700,
         color,
@@ -1585,7 +1594,7 @@ function RecordBadge({ icon, label, value, color, isDark }: {
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{
-            
+
             fontSize: '1.1rem',
             fontWeight: 700,
             lineHeight: 1,
@@ -1621,7 +1630,7 @@ function SectionHeader({ icon, title, badge, isDark }: {
     }}>
       <Box sx={{ color: CORES.geral, display: 'flex', alignItems: 'center' }}>{icon}</Box>
       <Typography sx={{
-        
+
         fontSize: '0.9rem',
         fontWeight: 700,
         textTransform: 'uppercase',
@@ -1696,7 +1705,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
           <Box sx={{ display: 'flex', gap: 1.2, flexShrink: 0 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-                
+
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.musculacao,
@@ -1710,7 +1719,7 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
             </Box>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-                
+
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.recorde,
@@ -1900,7 +1909,7 @@ function HeatmapCalendar({ data, totalSemanas, isDark }: { data: HeatmapCell[]; 
                 width: 12,
                 color: 'text.secondary',
                 fontWeight: 600,
-                
+
                 letterSpacing: '0.03em',
               }}
             >
