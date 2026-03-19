@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button,
@@ -10,10 +10,12 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import {
   carregarMeusPosts, countFollowers, countFollowing,
-  listFollowers, listFollowing, checkFollowStatus, toggleFollow,
+  listFollowers, listFollowing, checkFollowStatus, toggleFollow, carregarSocialStats,
 } from '../../services/feedService';
 import type { FollowUser, FollowStatus } from '../../services/feedService';
 import { getUserProfile } from '../../services/userService';
+import { carregarHistorico } from '../../services/treinoService';
+import { calcularXPTotal, calcularLevelInfo } from '../../utils/xpCalculator';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
 
@@ -38,6 +40,7 @@ export default function PerfilUsuario() {
   const [followStatusLoaded, setFollowStatusLoaded] = useState(false);
 
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
+  const [totalXP, setTotalXP] = useState(0);
 
   // Dialog seguidores/seguindo
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
@@ -61,6 +64,13 @@ export default function PerfilUsuario() {
     countFollowers(userId).then(setFollowersCount);
     countFollowing(userId).then(setFollowingCount);
 
+    Promise.all([
+      carregarHistorico(userId),
+      carregarSocialStats(userId),
+    ]).then(([historico, socialStats]) => {
+      setTotalXP(calcularXPTotal(historico, socialStats));
+    }).catch(() => {});
+
     if (uid && uid !== userId) {
       checkFollowStatus(uid, userId).then(setFollowStatus).finally(() => setFollowStatusLoaded(true));
     } else {
@@ -71,6 +81,8 @@ export default function PerfilUsuario() {
   if (!userId || !uid) return null;
 
   const isOwner = uid === userId;
+
+  const levelInfo = useMemo(() => calcularLevelInfo(totalXP), [totalXP]);
   const displayName = profileData?.displayName || 'Usuário';
   const isPrivate = profileData?.isPrivate || false;
   const isFollowing = followStatus === 'accepted';
@@ -202,6 +214,47 @@ export default function PerfilUsuario() {
             @{profileData.username}
           </Typography>
         )}
+
+        {/* Level + XP Badge */}
+        <Box sx={{
+          mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
+          p: 1.2, borderRadius: '12px',
+          bgcolor: (theme) => alpha(theme.palette.text.primary, 0.04),
+        }}>
+          <Box sx={{
+            width: 40, height: 40, borderRadius: '8px',
+            background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(255,107,44,0.3)',
+          }}>
+            <Typography sx={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>
+              {levelInfo.level}
+            </Typography>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: 0.3 }}>
+              <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.85rem' }}>
+                Nível {levelInfo.level}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                {levelInfo.totalXP} XP
+              </Typography>
+            </Box>
+            <Box sx={{ width: '100%', height: 6, borderRadius: '3px', bgcolor: 'action.hover', overflow: 'hidden' }}>
+              <Box sx={{
+                width: `${Math.min(levelInfo.progresso * 100, 100)}%`,
+                height: '100%',
+                borderRadius: '3px',
+                background: 'linear-gradient(90deg, #FF6B2C, #E55A1B)',
+                transition: 'width 0.5s ease',
+              }} />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', mt: 0.2, display: 'block' }}>
+              {levelInfo.totalXP} / {levelInfo.xpParaProximoLevel} XP para nível {levelInfo.level + 1}
+            </Typography>
+          </Box>
+        </Box>
 
         {/* Botão Seguir */}
         {!isOwner && followStatusLoaded && (
