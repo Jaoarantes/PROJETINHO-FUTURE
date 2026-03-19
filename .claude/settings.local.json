@@ -48,7 +48,9 @@
       "Bash(find /c/Users/walia/Documents/PROJETINHO-FUTURE-1 -type f -name *store*)",
       "Bash(grep -r \"PieChart\\\\|<Pie\\\\|macros.*dieta\\\\|refeicao.*chart\" c:UserswaliaDocumentsPROJETINHO-FUTURE-1src --include=*.tsx --include=*.ts)",
       "Bash(find c:UserswaliaDocumentsPROJETINHO-FUTURE-1src -type f \\\\\\(-name *conquista* -o -name *achievement* -o -name *Conquista* -o -name *Achievement* \\\\\\))",
-      "Bash(xargs wc:*)"
+      "Bash(xargs wc:*)",
+      "Bash(find c:UserswaliaDocumentsPROJETINHO-FUTURE-2src -type f \\\\\\(-name *exercicio* -o -name *treino* \\\\\\) ! -path */node_modules/*)",
+      "Bash(git status:*)"
     ]
   }
 }
