@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Skeleton, IconButton, Badge,
@@ -52,7 +52,7 @@ export default function FeedTab() {
     if (!uid || !hasUsername) return;
     const fetch = () => contarNotificacoesNaoLidas(uid).then(setUnreadCount).catch(() => {});
     fetch();
-    const interval = setInterval(fetch, 15000);
+    const interval = setInterval(fetch, 60000);
     return () => clearInterval(interval);
   }, [uid, hasUsername]);
 
@@ -70,6 +70,11 @@ export default function FeedTab() {
     },
     [loading, hasMore, uid, carregarMais],
   );
+
+  // Memoize callbacks so FeedPostCard React.memo works properly
+  const handleLike = useCallback((id: string) => toggleLike(id, uid!), [toggleLike, uid]);
+  const handleDelete = useCallback((id: string) => deletarPost(uid!, id), [deletarPost, uid]);
+  const handleEdit = useCallback((id: string, texto: string) => editarPost(uid!, id, texto), [editarPost, uid]);
 
   if (!uid) return null;
 
@@ -242,9 +247,9 @@ export default function FeedTab() {
             <FeedPostCard
               post={post}
               currentUserId={uid}
-              onLike={(id) => toggleLike(id, uid)}
-              onDelete={(id) => deletarPost(uid, id)}
-              onEdit={(id, texto) => editarPost(uid, id, texto)}
+              onLike={handleLike}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
             />
           </Box>
         ))}

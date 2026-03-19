@@ -146,7 +146,8 @@ function watchPositionWeb(
 
 // ── Hook principal ──
 export function useGPSTracker(): GPSTrackingResult {
-    const { treinoAtivo, atualizarGPSAtivo } = useTreinoStore();
+    const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
+    const atualizarGPSAtivo = useTreinoStore((s) => s.atualizarGPSAtivo);
 
     const [isActive, setIsActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);

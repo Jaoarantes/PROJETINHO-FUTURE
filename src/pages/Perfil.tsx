@@ -651,7 +651,7 @@ export default function Perfil() {
         color="text.secondary"
         sx={{ mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}
       >
-        Aparíªncia
+        Aparência
       </Typography>
       <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
         {[
