@@ -37,13 +37,8 @@ export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const sessoes = useTreinoStore((s) => s.sessoes);
-    const concluirTreino = useTreinoStore((s) => s.concluirTreino);
-    const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
-    const carregando = useTreinoStore((s) => s.carregando);
-    const pausarTreino = useTreinoStore((s) => s.pausarTreino);
-    const retomarTreino = useTreinoStore((s) => s.retomarTreino);
-    const cancelarTreino = useTreinoStore((s) => s.cancelarTreino);
+    const store = useTreinoStore();
+    const { sessoes, concluirTreino, treinoAtivo, carregando } = store;
     const criarPost = useFeedStore((s) => s.criarPost);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [snackOpen, setSnackOpen] = useState(false);
@@ -560,7 +555,7 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
     onConcluir: (dist: number) => void;
     salvando: boolean;
 }) {
-    const { adicionarEtapaCorrida, removerEtapaCorrida, atualizarEtapaCorrida } = store;
+    const { adicionarEtapaCorrida, removerEtapaCorrida, atualizarEtapaCorrida, pausarTreino, retomarTreino, cancelarTreino, treinoAtivo } = store;
     const etapas = corrida?.etapas ?? [];
     const tracker = useGPSTracker();
     const deleteEtapa = useConfirmDelete();

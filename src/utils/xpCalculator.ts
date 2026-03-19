@@ -43,17 +43,6 @@ function calcularStreak(historico: RegistroTreino[]): number {
   return streak;
 }
 
-// Conquista XP values — must match Perfil.tsx exactly
-const CONQUISTAS_XP = [
-  // Treino
-  { check: (t: number) => t >= 1, xp: 50 },
-  { check: (t: number) => t >= 5, xp: 100 },
-  { check: (t: number) => t >= 10, xp: 200 },
-  { check: (t: number) => t >= 25, xp: 400 },
-  { check: (t: number) => t >= 50, xp: 750 },
-  { check: (t: number) => t >= 100, xp: 1500 },
-] as const;
-
 export interface LevelInfo {
   level: number;
   totalXP: number;
