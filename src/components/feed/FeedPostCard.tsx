@@ -83,6 +83,10 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
   const [dragOffset, setDragOffset] = useState(0);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
 
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const hasLoadedData = useRef(false);
+
   const isOwner = post.userId === currentUserId;
   const hasPhotos = post.fotoUrls.length > 0;
   const exercicios = post.resumo?.exercicios || [];
@@ -94,7 +98,21 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
   const totalSlides = hasPhotos ? post.fotoUrls.length + (hasWorkoutSlide ? 1 : 0) : 0;
   const isOnWorkoutSlide = hasWorkoutSlide && slideIdx === totalSlides - 1;
 
+  // Lazy visibility detection — only load data when card enters viewport
   useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+      { rootMargin: '200px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible || hasLoadedData.current) return;
+    hasLoadedData.current = true;
     if (!isOwner && currentUserId) {
       Promise.all([
         checkFollowStatus(currentUserId, post.userId),
@@ -106,15 +124,12 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
     } else {
       setFollowStatusLoaded(true);
     }
-  }, [currentUserId, post.userId, isOwner]);
-
-  useEffect(() => {
-    if (post.commentsCount > 0 && !commentsLoaded) {
+    if (post.commentsCount > 0) {
       carregarComentarios(post.id)
         .then((c) => { setInlineComments(c.filter((cm) => !cm.parentId)); setCommentsLoaded(true); })
         .catch(() => setCommentsLoaded(true));
     }
-  }, [post.id, post.commentsCount, commentsLoaded]);
+  }, [isVisible, currentUserId, post.userId, isOwner, post.id, post.commentsCount]);
 
   const isFollowing = followStatus === 'accepted';
   const isPending = followStatus === 'pending';
@@ -412,7 +427,7 @@ function FeedPostCard({ post, currentUserId, onLike, onDelete, onEdit }: Props) 
   };
 
   return (
-    <Box sx={{
+    <Box ref={cardRef} sx={{
       bgcolor: 'background.paper',
       borderBottom: '1px solid',
       borderColor: 'divider',

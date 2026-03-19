@@ -6,13 +6,12 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis, Check, Utensils } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
-import { useDietaStore } from '../../store/dietaStore';
 import type { TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
 import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
@@ -306,9 +305,6 @@ export default function TreinoTab() {
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const iniciarTreino = useTreinoStore((s) => s.iniciarTreino);
   const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
-  const toggleDietaSync = useTreinoStore((s) => s.toggleDietaSync);
-  const autoSyncDiet = useTreinoStore((s) => s.autoSyncDiet);
-  const adicionarGastoCalorico = useDietaStore((s) => s.adicionarGastoCalorico);
   const [tabIndex, setTabIndex] = useState(0);
 
   // Listen for external tab switch (from ActiveWorkoutBar)
@@ -639,48 +635,6 @@ export default function TreinoTab() {
                                 </Box>
                               </Box>
 
-                              {/* Instância do Botão Compensar Dieta */}
-                              {!autoSyncDiet && (
-                                <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-                                  <Button
-                                    variant="outlined"
-                                    size="small"
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      const gasto = Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg));
-                                      if (gasto <= 0) return;
-
-                                      const dateStr = reg.concluidoEm.split('T')[0];
-
-                                      if (reg.aplicadoNaDieta) {
-                                        // Desfazer
-                                        await toggleDietaSync(reg.id, false);
-                                        adicionarGastoCalorico(dateStr, -gasto);
-                                      } else {
-                                        // Aplicar
-                                        await toggleDietaSync(reg.id, true);
-                                        adicionarGastoCalorico(dateStr, gasto);
-                                      }
-                                    }}
-                                    startIcon={reg.aplicadoNaDieta ? <Check size={14} /> : <Utensils size={14} />}
-                                    sx={{
-                                      borderRadius: 8,
-                                      py: 0.3,
-                                      px: 2,
-                                      fontSize: '0.7rem',
-                                      textTransform: 'none',
-                                      color: reg.aplicadoNaDieta ? 'success.main' : 'warning.main',
-                                      borderColor: reg.aplicadoNaDieta ? 'success.main' : 'warning.main',
-                                      '&:hover': {
-                                        borderColor: reg.aplicadoNaDieta ? 'error.main' : 'warning.dark',
-                                        color: reg.aplicadoNaDieta ? 'error.main' : 'warning.main'
-                                      }
-                                    }}
-                                  >
-                                    {reg.aplicadoNaDieta ? 'Desfazer compensação' : 'Compensar gasto na Dieta'}
-                                  </Button>
-                                </Box>
-                              )}
 
                               {/* Exercícios de musculação */}
                               {tipo === 'musculacao' && reg.exercicios.length > 0 && (
