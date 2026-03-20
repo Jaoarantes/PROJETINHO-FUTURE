@@ -5,6 +5,7 @@ import AppShell from './components/layout/AppShell';
 import PrivateRoute from './components/layout/PrivateRoute';
 import AuthCallback from './pages/auth/AuthCallback';
 import Login from './pages/auth/Login';
+import UpdatePrompt from './components/UpdatePrompt';
 
 // Lazy load das páginas pesadas
 const Registro = lazy(() => import('./pages/auth/Registro'));
@@ -24,6 +25,7 @@ const MeusPosts = lazy(() => import('./pages/feed/MeusPosts'));
 const Notificacoes = lazy(() => import('./pages/feed/Notificacoes'));
 const PerfilUsuario = lazy(() => import('./pages/feed/PerfilUsuario'));
 const BuscaUsuarios = lazy(() => import('./pages/feed/BuscaUsuarios'));
+const NotificacoesConfig = lazy(() => import('./pages/NotificacoesConfig'));
 
 function Loading() {
   return (
@@ -36,6 +38,7 @@ function Loading() {
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdatePrompt />
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/auth/callback" element={<AuthCallback />} />
@@ -57,6 +60,7 @@ export default function App() {
             <Route path="/dieta" element={<DietaTab />} />
             <Route path="/historico" element={<Historico />} />
             <Route path="/perfil" element={<Perfil />} />
+            <Route path="/perfil/notificacoes" element={<NotificacoesConfig />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/strava/callback" element={<StravaCallback />} />
             <Route path="/feed" element={<FeedTab />} />

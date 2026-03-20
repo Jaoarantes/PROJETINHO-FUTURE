@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider, CssBaseline, useMediaQuery } from '@mui/material';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import { lightTheme, darkTheme } from './theme';
 import { useThemeStore } from './store/themeStore';
 import App from './App';
@@ -16,9 +17,11 @@ function Root() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ToastProvider>
     </ThemeProvider>
   );
 }

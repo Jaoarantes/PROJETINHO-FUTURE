@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { App as CapApp } from '@capacitor/app';
@@ -8,27 +8,41 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
 import { useDietaStore } from '../../store/dietaStore';
+import { useAchievementDetector } from '../../hooks/useAchievementDetector';
+import { carregarSocialStats, type SocialStats } from '../../services/feedService';
+import { useNotificationStore } from '../../store/notificationStore';
 
 const TAB_ROUTES = ['/treino', '/dieta', '/feed', '/perfil'];
+
+const defaultSocialStats: SocialStats = {
+  totalPosts: 0, postsComFoto: 0, totalChamasRecebidas: 0, totalSeguidores: 0, totalComentariosRecebidos: 0,
+};
 
 export default function AppShell() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const [socialStats, setSocialStats] = useState<SocialStats>(defaultSocialStats);
 
   useEffect(() => {
     if (user) {
       const currentUid = useTreinoStore.getState().uid;
-      if (currentUid === user.id) return; // Ja carregou para este usuario
+      if (currentUid === user.id) return;
       useTreinoStore.getState().carregar(user.id);
       useExercicioCustomStore.getState().carregar(user.id);
       useDietaStore.getState().carregar(user.id);
+      carregarSocialStats(user.id).then(setSocialStats).catch(console.error);
+      useNotificationStore.getState().carregar(user.id).then(() => {
+        useNotificationStore.getState().aplicarNotificacoes();
+      }).catch(console.error);
     } else {
       useTreinoStore.getState().limpar();
       useExercicioCustomStore.getState().limpar();
       useDietaStore.getState().limpar();
     }
   }, [user?.id]);
+
+  useAchievementDetector(user?.id, socialStats);
 
   // Handle Android back button
   useEffect(() => {

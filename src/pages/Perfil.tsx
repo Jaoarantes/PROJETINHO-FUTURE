@@ -5,7 +5,7 @@ import {
   Dialog, TextField, IconButton,
   List, ListItem, Checkbox, Switch
 } from '@mui/material';
-import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, ChevronDown, ChevronUp, Check, Rss, Users, MessageCircle, Camera } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, ChevronDown, ChevronUp, Check, Rss, Users, MessageCircle, Camera, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
 import { useThemeStore } from '../store/themeStore';
@@ -629,7 +629,7 @@ export default function Perfil() {
       >
         Automações
       </Typography>
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 2 }}>
         <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2 }}>
           <Box sx={{ flex: 1, mr: 2 }}>
             <Typography variant="subtitle2" fontWeight={700}>Sincronizar calorias com dieta</Typography>
@@ -640,6 +640,22 @@ export default function Perfil() {
             onChange={(e) => setAutoSyncDiet(e.target.checked)}
             color="primary"
           />
+        </CardContent>
+      </Card>
+
+      <Card
+        sx={{ mb: 3, cursor: 'pointer', '&:active': { transform: 'scale(0.98)' }, transition: 'transform 0.1s' }}
+        onClick={() => navigate('/perfil/notificacoes')}
+      >
+        <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Bell size={18} />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700}>Notificações</Typography>
+              <Typography variant="caption" color="text.secondary">Lembretes de treino, refeição, água e mais</Typography>
+            </Box>
+          </Box>
+          <ChevronRight size={18} />
         </CardContent>
       </Card>
 
