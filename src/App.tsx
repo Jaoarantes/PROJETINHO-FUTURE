@@ -1,11 +1,14 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { CircularProgress, Box } from '@mui/material';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import AppShell from './components/layout/AppShell';
 import PrivateRoute from './components/layout/PrivateRoute';
 import AuthCallback from './pages/auth/AuthCallback';
 import Login from './pages/auth/Login';
 import UpdatePrompt from './components/UpdatePrompt';
+import { supabase } from './supabase';
 
 // Lazy load das páginas pesadas
 const Registro = lazy(() => import('./pages/auth/Registro'));
@@ -35,9 +38,48 @@ function Loading() {
   );
 }
 
+function DeepLinkHandler() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = CapApp.addListener('appUrlOpen', async ({ url }) => {
+      // Handle OAuth callback deep link: com.valere.app://auth/callback?code=xxx
+      try {
+        const parsed = new URL(url);
+        if (parsed.pathname === '/auth/callback' || parsed.pathname === '//auth/callback') {
+          const code = parsed.searchParams.get('code');
+          if (code) {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (!error) {
+              navigate('/treino', { replace: true });
+              return;
+            }
+          }
+        }
+        // Generic deep link: navigate to the path
+        const path = parsed.pathname.replace(/^\/\//, '/');
+        if (path && path !== '/') {
+          navigate(path, { replace: true });
+        }
+      } catch {
+        // Invalid URL, ignore
+      }
+    });
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <DeepLinkHandler />
       <UpdatePrompt />
       <Suspense fallback={<Loading />}>
         <Routes>
