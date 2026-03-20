@@ -80,7 +80,6 @@ export async function scheduleWaterReminders(intervalHours: number, startHour: n
       schedule: {
         on: { hour: h, minute: 0 },
         allowWhileIdle: true,
-        exact: true,
       },
       smallIcon: 'ic_launcher',
       largeIcon: 'ic_launcher',
@@ -103,7 +102,6 @@ export async function scheduleStreakWarning() {
       schedule: {
         on: { weekday: 7, hour: 10, minute: 0 }, // Saturday at 10am
         allowWhileIdle: true,
-        exact: true,
       },
       smallIcon: 'ic_launcher',
       largeIcon: 'ic_launcher',
