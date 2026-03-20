@@ -37,6 +37,7 @@ export async function scheduleWorkoutReminders(days: number[], hour: number, min
     schedule: {
       on: { weekday: day === 0 ? 1 : day + 1, hour, minute }, // Capacitor uses 1=Sunday
       allowWhileIdle: true,
+      exact: true,
     },
     smallIcon: 'ic_launcher',
     largeIcon: 'ic_launcher',
@@ -57,6 +58,7 @@ export async function scheduleMealReminders(meals: { type: string; label: string
     schedule: {
       on: { hour: meal.hour, minute: meal.minute },
       allowWhileIdle: true,
+      exact: true,
     },
     smallIcon: 'ic_launcher',
     largeIcon: 'ic_launcher',
@@ -80,6 +82,7 @@ export async function scheduleWaterReminders(intervalHours: number, startHour: n
       schedule: {
         on: { hour: h, minute: 0 },
         allowWhileIdle: true,
+        exact: true,
       },
       smallIcon: 'ic_launcher',
       largeIcon: 'ic_launcher',
@@ -102,6 +105,7 @@ export async function scheduleStreakWarning() {
       schedule: {
         on: { weekday: 7, hour: 10, minute: 0 }, // Saturday at 10am
         allowWhileIdle: true,
+        exact: true,
       },
       smallIcon: 'ic_launcher',
       largeIcon: 'ic_launcher',
