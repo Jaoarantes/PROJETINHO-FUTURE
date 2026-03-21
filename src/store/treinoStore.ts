@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { TipoSessao, SessaoTreino, RegistroTreino, Exercicio, SerieConfig, TecnicaTreino, EtapaCorrida, EtapaNatacao } from '../types/treino';
+import type { TipoSessao, SessaoTreino, RegistroTreino, Exercicio, ExercicioTreino, SerieConfig, TecnicaTreino, EtapaCorrida, EtapaNatacao, TipoSerie } from '../types/treino';
 import { carregarSessoes, salvarSessao, deletarSessao, salvarRegistro, deletarRegistro, carregarHistorico as loadHistorico, salvarTreinoAtivo, carregarTreinoAtivo } from '../services/treinoService';
 import { calcularVolumeSessao } from '../types/treino';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
@@ -60,6 +60,7 @@ interface TreinoState {
   retomarTreino: () => void;
   cancelarTreino: () => void;
 
+  reordenarExercicios: (sessaoId: string, exerciciosReordenados: ExercicioTreino[]) => void;
   adicionarExercicio: (sessaoId: string, exercicio: Exercicio, seriesCount: number, repsCount: number) => void;
   removerExercicio: (sessaoId: string, exercicioTreinoId: string) => void;
   atualizarSerie: (sessaoId: string, exercicioTreinoId: string, serieId: string, dados: Partial<SerieConfig>) => void;
@@ -84,6 +85,8 @@ interface TreinoState {
   toggleDietaSync: (id: string, aplicado: boolean) => Promise<void>;
   autoSyncDiet: boolean;
   setAutoSyncDiet: (val: boolean) => void;
+  // Últimas cargas salvas por exercício (exercicio.id -> séries)
+  ultimasCargas: Record<number, { peso?: number; repeticoes: number; tipo?: TipoSerie }[]>;
 }
 
 export const useTreinoStore = create<TreinoState>()(
@@ -95,6 +98,7 @@ export const useTreinoStore = create<TreinoState>()(
       carregando: false,
       treinoAtivo: null,
       autoSyncDiet: false,
+      ultimasCargas: {},
 
       setAutoSyncDiet: (val) => {
         const { historico, uid } = get();
@@ -242,11 +246,36 @@ export const useTreinoStore = create<TreinoState>()(
         }
       },
 
+      reordenarExercicios: (sessaoId, exerciciosReordenados) => {
+        set((state) => updateSessao(state, sessaoId, (s) => ({
+          ...s,
+          exercicios: exerciciosReordenados,
+        })));
+        const { uid, sessoes } = get();
+        const sessao = sessoes.find((s) => s.id === sessaoId);
+        if (uid && sessao) syncDebounced(uid, sessao);
+      },
+
       adicionarExercicio: (sessaoId, exercicio, seriesCount, repsCount) => {
+        const { ultimasCargas } = get();
+        const salvas = ultimasCargas[exercicio.id];
+
         set((state) => updateSessao(state, sessaoId, (s) => {
-          const series: SerieConfig[] = Array.from({ length: seriesCount }, () => ({
-            id: gerarId(), repeticoes: repsCount, concluida: false,
-          }));
+          let series: SerieConfig[];
+          if (salvas && salvas.length > 0) {
+            // Restaura as últimas cargas salvas
+            series = salvas.map((s) => ({
+              id: gerarId(),
+              peso: s.peso,
+              repeticoes: s.repeticoes,
+              tipo: s.tipo,
+              concluida: false,
+            }));
+          } else {
+            series = Array.from({ length: seriesCount }, () => ({
+              id: gerarId(), repeticoes: repsCount, concluida: false,
+            }));
+          }
           return { ...s, exercicios: [...s.exercicios, { id: gerarId(), exercicio, series }] };
         }));
         const { uid, sessoes } = get();
@@ -255,6 +284,20 @@ export const useTreinoStore = create<TreinoState>()(
       },
 
       removerExercicio: (sessaoId, exercicioTreinoId) => {
+        // Salvar as cargas antes de remover
+        const sessaoAtual = get().sessoes.find((s) => s.id === sessaoId);
+        const exRemovido = sessaoAtual?.exercicios.find((e) => e.id === exercicioTreinoId);
+        if (exRemovido && exRemovido.series.length > 0) {
+          const cargas = exRemovido.series.map((s) => ({
+            peso: s.peso,
+            repeticoes: s.repeticoes,
+            tipo: s.tipo,
+          }));
+          set((state) => ({
+            ultimasCargas: { ...state.ultimasCargas, [exRemovido.exercicio.id]: cargas },
+          }));
+        }
+
         set((state) => updateSessao(state, sessaoId, (s) => ({
           ...s, exercicios: s.exercicios.filter((e) => e.id !== exercicioTreinoId),
         })));
@@ -544,7 +587,7 @@ export const useTreinoStore = create<TreinoState>()(
     }),
     {
       name: 'treino-storage',
-      partialize: (state) => ({ treinoAtivo: state.treinoAtivo, autoSyncDiet: state.autoSyncDiet }),
+      partialize: (state) => ({ treinoAtivo: state.treinoAtivo, autoSyncDiet: state.autoSyncDiet, ultimasCargas: state.ultimasCargas }),
     },
   ),
 );

@@ -109,12 +109,12 @@ export default function ActiveWorkoutBar() {
           px: 2,
           py: 1.2,
           borderRadius: '16px',
-          background: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+          background: 'linear-gradient(135deg, #1E1E2E 0%, #2D2D3F 100%)',
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
-          boxShadow: '0 8px 24px rgba(255,107,44,0.4)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          border: '1px solid rgba(255,255,255,0.08)',
         }}
       >
         <Play size={16} fill="#fff" color="#fff" />
@@ -141,25 +141,46 @@ export default function ActiveWorkoutBar() {
         <IconButton
           size="small"
           onClick={handlePauseResume}
-          sx={{ color: '#fff', p: 0.5 }}
+          sx={{
+            p: 0.5,
+            bgcolor: treinoAtivo.pausadoEm ? '#FF6B2C' : '#FFC107',
+            color: treinoAtivo.pausadoEm ? '#fff' : '#000',
+            '&:hover': { bgcolor: treinoAtivo.pausadoEm ? '#E55A1B' : '#FFB300' },
+            borderRadius: '8px',
+            width: 32, height: 32,
+          }}
         >
-          {treinoAtivo.pausadoEm ? <Play size={18} fill="#fff" /> : <Pause size={18} fill="#fff" />}
+          {treinoAtivo.pausadoEm ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
         </IconButton>
 
         <IconButton
           size="small"
           onClick={handleConcluir}
-          sx={{ color: '#fff', p: 0.5 }}
+          sx={{
+            p: 0.5,
+            bgcolor: '#4CAF50',
+            color: '#fff',
+            '&:hover': { bgcolor: '#388E3C' },
+            borderRadius: '8px',
+            width: 32, height: 32,
+          }}
         >
-          <CheckCircle2 size={18} />
+          <CheckCircle2 size={16} />
         </IconButton>
 
         <IconButton
           size="small"
           onClick={handleCancelar}
-          sx={{ color: '#fff', p: 0.5 }}
+          sx={{
+            p: 0.5,
+            bgcolor: '#F44336',
+            color: '#fff',
+            '&:hover': { bgcolor: '#D32F2F' },
+            borderRadius: '8px',
+            width: 32, height: 32,
+          }}
         >
-          <Square size={16} fill="#fff" />
+          <Square size={14} fill="currentColor" />
         </IconButton>
       </Box>
 

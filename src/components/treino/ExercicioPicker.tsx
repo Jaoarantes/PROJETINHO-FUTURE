@@ -38,6 +38,7 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const adicionarExercicio = useTreinoStore((s) => s.adicionarExercicio);
+  const ultimasCargas = useTreinoStore((s) => s.ultimasCargas);
   const { exerciciosCustom } = useExerciciosCustom();
 
   const [step, setStep] = useState<'buscar' | 'configurar'>('buscar');
@@ -60,8 +61,14 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
 
   const handleSelect = (ex: Exercicio) => {
     setSelecionado(ex);
-    setSeries(3);
-    setReps(12);
+    const salvas = ultimasCargas[ex.id];
+    if (salvas && salvas.length > 0) {
+      setSeries(salvas.length);
+      setReps(salvas[0].repeticoes || 12);
+    } else {
+      setSeries(3);
+      setReps(12);
+    }
     setStep('configurar');
   };
 
@@ -318,6 +325,11 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                 <Typography variant="h6" color="primary.main">
                   {series} séries × {reps} reps
                 </Typography>
+                {selecionado && ultimasCargas[selecionado.id] && (
+                  <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: 'block' }}>
+                    Cargas anteriores serão restauradas
+                  </Typography>
+                )}
               </Box>
             </DialogContent>
 
