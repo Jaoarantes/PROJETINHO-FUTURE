@@ -30,6 +30,7 @@ interface FeedState {
   toggleLike: (postId: string, uid: string) => Promise<void>;
   editarPost: (uid: string, postId: string, texto: string) => Promise<void>;
   atualizarContadorComentarios: (postId: string, delta: number) => void;
+  atualizarPerfilAutor: (userId: string, nome: string | null, foto: string | null) => void;
   iniciarRealtime: (uid: string) => void;
   pararRealtime: () => void;
   limpar: () => void;
@@ -136,6 +137,16 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
     }));
   },
 
+  atualizarPerfilAutor: (userId, nome, foto) => {
+    set((state) => ({
+      posts: state.posts.map((p) =>
+        p.userId === userId
+          ? { ...p, authorName: nome ?? p.authorName, authorPhoto: foto ?? p.authorPhoto }
+          : p
+      ),
+    }));
+  },
+
   iniciarRealtime: (uid: string) => {
     // Se já tiver canal ativo, não duplicar
     if (get()._realtimeChannel) return;
@@ -211,6 +222,15 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           set((state) => ({
             posts: state.posts.filter((p) => p.id !== oldRow.id),
           }));
+        },
+      )
+      // Atualização de perfil (foto, nome) — atualiza todos os posts do usuário
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          const row = payload.new as any;
+          get().atualizarPerfilAutor(row.id, row.display_name, row.photo_url);
         },
       )
       .subscribe();

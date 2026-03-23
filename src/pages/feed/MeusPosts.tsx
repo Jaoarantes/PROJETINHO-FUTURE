@@ -27,6 +27,7 @@ export default function MeusPosts() {
   const { user, profile, refreshUser } = useAuthContext();
   const toggleLike = useFeedStore((s) => s.toggleLike);
   const deletarPost = useFeedStore((s) => s.deletarPost);
+  const atualizarPerfilAutor = useFeedStore((s) => s.atualizarPerfilAutor);
   const editarPost = useFeedStore((s) => s.editarPost);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,8 +120,9 @@ export default function MeusPosts() {
     if (!file || !uid) return;
     setUploadingPhoto(true);
     try {
-      await uploadProfilePicture(uid, file);
+      const newUrl = await uploadProfilePicture(uid, file);
       await refreshUser();
+      atualizarPerfilAutor(uid, displayName, newUrl);
     } catch (err) {
       console.error('Erro ao atualizar foto:', err);
     } finally {
@@ -134,6 +136,7 @@ export default function MeusPosts() {
     try {
       await removeProfilePicture(uid);
       await refreshUser();
+      atualizarPerfilAutor(uid, displayName, null);
     } catch (err) {
       console.error('Erro ao remover foto:', err);
     } finally {

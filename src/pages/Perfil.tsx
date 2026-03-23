@@ -22,6 +22,7 @@ import { calcularVolumeSessao } from '../types/treino';
 
 import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
 import { carregarSocialStats } from '../services/feedService';
+import { useFeedStore } from '../store/feedStore';
 import type { SocialStats } from '../services/feedService';
 
 export default function Perfil() {
@@ -31,6 +32,7 @@ export default function Perfil() {
   const setMode = useThemeStore((s) => s.setMode);
   const sessoes = useTreinoStore((s) => s.sessoes);
   const historico = useTreinoStore((s) => s.historico);
+  const atualizarPerfilAutor = useFeedStore((s) => s.atualizarPerfilAutor);
   const adicionarRegistro = useTreinoStore((s) => s.adicionarRegistro);
   const autoSyncDiet = useTreinoStore((s) => s.autoSyncDiet);
   const setAutoSyncDiet = useTreinoStore((s) => s.setAutoSyncDiet);
@@ -249,8 +251,9 @@ export default function Perfil() {
     }, 15000);
 
     try {
-      await uploadProfilePicture(user.id, file);
+      const newUrl = await uploadProfilePicture(user.id, file);
       await refreshUser();
+      atualizarPerfilAutor(user.id, user.user_metadata?.full_name || null, newUrl);
       setSnackMsg('Foto de perfil atualizada!');
     } catch (err) {
       console.error(err);
@@ -271,6 +274,7 @@ export default function Perfil() {
       await removeProfilePicture(user.id);
       setTempPhotoURL(null);
       await refreshUser();
+      atualizarPerfilAutor(user.id, user.user_metadata?.full_name || null, null);
       setSnackMsg('Foto de perfil removida.');
     } catch (err) {
       console.error(err);
