@@ -12,7 +12,6 @@ import {
     DragOverlay,
     closestCenter,
     PointerSensor,
-    TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -25,7 +24,7 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { useTreinoStore } from '../../store/treinoStore';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
@@ -379,9 +378,8 @@ export default function SessaoTreino() {
 }
 
 /* ── Sortable Exercise Card ────────── */
-function SortableExerciseCard({ exTreino, isOverlay, children }: {
+function SortableExerciseCard({ exTreino, children }: {
     exTreino: { id: string };
-    isOverlay?: boolean;
     children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
 }) {
     const {
@@ -392,32 +390,17 @@ function SortableExerciseCard({ exTreino, isOverlay, children }: {
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: exTreino.id, disabled: isOverlay });
+    } = useSortable({ id: exTreino.id });
 
-    const style = isOverlay ? {
-        opacity: 1,
-        cursor: 'grabbing',
-        zIndex: 2000,
-        transform: 'scale(1.02)',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-    } : {
-        transform: CSS.Transform.toString(transform),
+    const style: React.CSSProperties = {
+        transform: CSS.Translate.toString(transform),
         transition,
-        opacity: isDragging ? 0.3 : 1,
-        zIndex: isDragging ? 0 : 1,
+        opacity: isDragging ? 0 : 1,
         position: 'relative' as const,
     };
 
     return (
-        <Card
-            ref={setNodeRef}
-            style={style}
-            sx={{
-                ...(isDragging && !isOverlay && { visibility: 'hidden' }),
-                ...(isOverlay && { boxShadow: '0 8px 30px rgba(0,0,0,0.2)', transform: 'scale(1.02)' }),
-                transition: 'all 0.2s ease',
-            }}
-        >
+        <Card ref={setNodeRef} style={style}>
             {children({ ref: setActivatorNodeRef, ...attributes, ...listeners })}
         </Card>
     );
@@ -439,10 +422,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
-            activationConstraint: { distance: 5 },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: { delay: 200, tolerance: 10 },
+            activationConstraint: { delay: 200, tolerance: 5 },
         })
     );
 
@@ -603,7 +583,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                    modifiers={[restrictToVerticalAxis]}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                 >
@@ -616,11 +596,23 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                             ))}
                         </Box>
                     </SortableContext>
-                    <DragOverlay>
+                    <DragOverlay dropAnimation={null}>
                         {activeExTreino ? (
-                            <SortableExerciseCard exTreino={activeExTreino} isOverlay>
-                                {() => renderExerciseContent(activeExTreino)}
-                            </SortableExerciseCard>
+                            <Card sx={{ boxShadow: '0 8px 30px rgba(0,0,0,0.25)', transform: 'scale(1.03)' }}>
+                                <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <GripVertical size={20} style={{ opacity: 0.5 }} />
+                                        <Box>
+                                            <Typography variant="subtitle1" fontWeight={600} sx={{ fontSize: '0.95rem' }}>
+                                                {activeExTreino.exercicio.nome}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                {activeExTreino.series.length} séries · {activeExTreino.exercicio.grupoMuscular}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </CardContent>
+                            </Card>
                         ) : null}
                     </DragOverlay>
                 </DndContext>
