@@ -21,7 +21,7 @@ firebase-service-account.json
 # Scripts com dados sensíveis
 scripts/firebase-export/
 
-# Capacitor - Android build
+# Capacitor - Android/iOS build
 android/
 ios/
 
@@ -49,4 +49,16 @@ pnpm-debug.log*
 
 # Testing
 coverage/
+
+# Claude / AI
+.claude/
+.agent/
 claude/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build artifacts / temp output
+build_output.txt
+tsc_output.txt
