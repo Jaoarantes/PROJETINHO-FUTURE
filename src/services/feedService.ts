@@ -142,12 +142,19 @@ export async function toggleLike(postId: string, uid: string): Promise<boolean> 
     if (updErr) console.error('[toggleLike] update count error:', updErr);
 
     // Notificar dono do post (se não for o próprio usuário)
+    // Primeiro deleta notificação antiga de like do mesmo usuário no mesmo post, depois insere nova
     const { data: post } = await supabase
       .from('feed_posts')
       .select('user_id')
       .eq('id', postId)
       .maybeSingle();
     if (post && post.user_id !== uid) {
+      await supabase.from('feed_notifications')
+        .delete()
+        .eq('user_id', post.user_id)
+        .eq('actor_id', uid)
+        .eq('tipo', 'like')
+        .eq('post_id', postId);
       await supabase.from('feed_notifications').insert({
         user_id: post.user_id,
         actor_id: uid,
@@ -504,8 +511,13 @@ export async function toggleFollow(followerId: string, followingId: string, isPr
       .insert({ follower_id: followerId, following_id: followingId, status: newStatus });
     if (error) throw error;
 
-    // Notificar o usuário que recebeu o follow
+    // Notificar o usuário que recebeu o follow (deletar antiga antes para evitar duplicata)
     const tipo = isPrivate ? 'follow_request' : 'follow';
+    await supabase.from('feed_notifications')
+      .delete()
+      .eq('user_id', followingId)
+      .eq('actor_id', followerId)
+      .in('tipo', ['follow', 'follow_request']);
     await supabase.from('feed_notifications').insert({
       user_id: followingId,
       actor_id: followerId,
