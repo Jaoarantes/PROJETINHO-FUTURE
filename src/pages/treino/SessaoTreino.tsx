@@ -12,7 +12,6 @@ import {
     DragOverlay,
     closestCenter,
     PointerSensor,
-    TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -397,18 +396,26 @@ function SortableExerciseCard({ exTreino, isOverlay, children }: {
         opacity: 1,
         cursor: 'grabbing',
         zIndex: 2000,
-        boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+        transform: 'scale(1.02)',
+        boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
     } : {
         transform: CSS.Transform.toString(transform),
-        transition: transition || 'transform 250ms cubic-bezier(0.25, 1, 0.5, 1)',
-        opacity: isDragging ? 0.4 : 1,
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+        zIndex: isDragging ? 0 : 1,
         position: 'relative' as const,
     };
 
     return (
-        <Card ref={setNodeRef} style={style} sx={{
-            ...(isDragging && !isOverlay && { visibility: 'hidden' }),
-        }}>
+        <Card
+            ref={setNodeRef}
+            style={style}
+            sx={{
+                ...(isDragging && !isOverlay && { visibility: 'hidden' }),
+                ...(isOverlay && { boxShadow: '0 8px 30px rgba(0,0,0,0.2)', transform: 'scale(1.02)' }),
+                transition: 'all 0.2s ease',
+            }}
+        >
             {children({ ...attributes, ...listeners })}
         </Card>
     );
@@ -430,10 +437,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
-            activationConstraint: { delay: 150, tolerance: 5 },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: { delay: 150, tolerance: 5 },
+            activationConstraint: { delay: 250, tolerance: 5 },
         })
     );
 
@@ -469,13 +473,14 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
         setMenuTarget(null);
     };
 
-    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0], dragHandleProps: Record<string, unknown>) => (
+    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0], dragHandleProps?: Record<string, unknown>) => (
         <CardContent sx={{ pb: '12px !important', px: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Box
-                    {...dragHandleProps}
+                    {...(dragHandleProps || {})}
                     sx={{
-                        mr: 0.5,
+                        p: 1.5,
+                        pl: 0.5,
                         display: 'flex',
                         alignItems: 'center',
                         cursor: 'grab',
@@ -485,7 +490,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                         '&:hover': { opacity: 0.7 },
                     }}
                 >
-                    <GripVertical size={18} />
+                    <GripVertical size={20} />
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>{exTreino.exercicio.nome}</Typography>
@@ -604,9 +609,9 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                     </SortableContext>
                     <DragOverlay>
                         {activeExTreino ? (
-                            <Card sx={{ boxShadow: '0 8px 30px rgba(0,0,0,0.2)', transform: 'scale(1.02)' }}>
-                                {renderExerciseContent(activeExTreino, {})}
-                            </Card>
+                            <SortableExerciseCard exTreino={activeExTreino} isOverlay>
+                                {() => renderExerciseContent(activeExTreino)}
+                            </SortableExerciseCard>
                         ) : null}
                     </DragOverlay>
                 </DndContext>
