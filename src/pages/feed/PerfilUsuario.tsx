@@ -327,7 +327,11 @@ export default function PerfilUsuario() {
           {posts.map((post) => (
             <FeedPostCard
               key={post.id}
-              post={post}
+              post={{
+                ...post,
+                authorPhoto: profileData?.photoURL || post.authorPhoto,
+                authorName: profileData?.displayName || post.authorName,
+              }}
               currentUserId={uid}
               onLike={handleLike}
             />
