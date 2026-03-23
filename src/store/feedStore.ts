@@ -4,6 +4,9 @@ import type { FeedPost } from '../types/feed';
 import * as feedService from '../services/feedService';
 import { supabase } from '../supabase';
 
+// Lock para evitar cliques rápidos duplicados no like
+const likeLocks = new Set<string>();
+
 interface FeedState {
   posts: FeedPost[];
   loading: boolean;
@@ -82,6 +85,10 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
   },
 
   toggleLike: async (postId, uid) => {
+    // Evitar cliques rápidos duplicados
+    if (likeLocks.has(postId)) return;
+    likeLocks.add(postId);
+
     // Otimista: flip imediato
     set((state) => ({
       posts: state.posts.map((p) =>
@@ -102,6 +109,8 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
             : p
         ),
       }));
+    } finally {
+      likeLocks.delete(postId);
     }
   },
 
