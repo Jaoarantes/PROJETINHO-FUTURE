@@ -415,8 +415,8 @@ export default function Perfil() {
 
       <Divider sx={{ mb: 3 }} />
 
-      {/* Gamificação */}
-      <GamificacaoSection historico={historico} uid={user?.id || ''} />
+      {/* Conquistas */}
+      <ConquistasSection historico={historico} uid={user?.id || ''} />
 
       <Divider sx={{ mb: 3 }} />
 
@@ -926,7 +926,7 @@ function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['h
   return streak;
 }
 
-function GamificacaoSection({ historico, uid }: {
+function ConquistasSection({ historico, uid }: {
   historico: ReturnType<typeof useTreinoStore.getState>['historico'];
   uid: string;
 }) {
@@ -1017,7 +1017,7 @@ function GamificacaoSection({ historico, uid }: {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Trophy size={14} />
-          Gamificação
+          Conquistas
         </Box>
       </Typography>
 

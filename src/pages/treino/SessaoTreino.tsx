@@ -6,7 +6,7 @@ import {
     CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send, GripVertical } from 'lucide-react';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send, GripVertical, ArrowUpDown } from 'lucide-react';
 import {
     DndContext,
     DragOverlay,
@@ -70,6 +70,7 @@ export default function SessaoTreino() {
     const [sharePhotos, setSharePhotos] = useState<File[]>([]);
     const [sharePosting, setSharePosting] = useState(false);
     const [confirmConcluir, setConfirmConcluir] = useState(false);
+    const [reordenando, setReordenando] = useState(false);
     const sessao = sessoes.find((s) => s.id === id);
 
     const isAtivo = treinoAtivo?.sessaoId === id;
@@ -222,11 +223,33 @@ export default function SessaoTreino() {
                         )}
                     </Box>
                 </Box>
+                {(tipo === 'musculacao' || tipo === 'outro') && sessao.exercicios.length >= 2 && (
+                    <Button
+                        size="small"
+                        variant={reordenando ? 'contained' : 'text'}
+                        startIcon={<ArrowUpDown size={16} />}
+                        onClick={() => setReordenando(!reordenando)}
+                        sx={{
+                            ml: 'auto',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            borderRadius: 2,
+                            minWidth: 'auto',
+                            px: 1.5,
+                            ...(reordenando ? {
+                                bgcolor: 'primary.main',
+                                color: '#fff',
+                            } : {}),
+                        }}
+                    >
+                        {reordenando ? 'Concluir' : 'Reordenar'}
+                    </Button>
+                )}
             </Box>
 
             {/* Render based on type */}
             {(tipo === 'musculacao' || tipo === 'outro') && (
-                <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} />
+                <MusculacaoView sessao={sessao} store={store} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen} reordenando={reordenando} />
             )}
             {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} isAtivo={isAtivo} onConcluir={(dist) => handleConcluir(dist)} salvando={salvando} />}
             {tipo === 'natacao' && <NatacaoView sessaoId={sessao.id} natacao={sessao.natacao} store={store} />}
@@ -407,11 +430,12 @@ function SortableExerciseCard({ exTreino, children }: {
 }
 
 /* ── Musculação View ────────────────── */
-function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
+function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando }: {
     sessao: ReturnType<typeof useTreinoStore.getState>['sessoes'][0];
     store: ReturnType<typeof useTreinoStore.getState>;
     pickerOpen: boolean;
     setPickerOpen: (v: boolean) => void;
+    reordenando: boolean;
 }) {
     const { removerExercicio, atualizarSerie, adicionarSerie, removerSerie, reordenarExercicios } = store;
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -458,28 +482,10 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
         setMenuTarget(null);
     };
 
-    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0], dragHandleProps?: Record<string, unknown>) => {
-        const { ref: handleRef, ...handleListeners } = (dragHandleProps || {}) as { ref?: React.Ref<HTMLElement>;[key: string]: unknown };
+    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0]) => {
         return (
         <CardContent sx={{ pb: '12px !important', px: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Box
-                    ref={handleRef}
-                    {...handleListeners}
-                    sx={{
-                        p: 1.5,
-                        pl: 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'grab',
-                        touchAction: 'none',
-                        '&:active': { cursor: 'grabbing' },
-                        opacity: 0.3,
-                        '&:hover': { opacity: 0.7 },
-                    }}
-                >
-                    <GripVertical size={20} />
-                </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>{exTreino.exercicio.nome}</Typography>
                     <Chip label={exTreino.exercicio.grupoMuscular} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem', mt: 0.2 }} />
@@ -574,12 +580,8 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                 </Box>
             )}
 
-            {sessao.exercicios.length === 0 ? (
-                <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
-                    <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum exercício adicionado</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Adicione exercícios ao seu treino</Typography>
-                </Box>
-            ) : (
+            {reordenando ? (
+                /* ── Modo Reordenar (leve, só nomes) ── */
                 <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -588,10 +590,38 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                     onDragEnd={handleDragEnd}
                 >
                     <SortableContext items={exercicioIds} strategy={verticalListSortingStrategy}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
-                            {sessao.exercicios.map((exTreino) => (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                            {sessao.exercicios.map((exTreino, idx) => (
                                 <SortableExerciseCard key={exTreino.id} exTreino={exTreino}>
-                                    {(dragHandleProps) => renderExerciseContent(exTreino, dragHandleProps)}
+                                    {(dragHandleProps) => {
+                                        const { ref: handleRef, ...handleListeners } = dragHandleProps as { ref?: React.Ref<HTMLElement>;[key: string]: unknown };
+                                        return (
+                                            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                                    <Box
+                                                        ref={handleRef}
+                                                        {...handleListeners}
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            cursor: 'grab',
+                                                            touchAction: 'none',
+                                                            '&:active': { cursor: 'grabbing' },
+                                                            opacity: 0.4,
+                                                        }}
+                                                    >
+                                                        <GripVertical size={20} />
+                                                    </Box>
+                                                    <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
+                                                        {idx + 1}. {exTreino.exercicio.nome}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {exTreino.series.length} séries
+                                                    </Typography>
+                                                </Box>
+                                            </CardContent>
+                                        );
+                                    }}
                                 </SortableExerciseCard>
                             ))}
                         </Box>
@@ -602,20 +632,28 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                                 <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <GripVertical size={20} style={{ opacity: 0.5 }} />
-                                        <Box>
-                                            <Typography variant="subtitle1" fontWeight={600} sx={{ fontSize: '0.95rem' }}>
-                                                {activeExTreino.exercicio.nome}
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                {activeExTreino.series.length} séries · {activeExTreino.exercicio.grupoMuscular}
-                                            </Typography>
-                                        </Box>
+                                        <Typography variant="body2" fontWeight={600}>
+                                            {activeExTreino.exercicio.nome}
+                                        </Typography>
                                     </Box>
                                 </CardContent>
                             </Card>
                         ) : null}
                     </DragOverlay>
                 </DndContext>
+            ) : sessao.exercicios.length === 0 ? (
+                <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
+                    <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum exercício adicionado</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Adicione exercícios ao seu treino</Typography>
+                </Box>
+            ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+                    {sessao.exercicios.map((exTreino) => (
+                        <Card key={exTreino.id}>
+                            {renderExerciseContent(exTreino)}
+                        </Card>
+                    ))}
+                </Box>
             )}
 
             {/* Menu de tipo de série */}
@@ -634,15 +672,17 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
                 ))}
             </Menu>
 
-            <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                    variant="outlined" fullWidth startIcon={<Plus size={20} />}
-                    onClick={() => setPickerOpen(true)}
-                    sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', flex: 1 }}
-                >
-                    Adicionar Exercício
-                </Button>
-            </Box>
+            {!reordenando && (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                        variant="outlined" fullWidth startIcon={<Plus size={20} />}
+                        onClick={() => setPickerOpen(true)}
+                        sx={{ py: 1.5, borderStyle: 'dashed', borderColor: 'divider', flex: 1 }}
+                    >
+                        Adicionar Exercício
+                    </Button>
+                </Box>
+            )}
 
             <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
 
