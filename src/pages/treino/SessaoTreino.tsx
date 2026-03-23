@@ -12,6 +12,7 @@ import {
     DragOverlay,
     closestCenter,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -387,6 +388,7 @@ function SortableExerciseCard({ exTreino, isOverlay, children }: {
         attributes,
         listeners,
         setNodeRef,
+        setActivatorNodeRef,
         transform,
         transition,
         isDragging,
@@ -416,7 +418,7 @@ function SortableExerciseCard({ exTreino, isOverlay, children }: {
                 transition: 'all 0.2s ease',
             }}
         >
-            {children({ ...attributes, ...listeners })}
+            {children({ ref: setActivatorNodeRef, ...attributes, ...listeners })}
         </Card>
     );
 }
@@ -437,7 +439,10 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
-            activationConstraint: { delay: 250, tolerance: 5 },
+            activationConstraint: { distance: 5 },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 200, tolerance: 10 },
         })
     );
 
@@ -473,11 +478,14 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
         setMenuTarget(null);
     };
 
-    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0], dragHandleProps?: Record<string, unknown>) => (
+    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0], dragHandleProps?: Record<string, unknown>) => {
+        const { ref: handleRef, ...handleListeners } = (dragHandleProps || {}) as { ref?: React.Ref<HTMLElement>;[key: string]: unknown };
+        return (
         <CardContent sx={{ pb: '12px !important', px: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <Box
-                    {...(dragHandleProps || {})}
+                    ref={handleRef}
+                    {...handleListeners}
                     sx={{
                         p: 1.5,
                         pl: 0.5,
@@ -567,6 +575,7 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen }: {
             </Button>
         </CardContent>
     );
+    };
 
     return (
         <>
