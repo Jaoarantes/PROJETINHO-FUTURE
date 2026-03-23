@@ -87,6 +87,28 @@ export function useAuth() {
           isPrivate: false,
           updatedAt: new Date().toISOString(),
         };
+      } else {
+        // Sincronizar foto/nome do OAuth com profiles se mudou
+        const oauthPhoto = u.user_metadata?.avatar_url || null;
+        const oauthName = u.user_metadata?.display_name || u.user_metadata?.full_name || null;
+        const needsSync =
+          (oauthPhoto && oauthPhoto !== p.photoURL && !p.photoURL?.includes('avatars/')) ||
+          (oauthName && !p.displayName);
+        if (needsSync) {
+          try {
+            const updates: Partial<UserProfile> = {};
+            if (oauthPhoto && oauthPhoto !== p.photoURL && !p.photoURL?.includes('avatars/')) {
+              updates.photoURL = oauthPhoto;
+            }
+            if (oauthName && !p.displayName) {
+              updates.displayName = oauthName;
+            }
+            if (Object.keys(updates).length > 0) {
+              await saveUserProfile(u.id, updates);
+              p = { ...p, ...updates };
+            }
+          } catch { /* ignora erro de sync */ }
+        }
       }
 
       setProfile(p);
