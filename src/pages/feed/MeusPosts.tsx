@@ -470,7 +470,11 @@ export default function MeusPosts() {
           {posts.map((post) => (
             <FeedPostCard
               key={post.id}
-              post={post}
+              post={{
+                ...post,
+                authorPhoto: userPhoto || post.authorPhoto,
+                authorName: displayName || post.authorName,
+              }}
               currentUserId={uid}
               onLike={handleLike}
               onDelete={handleDelete}
