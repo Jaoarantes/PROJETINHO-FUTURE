@@ -238,30 +238,42 @@ const tooltipStyle = {
   pointerEvents: 'none' as const,
 };
 
+// Global tooltip lock: only one tooltip visible at a time
+let _activeTooltipId: number = 0;
+let _tooltipCounter: number = 0;
+
+// Dismiss all tooltips on scroll/touch (registered once)
+let _globalListenersReady = false;
+function ensureGlobalDismiss() {
+  if (_globalListenersReady) return;
+  _globalListenersReady = true;
+  const dismiss = () => { _activeTooltipId = 0; };
+  window.addEventListener('scroll', dismiss, { passive: true, capture: true });
+  window.addEventListener('touchstart', dismiss, { passive: true });
+  window.addEventListener('pointerdown', dismiss, { passive: true });
+}
+
 // Portal-based custom tooltip: renders at body level, impossible to clip
 function PortalTooltipWrapper(props: any) {
-  const { active, payload, label, coordinate, renderContent } = props;
+  const { active, payload, coordinate, renderContent } = props;
 
-  // Use a global visibility flag to ensure only one portal is active at a time
-  // and that scrolling hides everything.
-  const [visible, setVisible] = useState(false);
+  const [myId] = useState(() => ++_tooltipCounter);
 
+  useEffect(() => { ensureGlobalDismiss(); }, []);
+
+  const isActive = !!(active && payload?.length && coordinate);
+
+  // When this tooltip becomes active, claim the global lock
   useEffect(() => {
-    setVisible(!!(active && payload?.length && coordinate));
-  }, [active, payload, coordinate]);
+    if (isActive) {
+      _activeTooltipId = myId;
+    } else if (_activeTooltipId === myId) {
+      _activeTooltipId = 0;
+    }
+  }, [isActive, myId]);
 
-  useEffect(() => {
-    if (!visible) return;
-    const hide = () => setVisible(false);
-    window.addEventListener('scroll', hide, { passive: true });
-    window.addEventListener('touchstart', hide, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', hide);
-      window.removeEventListener('touchstart', hide);
-    };
-  }, [visible]);
-
-  if (!visible || !payload || !coordinate) return null;
+  // Only render if WE are the active tooltip
+  if (!isActive || _activeTooltipId !== myId) return null;
 
   const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
     document.querySelector('.recharts-wrapper:hover') ||
@@ -290,10 +302,8 @@ function PortalTooltipWrapper(props: any) {
       top,
       zIndex: 99999,
       pointerEvents: 'none',
-      transition: 'left 0.08s ease-out, top 0.08s ease-out, opacity 0.1s ease',
-      opacity: visible ? 1 : 0,
     }}>
-      {renderContent(payload, label)}
+      {renderContent(payload)}
     </div>,
     document.body
   );
