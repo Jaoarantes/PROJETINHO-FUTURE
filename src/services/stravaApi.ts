@@ -1,41 +1,29 @@
 import type { StravaTokenResponse, StravaActivity } from '../types/strava';
+import { supabase } from '../supabase';
 
 const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
-const CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
 const REDIRECT_URI = `${window.location.origin}/strava/callback`;
 
 export const STRAVA_AUTH_URL = `https://www.strava.com/oauth/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&approval_prompt=force&scope=activity:read_all,activity:write`;
 
 export async function authenticateStrava(code: string): Promise<StravaTokenResponse> {
-    const response = await fetch('https://www.strava.com/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            code,
-            grant_type: 'authorization_code',
-        }),
+    const { data, error } = await supabase.functions.invoke('strava-token', {
+        body: { code, grant_type: 'authorization_code' },
     });
 
-    if (!response.ok) throw new Error('Falha na autenticação do Strava');
-    return response.json();
+    if (error) throw new Error('Falha na autenticação do Strava');
+    if (data?.error) throw new Error(data.error);
+    return data as StravaTokenResponse;
 }
 
 export async function refreshStravaToken(refreshToken: string): Promise<StravaTokenResponse> {
-    const response = await fetch('https://www.strava.com/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            grant_type: 'refresh_token',
-            refresh_token: refreshToken,
-        }),
+    const { data, error } = await supabase.functions.invoke('strava-token', {
+        body: { refresh_token: refreshToken, grant_type: 'refresh_token' },
     });
 
-    if (!response.ok) throw new Error('Falha ao atualizar o token do Strava');
-    return response.json();
+    if (error) throw new Error('Falha ao atualizar o token do Strava');
+    if (data?.error) throw new Error(data.error);
+    return data as StravaTokenResponse;
 }
 
 export async function getStravaActivities(accessToken: string, perPage = 30): Promise<StravaActivity[]> {
@@ -56,7 +44,7 @@ export async function createStravaActivity(
     distanciaMetros?: number,
     descricao?: string
 ) {
-    const body: any = {
+    const body: Record<string, string | number> = {
         name: nome,
         sport_type: tipo,
         start_date_local: dataInicio,

@@ -69,6 +69,11 @@ export async function criarPost(uid: string, post: {
   texto?: string | null;
   fotoUrls?: string[];
 }): Promise<void> {
+  // Validar que foto_urls são do bucket Supabase Storage (prevenir URLs maliciosas)
+  const validFotoUrls = (post.fotoUrls || []).filter((url) =>
+    url.includes('.supabase.co/storage/') || url.startsWith('blob:') || url.startsWith('data:')
+  );
+
   const { error } = await supabase.from('feed_posts').insert({
     id: post.id,
     user_id: uid,
@@ -78,7 +83,7 @@ export async function criarPost(uid: string, post: {
     duracao_segundos: post.duracaoSegundos || null,
     resumo: post.resumo || null,
     texto: post.texto || null,
-    foto_urls: post.fotoUrls || [],
+    foto_urls: validFotoUrls,
   });
   if (error) throw error;
 }
@@ -111,37 +116,15 @@ export async function deletarPost(uid: string, postId: string): Promise<void> {
 }
 
 export async function toggleLike(postId: string, uid: string): Promise<boolean> {
-  const { data: existing, error: selectErr } = await supabase
-    .from('feed_likes')
-    .select('id')
-    .eq('post_id', postId)
-    .eq('user_id', uid)
-    .maybeSingle();
+  // Usar RPC atômico para evitar race conditions
+  const { data: liked, error } = await supabase.rpc('toggle_like', {
+    p_post_id: postId,
+    p_user_id: uid,
+  });
+  if (error) throw error;
 
-  if (selectErr) throw selectErr;
-
-  if (existing) {
-    // Unlike
-    const { error: delErr } = await supabase.from('feed_likes').delete().eq('post_id', postId).eq('user_id', uid);
-    if (delErr) throw delErr;
-    // Atualizar contador
-    const { count } = await supabase
-      .from('feed_likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId);
-    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
-    return false;
-  } else {
-    // Like
-    const { error: insErr } = await supabase.from('feed_likes').insert({ post_id: postId, user_id: uid });
-    if (insErr) throw insErr;
-    const { count } = await supabase
-      .from('feed_likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId);
-    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
-
-    // Notificar dono do post (se não for o próprio usuário)
+  // Notificar dono do post (se foi like, não unlike, e não for o próprio usuário)
+  if (liked) {
     try {
       const { data: post } = await supabase
         .from('feed_posts')
@@ -164,12 +147,11 @@ export async function toggleLike(postId: string, uid: string): Promise<boolean> 
         });
       }
     } catch (notifErr) {
-      // Notificação é secundária, não deve falhar o like
       console.error('[toggleLike] notif error:', notifErr);
     }
-
-    return true;
   }
+
+  return liked as boolean;
 }
 
 export async function carregarComentarios(postId: string): Promise<FeedComment[]> {
@@ -546,6 +528,10 @@ export async function toggleFollow(followerId: string, followingId: string, isPr
 }
 
 export async function acceptFollowRequest(followerId: string, followingId: string): Promise<void> {
+  // RLS garante que apenas o following_id pode fazer update, mas validamos aqui também
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== followingId) throw new Error('Forbidden: only the followed user can accept requests');
+
   await supabase
     .from('follows')
     .update({ status: 'accepted' })
