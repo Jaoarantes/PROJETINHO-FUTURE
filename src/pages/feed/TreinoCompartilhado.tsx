@@ -34,10 +34,7 @@ export default function TreinoCompartilhado() {
 
   if (!uid || !shareId) return null;
 
-  const handleDescartar = async () => {
-    if (share) {
-      await atualizarStatusShare(share.id, 'rejected').catch(console.error);
-    }
+  const handleDescartar = () => {
     navigate('/feed/notificacoes');
   };
 
