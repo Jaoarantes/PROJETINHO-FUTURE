@@ -30,7 +30,7 @@ import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthContext } from '../../contexts/AuthContext';
-import SuccessOverlay from '../../components/SuccessOverlay';
+import { useSuccessOverlayStore } from '../../store/successOverlayStore';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
 import PhotoUploader from '../../components/feed/PhotoUploader';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
@@ -72,8 +72,7 @@ export default function SessaoTreino() {
     const [sharePosting, setSharePosting] = useState(false);
     const [confirmConcluir, setConfirmConcluir] = useState(false);
     const [reordenando, setReordenando] = useState(false);
-    const [successOpen, setSuccessOpen] = useState(false);
-    const [successVariant, setSuccessVariant] = useState<'treino' | 'post'>('treino');
+    const showOverlay = useSuccessOverlayStore((s) => s.show);
     const sessao = sessoes.find((s) => s.id === id);
 
     const isAtivo = treinoAtivo?.sessaoId === id;
@@ -115,19 +114,17 @@ export default function SessaoTreino() {
     const tipo = sessao.tipo || 'musculacao';
 
     const goToHistory = () => {
-        setSuccessVariant('treino');
-        setSuccessOpen(true);
-        navigate('/treino?tab=historico');
+        showOverlay('treino');
+        navigate('/treino?tab=historico', { replace: true });
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
             window.dispatchEvent(new CustomEvent('highlight-latest-history'));
-        }, 200);
+        }, 300);
     };
 
     const goToFeed = () => {
-        setSuccessVariant('post');
-        setSuccessOpen(true);
-        setTimeout(() => navigate('/feed'), 1200);
+        showOverlay('post');
+        setTimeout(() => navigate('/feed', { replace: true }), 400);
     };
 
     const handleConcluir = async (gpsDistancia?: number) => {
@@ -408,11 +405,6 @@ export default function SessaoTreino() {
                 </Box>
             </Dialog>
 
-            <SuccessOverlay
-                open={successOpen}
-                variant={successVariant}
-                onComplete={() => setSuccessOpen(false)}
-            />
         </Box>
     );
 }
