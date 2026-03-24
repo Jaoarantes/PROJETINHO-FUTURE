@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Card, CardContent, IconButton, Button, useTheme, alpha } from '@mui/material';
+import { Box, Typography, Card, CardContent, IconButton, useTheme, alpha } from '@mui/material';
 import {
   ArrowLeft, Dumbbell, Footprints, Waves, Calendar, TrendingUp,
   Clock, Flame, Zap, Trophy, Target, ChevronDown, ChevronUp,
@@ -343,8 +343,6 @@ export default function Dashboard() {
     return toLocalDateStr(new Date());
   });
 
-  const [mostrarTodosExercicios, setMostrarTodosExercicios] = useState(false);
-  const [filtroGrupoVolume, setFiltroGrupoVolume] = useState<string | null>(null);
   const [filtroCargaExercicio, setFiltroCargaExercicio] = useState<string | null>(null);
   const [filtroEvolucaoExercicio, setFiltroEvolucaoExercicio] = useState<string | null>(null);
 
@@ -445,10 +443,6 @@ export default function Dashboard() {
       });
     const exercicioEvolucaoFull = Array.from(exercicioMap.values())
       .sort((a, b) => b.dados.length - a.dados.length);
-
-    const exercicioEvolucao = mostrarTodosExercicios
-      ? exercicioEvolucaoFull
-      : exercicioEvolucaoFull.slice(0, 3);
 
     // Carga máxima por exercício + evolução de carga
     const cargaMaxPorExercicio: Record<string, { nome: string; cargaMax: number }> = {};
@@ -634,14 +628,14 @@ export default function Dashboard() {
 
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
-      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, radarVolumeData, exercicioEvolucao, exercicioEvolucaoFull, paceData, corridaDistData,
+      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, radarVolumeData, exercicioEvolucaoFull, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
       temMaisExercicios: exercicioEvolucaoFull.length > 3,
       streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—',
       muscleWeekData, muscleWeekGroups,
     };
-  }, [historicoFiltrado, periodo, mostrarTodosExercicios]);
+  }, [historicoFiltrado, periodo]);
 
   const heatmapConfig = useMemo(() => {
     const config = PERIODOS.find((p) => p.key === periodo)!;
@@ -1715,43 +1709,6 @@ function ExercicioSelect({ exercicios, selected, onChange, isDark }: {
           ))}
         </Box>
       )}
-    </Box>
-  );
-}
-
-function FilterChip({ label, selected, onClick, color, isDark }: {
-  label: string; selected: boolean; onClick: () => void; color: string; isDark: boolean;
-}) {
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        px: 1.2,
-        py: 0.4,
-        borderRadius: '8px',
-        cursor: 'pointer',
-        fontSize: '0.65rem',
-        fontWeight: 600,
-        letterSpacing: '0.03em',
-        transition: 'all 0.2s ease',
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
-        ...(selected ? {
-          background: `linear-gradient(135deg, ${color} 0%, ${alpha(color, 0.8)} 100%)`,
-          color: '#000',
-          boxShadow: `0 2px 8px ${alpha(color, 0.3)}`,
-        } : {
-          bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-          color: 'text.secondary',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-          '&:hover': {
-            bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
-            borderColor: alpha(color, 0.3),
-          },
-        }),
-      }}
-    >
-      {label}
     </Box>
   );
 }
