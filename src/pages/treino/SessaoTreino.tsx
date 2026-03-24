@@ -117,11 +117,11 @@ export default function SessaoTreino() {
     const goToHistory = () => {
         setSuccessVariant('treino');
         setSuccessOpen(true);
-        navigate('/treino');
+        navigate('/treino?tab=historico');
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
             window.dispatchEvent(new CustomEvent('highlight-latest-history'));
-        }, 150);
+        }, 200);
     };
 
     const goToFeed = () => {

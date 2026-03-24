@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Card, CardActionArea, CardContent,
   IconButton, Fab, Dialog, DialogTitle, DialogContent,
@@ -309,7 +309,18 @@ export default function TreinoTab() {
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const iniciarTreino = useTreinoStore((s) => s.iniciarTreino);
   const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
-  const [tabIndex, setTabIndex] = useState(0);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tabIndex, setTabIndex] = useState(() => searchParams.get('tab') === 'historico' ? 1 : 0);
+
+  // React to URL param changes (e.g. navigating from SessaoTreino after finishing)
+  useEffect(() => {
+    if (searchParams.get('tab') === 'historico') {
+      setTabIndex(1);
+      // Clean up the URL param
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Listen for external tab switch (from ActiveWorkoutBar)
   const handleTabSwitch = useCallback((e: Event) => {

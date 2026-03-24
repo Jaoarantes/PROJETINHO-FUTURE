@@ -11,29 +11,42 @@ function filtrarTreinosValidos(historico: RegistroTreino[]) {
   });
 }
 
+/** Formata data local como YYYY-MM-DD (sem UTC) */
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Retorna o domingo (início) da semana em horário local */
+function sundayOf(d: Date): Date {
+  const s = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+  return s;
+}
+
 function calcularStreak(historico: RegistroTreino[]): number {
   const validos = filtrarTreinosValidos(historico);
   if (validos.length === 0) return 0;
 
+  // Coletar semanas (domingo local) que tiveram treino válido
   const semanas = new Set<string>();
   validos.forEach((r) => {
-    const d = new Date(r.concluidoEm);
-    const inicio = new Date(d);
-    inicio.setDate(inicio.getDate() - inicio.getDay());
-    semanas.add(inicio.toISOString().slice(0, 10));
+    semanas.add(toLocalDate(sundayOf(new Date(r.concluidoEm))));
   });
 
   const sorted = Array.from(semanas).sort().reverse();
-  let streak = 0;
+  const domingoAtual = toLocalDate(sundayOf(new Date()));
 
-  const agora = new Date();
-  agora.setDate(agora.getDate() - agora.getDay());
-  const semanaAtual = agora.toISOString().slice(0, 10);
+  // Se a semana mais recente com treino é mais de 1 semana atrás, streak = 0
+  const maisRecente = sorted[0];
+  const diffMs = sundayOf(new Date()).getTime() - new Date(maisRecente + 'T00:00:00').getTime();
+  const diffSemanas = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  if (diffSemanas > 1) return 0;
 
-  for (let i = 0; i < sorted.length; i++) {
-    const expected = new Date(semanaAtual);
-    expected.setDate(expected.getDate() - i * 7);
-    if (sorted[i] === expected.toISOString().slice(0, 10)) {
+  // Contar semanas consecutivas a partir da mais recente
+  let streak = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const base = new Date(maisRecente + 'T00:00:00');
+    base.setDate(base.getDate() - i * 7);
+    if (sorted[i] === toLocalDate(base)) {
       streak++;
     } else {
       break;
