@@ -16,7 +16,7 @@ import type { RegistroTreino } from '../types/treino';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-  BarChart, Bar, CartesianGrid, Cell,
+  BarChart, Bar, CartesianGrid, Cell, ComposedChart, Line,
 } from 'recharts';
 
 // ── Cores por tipo ──────────────────────────────
@@ -83,6 +83,16 @@ function formatPace(pace: number): string {
 function calcular1RM(peso: number, reps: number): number {
   if (reps === 1) return peso;
   return peso * (1 + 0.0333 * reps);
+}
+
+// ── Paleta de cores para grupos musculares ──────
+const MUSCLE_COLORS = [
+  '#EF4444', '#F97316', '#F59E0B', '#10B981', '#0EA5E9',
+  '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F43F5E',
+  '#84CC16', '#06B6D4',
+];
+function getMuscleColor(index: number): string {
+  return MUSCLE_COLORS[index % MUSCLE_COLORS.length];
 }
 
 // ── Períodos ────────────────────────────────────
@@ -376,12 +386,24 @@ export default function Dashboard() {
     const tempoTotal = historicoFiltrado.reduce((a, r) => a + (r.duracaoTotalSegundos || 0), 0);
     const caloriasTotais = historicoFiltrado.reduce((a, r) => a + Math.round(Number(r.calorias) || calcularCaloriasTreino(r)), 0);
 
+    // Volume por treino e por grupo muscular (stacked)
+    const allMuscleGroups = new Set<string>();
     const volumeData = [...musculacao]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
-      .map((r) => ({
-        label: formatDateLabel(getConcluidoDate(r.concluidoEm)),
-        volume: calcularVolumeSessao(r.exercicios),
-      }));
+      .map((r) => {
+        const entry: Record<string, any> = {
+          label: formatDateLabel(getConcluidoDate(r.concluidoEm)),
+          volume: calcularVolumeSessao(r.exercicios),
+        };
+        // Calcular volume por grupo muscular
+        r.exercicios.forEach(ex => {
+          const grupo = ex.exercicio.grupoMuscular || 'Outros';
+          allMuscleGroups.add(grupo);
+          entry[grupo] = (entry[grupo] || 0) + calcularVolumeExercicio(ex.series);
+        });
+        return entry;
+      });
+    const volumeMuscleGroups = Array.from(allMuscleGroups);
 
     const exercicioMap = new Map<string, { nome: string; dados: any[] }>();
     [...musculacao]
@@ -412,26 +434,20 @@ export default function Dashboard() {
       ? exercicioEvolucaoFull
       : exercicioEvolucaoFull.slice(0, 3);
 
-    const cargaMaxData = [...musculacao]
-      .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
-      .map((r) => {
-        let cargaMax = 0;
-        let exercicioNome = '';
-        r.exercicios.forEach(ex => {
-          ex.series.forEach(s => {
-            const peso = (s as any).peso ?? 0;
-            if (peso > cargaMax) {
-              cargaMax = peso;
-              exercicioNome = ex.exercicio.nome;
-            }
-          });
-        });
-        return {
-          label: formatDateLabel(getConcluidoDate(r.concluidoEm)),
-          cargaMax,
-          exercicio: exercicioNome,
-        };
+    // Carga máxima por exercício (horizontal bar)
+    const cargaMaxPorExercicio: Record<string, { nome: string; cargaMax: number }> = {};
+    musculacao.forEach(r => {
+      r.exercicios.forEach(ex => {
+        const nome = ex.exercicio.nome;
+        const pesoMax = Math.max(...ex.series.map(s => (s as any).peso ?? 0), 0);
+        if (!cargaMaxPorExercicio[nome] || pesoMax > cargaMaxPorExercicio[nome].cargaMax) {
+          cargaMaxPorExercicio[nome] = { nome, cargaMax: pesoMax };
+        }
       });
+    });
+    const cargaMaxData = Object.values(cargaMaxPorExercicio)
+      .filter(d => d.cargaMax > 0)
+      .sort((a, b) => b.cargaMax - a.cargaMax);
 
     const paceData = [...corrida]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
@@ -568,12 +584,34 @@ export default function Dashboard() {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
+    // Distribuição muscular por semana (stacked bar)
+    const muscleWeekMap = new Map<string, Record<string, number>>();
+    const allMuscleGroupsWeek = new Set<string>();
+    musculacao.forEach(reg => {
+      const d = new Date(reg.concluidoEm);
+      const sw = startOfWeek(d);
+      const weekKey = toLocalDateStr(sw);
+      if (!muscleWeekMap.has(weekKey)) muscleWeekMap.set(weekKey, {});
+      const weekEntry = muscleWeekMap.get(weekKey)!;
+      reg.exercicios?.forEach(ex => {
+        if (!ex.exercicio || !ex.series) return;
+        const grupo = ex.exercicio.grupoMuscular || 'Outros';
+        allMuscleGroupsWeek.add(grupo);
+        weekEntry[grupo] = (weekEntry[grupo] || 0) + ex.series.length;
+      });
+    });
+    const muscleWeekData = Array.from(muscleWeekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, counts]) => ({ label: formatDateLabel(date), ...counts }));
+    const muscleWeekGroups = Array.from(allMuscleGroupsWeek);
+
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
-      tempoTotal, caloriasTotais, volumeData, exercicioEvolucao, paceData, corridaDistData,
+      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, exercicioEvolucao, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, temMaisExercicios: exercicioEvolucaoFull.length > 3,
-      streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—'
+      streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—',
+      muscleWeekData, muscleWeekGroups,
     };
   }, [historicoFiltrado, periodo, mostrarTodosExercicios]);
 
@@ -996,95 +1034,111 @@ export default function Dashboard() {
             </Box>
           )}
 
-          {/* Volume bar chart */}
-          <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Treino" badge="kg" isDark={isDark} />
+          {/* Volume por treino e por grupo muscular */}
+          <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Treino e Grupo Muscular" badge="kg" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.volumeData.length >= 1 ? (
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={stats.volumeData} barCategoryGap="15%">
-                    <defs>
-                      <linearGradient id="gradBarVol" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CORES.musculacao} stopOpacity={1} />
-                        <stop offset="100%" stopColor={CORES.musculacao} stopOpacity={0.5} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={40} unit="kg" axisLine={false} tickLine={false} />
-                    <Tooltip
-                      {...tooltipProps}
-                      content={<PortalTooltipWrapper renderContent={(payload: any) => {
-                        if (!payload || !payload.length) return null;
-                        const d = payload[0].payload;
-                        return (
-                          <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
-                            <Typography sx={{ color: CORES.musculacao, fontSize: '1.1rem', fontWeight: 700 }}>
-                              {d.volume.toLocaleString('pt-BR')} kg
-                            </Typography>
-                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
-                              {d.label}
-                            </Typography>
-                          </Box>
-                        );
-                      }} />}
-                    />
-                    <Bar dataKey="volume" fill="url(#gradBarVol)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={stats.volumeData} barCategoryGap="15%">
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={40} unit="kg" axisLine={false} tickLine={false} />
+                      <Tooltip
+                        {...tooltipProps}
+                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
+                          const d = payload[0].payload;
+                          const total = d.volume || 0;
+                          return (
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
+                              <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700, mb: 0.5 }}>
+                                Total: {total.toLocaleString('pt-BR')} kg
+                              </Typography>
+                              {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
+                                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.2 }}>
+                                  <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
+                                  <Typography sx={{ color: '#fff', fontSize: '0.68rem', flex: 1 }}>{e.dataKey}</Typography>
+                                  <Typography sx={{ color: '#fff', fontSize: '0.68rem', fontWeight: 700 }}>{Math.round(e.value)} kg</Typography>
+                                </Box>
+                              ))}
+                              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', mt: 0.3 }}>
+                                {d.label}
+                              </Typography>
+                            </Box>
+                          );
+                        }} />}
+                      />
+                      {stats.volumeMuscleGroups.map((grupo, i) => (
+                        <Bar key={grupo} dataKey={grupo} stackId="vol" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
+                    {stats.volumeMuscleGroups.map((grupo, i) => (
+                      <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
+                    ))}
+                  </Box>
+                </>
               ) : (
                 <EmptyState text="Nenhum treino de musculação neste período" />
               )}
             </CardContent>
           </Card>
 
-          {/* Distribuição Muscular */}
+          {/* Distribuição Muscular por Semana */}
           <SectionHeader
             icon={<Target size={15} />}
-            title="Distribuição Muscular"
+            title="Distribuição Muscular por Semana"
             badge={stats.topMuscle !== '—' ? `Foco: ${stats.topMuscle}` : ''}
             isDark={isDark}
           />
-          <Card sx={{ mb: 3, borderRadius: '8px' }}>
-            <CardContent sx={{ py: 2, px: 1 }}>
-              {stats.muscleData.length > 0 ? (
-                <Box sx={{ height: 200, width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.muscleData} layout="vertical" margin={{ left: -10, right: 20 }}>
-                      <XAxis type="number" hide />
-                      <YAxis
-                        dataKey="name"
-                        type="category"
-                        width={70}
-                        tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
+          <Card sx={{ mb: 3, borderRadius: '8px', overflow: 'visible' }}>
+            <CardContent sx={{ py: 2, px: 0.5 }}>
+              {stats.muscleWeekData.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={stats.muscleWeekData} barCategoryGap="15%">
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip
                         {...tooltipProps}
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const total = payload.reduce((sum: number, e: any) => sum + (Number(e.value) || 0), 0);
                           return (
-                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 100 }}>
-                              <Typography sx={{ color: theme.palette.primary.main, fontSize: '1rem', fontWeight: 700 }}>
-                                {d.value} séries
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
+                              <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mb: 0.5, fontWeight: 600 }}>
+                                Semana {payload[0]?.payload?.label}
                               </Typography>
-                              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
-                                {d.name}
-                              </Typography>
+                              {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
+                                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.3 }}>
+                                  <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
+                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', flex: 1 }}>{e.dataKey}</Typography>
+                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', fontWeight: 700 }}>{e.value} séries</Typography>
+                                </Box>
+                              ))}
+                              <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 700 }}>Total</Typography>
+                                <Typography sx={{ color: CORES.geral, fontSize: '0.72rem', fontWeight: 700 }}>{total}</Typography>
+                              </Box>
                             </Box>
                           );
                         }} />}
                       />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                        {stats.muscleData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? CORES.musculacao : alpha(CORES.musculacao, 0.4)} />
-                        ))}
-                      </Bar>
+                      {stats.muscleWeekGroups.map((grupo, i) => (
+                        <Bar key={grupo} dataKey={grupo} stackId="muscle" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
+                      ))}
                     </BarChart>
                   </ResponsiveContainer>
-                </Box>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
+                    {stats.muscleWeekGroups.map((grupo, i) => (
+                      <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
+                    ))}
+                  </Box>
+                </>
               ) : (
                 <EmptyState text="Sem dados de distribuição" />
               )}
@@ -1139,47 +1193,49 @@ export default function Dashboard() {
             </>
           )}
 
-          {/* Carga max */}
-          <SectionHeader icon={<Zap size={15} />} title="Carga Máxima" badge="kg" isDark={isDark} />
+          {/* Carga máxima por exercício */}
+          <SectionHeader icon={<Zap size={15} />} title="Carga Máxima por Exercício" badge="kg" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
-            <CardContent sx={{ py: 2, px: 0.5 }}>
+            <CardContent sx={{ py: 2, px: 1 }}>
               {stats.cargaMaxData.length >= 1 ? (
-                <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={stats.cargaMaxData} barCategoryGap="15%">
-                    <defs>
-                      <linearGradient id="gradCarga" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CORES.recorde} stopOpacity={1} />
-                        <stop offset="100%" stopColor={CORES.recorde} stopOpacity={0.4} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={38} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      {...tooltipProps}
-                      content={<PortalTooltipWrapper renderContent={(payload: any) => {
-                        if (!payload || !payload.length) return null;
-                        const d = payload[0].payload;
-                        return (
-                          <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
-                            <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
-                              {d.cargaMax.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
-                            </Typography>
-                            {d.exercicio && (
-                              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', mt: 0.3 }}>
-                                {d.exercicio}
+                <Box sx={{ height: Math.max(180, stats.cargaMaxData.length * 32), width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.cargaMaxData} layout="vertical" margin={{ left: -10, right: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} unit="kg" axisLine={false} tickLine={false} />
+                      <YAxis
+                        dataKey="nome"
+                        type="category"
+                        width={90}
+                        tick={{ fontSize: 9, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        {...tooltipProps}
+                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
+                          const d = payload[0].payload;
+                          return (
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
+                              <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
+                                {d.cargaMax} kg
                               </Typography>
-                            )}
-                            <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
-                              {d.label}
-                            </Typography>
-                          </Box>
-                        );
-                      }} />}
-                    />
-                    <Bar dataKey="cargaMax" fill="url(#gradCarga)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                  </BarChart>
-                </ResponsiveContainer>
+                              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', mt: 0.3 }}>
+                                {d.nome}
+                              </Typography>
+                            </Box>
+                          );
+                        }} />}
+                      />
+                      <Bar dataKey="cargaMax" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
+                        {stats.cargaMaxData.map((_, index) => (
+                          <Cell key={`carga-${index}`} fill={index === 0 ? CORES.recorde : alpha(CORES.recorde, 0.5 - index * 0.03)} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
               ) : (
                 <EmptyState text="Nenhum treino com carga registrada" />
               )}
@@ -1666,9 +1722,15 @@ function SectionHeader({ icon, title, badge, isDark }: {
 }
 
 function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boolean }) {
-  const best1RM = Math.max(...ex.dados.map((d: any) => d.umRM));
   const bestPeso = Math.max(...ex.dados.map((d: any) => d.pesoMax));
   const bestReps = Math.max(...ex.dados.map((d: any) => d.repsMax));
+
+  // Dados com label de treino sequencial (Treino 1, Treino 2...)
+  const dadosComTreino = ex.dados.map((d: any, i: number) => ({
+    ...d,
+    treino: `T${i + 1}`,
+    treinoFull: `Treino ${i + 1}`,
+  }));
 
   return (
     <Card sx={{ mb: 2, overflow: 'visible', borderRadius: '8px' }}>
@@ -1699,13 +1761,12 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
               {ex.nome}
             </Typography>
             <Typography sx={{ fontSize: '0.58rem', color: 'text.secondary' }}>
-              1RM: {best1RM.toFixed(1)} kg
+              {ex.dados.length} treino{ex.dados.length > 1 ? 's' : ''} registrado{ex.dados.length > 1 ? 's' : ''}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.2, flexShrink: 0 }}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.musculacao,
@@ -1719,7 +1780,6 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
             </Box>
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{
-
                 fontSize: '0.95rem',
                 fontWeight: 700,
                 color: CORES.recorde,
@@ -1734,60 +1794,85 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
           </Box>
         </Box>
 
-        {/* Chart or single data */}
+        {/* Chart: barras de peso + linha de reps */}
         {ex.dados.length >= 2 ? (
           <>
-            <ResponsiveContainer width="100%" height={110}>
-              <AreaChart data={ex.dados}>
+            <ResponsiveContainer width="100%" height={130}>
+              <ComposedChart data={dadosComTreino}>
                 <defs>
-                  <linearGradient id={`gradEx_${idx}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={CORES.musculacao} stopOpacity={0.15} />
-                    <stop offset="100%" stopColor={CORES.musculacao} stopOpacity={0} />
+                  <linearGradient id={`gradExBar_${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={CORES.musculacao} stopOpacity={0.9} />
+                    <stop offset="100%" stopColor={CORES.musculacao} stopOpacity={0.4} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="label" tick={{ fontSize: 8, fill: isDark ? '#555' : '#bbb' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 8, fill: isDark ? '#444' : '#ccc' }} width={32} unit="kg" axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
+                <XAxis dataKey="treino" tick={{ fontSize: 8, fill: isDark ? '#555' : '#bbb' }} axisLine={false} tickLine={false} />
+                <YAxis
+                  yAxisId="peso"
+                  tick={{ fontSize: 8, fill: isDark ? '#444' : '#ccc' }}
+                  width={32}
+                  unit="kg"
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  yAxisId="reps"
+                  orientation="right"
+                  tick={{ fontSize: 8, fill: isDark ? '#444' : '#ccc' }}
+                  width={28}
+                  axisLine={false}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
                 <Tooltip
                   {...tooltipProps}
                   content={<PortalTooltipWrapper renderContent={(payload: any) => {
                     if (!payload || !payload.length) return null;
                     const d = payload[0].payload;
                     return (
-                      <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
-                        <Typography sx={{ color: CORES.recorde, fontSize: '1rem', fontWeight: 700 }}>
-                          1RM: {d.umRM} kg
+                      <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
+                        <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.68rem', fontWeight: 600, mb: 0.3 }}>
+                          {d.treinoFull} — {d.label}
                         </Typography>
-                        <Typography sx={{ color: CORES.musculacao, fontSize: '0.75rem', fontWeight: 600, mt: 0.2 }}>
-                          Peso Máx: {d.pesoMax} kg
-                        </Typography>
-                        <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mt: 0.2 }}>
-                          {d.repsMax} reps
-                        </Typography>
-                        <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
-                          {d.label}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.3 }}>
+                          <Box sx={{ width: 8, height: 8, bgcolor: CORES.musculacao, borderRadius: 0 }} />
+                          <Typography sx={{ color: CORES.musculacao, fontSize: '0.9rem', fontWeight: 700 }}>
+                            {d.pesoMax} kg
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                          <Box sx={{ width: 8, height: 8, bgcolor: CORES.recorde, borderRadius: '50%' }} />
+                          <Typography sx={{ color: CORES.recorde, fontSize: '0.9rem', fontWeight: 700 }}>
+                            {d.repsMax} reps
+                          </Typography>
+                        </Box>
                       </Box>
                     );
                   }} />}
                 />
-                <Area
-                  type="monotone" dataKey="umRM"
-                  stroke={CORES.recorde} strokeWidth={2}
-                  fill={`url(#gradEx_${idx})`}
-                  dot={{ r: 2, fill: CORES.recorde, strokeWidth: 0 }}
+                <Bar
+                  yAxisId="peso"
+                  dataKey="pesoMax"
+                  fill={`url(#gradExBar_${idx})`}
+                  radius={[3, 3, 0, 0]}
+                  barSize={20}
+                  stroke="none"
+                  activeBar={{ stroke: 'none' }}
                 />
-                <Area
-                  type="monotone" dataKey="pesoMax"
-                  stroke={CORES.musculacao} strokeWidth={1.5}
-                  fill="transparent"
-                  dot={{ r: 1.5, fill: CORES.musculacao, strokeWidth: 0 }}
-                  strokeDasharray="4 3"
+                <Line
+                  yAxisId="reps"
+                  type="monotone"
+                  dataKey="repsMax"
+                  stroke={CORES.recorde}
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: CORES.recorde, strokeWidth: 2, stroke: isDark ? '#111' : '#fff' }}
+                  activeDot={{ r: 6, fill: CORES.recorde, stroke: '#fff', strokeWidth: 2 }}
                 />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 0.5 }}>
-              <HeatLegend color={CORES.recorde} label="1RM estimado" />
-              <HeatLegend color={CORES.musculacao} label="Peso Máx" />
+              <HeatLegend color={CORES.musculacao} label="Peso (kg)" />
+              <HeatLegend color={CORES.recorde} label="Repetições" />
             </Box>
           </>
         ) : (
@@ -1796,7 +1881,6 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
               <Box key={i} sx={{ textAlign: 'center' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>{d.label}</Typography>
                 <Typography variant="body2" fontWeight={600}>{d.pesoMax} kg x {d.repsMax} reps</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem' }}>1RM: {d.umRM} kg</Typography>
               </Box>
             ))}
           </Box>
