@@ -97,6 +97,7 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
     deleteComment.confirmDelete(async () => {
       const replies = comments.filter((c) => c.parentId === id);
       const totalDeleted = 1 + replies.length;
+      const backup = [...comments];
       setComments((prev) => prev.filter((c) => c.id !== id && c.parentId !== id));
       onCountChange(-totalDeleted);
       setDeleteConfirmId(null);
@@ -104,6 +105,9 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
         await deletarComentario(currentUserId, id, postId);
       } catch (err) {
         console.error('Erro ao deletar comentário:', err);
+        // Reverter se falhar
+        setComments(backup);
+        onCountChange(totalDeleted);
       }
     });
   };
@@ -112,12 +116,15 @@ export default function ComentariosList({ postId, currentUserId, currentUserName
     if (!editingId || !editTexto.trim()) return;
     const id = editingId;
     const novoTexto = editTexto.trim();
+    const textoAnterior = comments.find((c) => c.id === id)?.texto || '';
     setEditingId(null);
     setComments((prev) => prev.map((c) => c.id === id ? { ...c, texto: novoTexto } : c));
     try {
       await editarComentario(currentUserId, id, novoTexto);
     } catch (err) {
       console.error('Erro ao editar comentário:', err);
+      // Reverter se falhar
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, texto: textoAnterior } : c));
     }
   };
 

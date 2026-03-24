@@ -118,50 +118,54 @@ export async function toggleLike(postId: string, uid: string): Promise<boolean> 
     .eq('user_id', uid)
     .maybeSingle();
 
-  if (selectErr) console.error('[toggleLike] select error:', selectErr);
+  if (selectErr) throw selectErr;
 
   if (existing) {
+    // Unlike
     const { error: delErr } = await supabase.from('feed_likes').delete().eq('post_id', postId).eq('user_id', uid);
-    if (delErr) console.error('[toggleLike] delete error:', delErr);
+    if (delErr) throw delErr;
+    // Atualizar contador
     const { count } = await supabase
       .from('feed_likes')
       .select('*', { count: 'exact', head: true })
       .eq('post_id', postId);
-    const { error: updErr } = await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
-    if (updErr) console.error('[toggleLike] update count error:', updErr);
+    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
     return false;
   } else {
+    // Like
     const { error: insErr } = await supabase.from('feed_likes').insert({ post_id: postId, user_id: uid });
-    if (insErr) console.error('[toggleLike] insert error:', insErr);
     if (insErr) throw insErr;
     const { count } = await supabase
       .from('feed_likes')
       .select('*', { count: 'exact', head: true })
       .eq('post_id', postId);
-    const { error: updErr } = await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
-    if (updErr) console.error('[toggleLike] update count error:', updErr);
+    await supabase.from('feed_posts').update({ likes_count: count || 0 }).eq('id', postId);
 
     // Notificar dono do post (se não for o próprio usuário)
-    // Primeiro deleta notificação antiga de like do mesmo usuário no mesmo post, depois insere nova
-    const { data: post } = await supabase
-      .from('feed_posts')
-      .select('user_id')
-      .eq('id', postId)
-      .maybeSingle();
-    if (post && post.user_id !== uid) {
-      await supabase.from('feed_notifications')
-        .delete()
-        .eq('user_id', post.user_id)
-        .eq('actor_id', uid)
-        .eq('tipo', 'like')
-        .eq('post_id', postId);
-      await supabase.from('feed_notifications').insert({
-        user_id: post.user_id,
-        actor_id: uid,
-        tipo: 'like',
-        post_id: postId,
-        texto: null,
-      }).then(({ error: nErr }) => { if (nErr) console.error('[toggleLike] notif error:', nErr); });
+    try {
+      const { data: post } = await supabase
+        .from('feed_posts')
+        .select('user_id')
+        .eq('id', postId)
+        .maybeSingle();
+      if (post && post.user_id !== uid) {
+        await supabase.from('feed_notifications')
+          .delete()
+          .eq('user_id', post.user_id)
+          .eq('actor_id', uid)
+          .eq('tipo', 'like')
+          .eq('post_id', postId);
+        await supabase.from('feed_notifications').insert({
+          user_id: post.user_id,
+          actor_id: uid,
+          tipo: 'like',
+          post_id: postId,
+          texto: null,
+        });
+      }
+    } catch (notifErr) {
+      // Notificação é secundária, não deve falhar o like
+      console.error('[toggleLike] notif error:', notifErr);
     }
 
     return true;
@@ -220,19 +224,23 @@ export async function adicionarComentario(uid: string, postId: string, texto: st
   await supabase.from('feed_posts').update({ comments_count: count || 0 }).eq('id', postId);
 
   // Notificar dono do post (se não for o próprio usuário)
-  const { data: post } = await supabase
-    .from('feed_posts')
-    .select('user_id')
-    .eq('id', postId)
-    .maybeSingle();
-  if (post && post.user_id !== uid) {
-    await supabase.from('feed_notifications').insert({
-      user_id: post.user_id,
-      actor_id: uid,
-      tipo: 'comment',
-      post_id: postId,
-      texto,
-    }).then(({ error: nErr }) => { if (nErr) console.error('[adicionarComentario] notif error:', nErr); });
+  try {
+    const { data: post } = await supabase
+      .from('feed_posts')
+      .select('user_id')
+      .eq('id', postId)
+      .maybeSingle();
+    if (post && post.user_id !== uid) {
+      await supabase.from('feed_notifications').insert({
+        user_id: post.user_id,
+        actor_id: uid,
+        tipo: 'comment',
+        post_id: postId,
+        texto,
+      });
+    }
+  } catch (notifErr) {
+    console.error('[adicionarComentario] notif error:', notifErr);
   }
 
   return commentId;
@@ -493,7 +501,14 @@ export async function checkFollowing(followerId: string, followingId: string): P
 
 export async function toggleFollow(followerId: string, followingId: string, isPrivate = false): Promise<'accepted' | 'pending' | 'unfollowed'> {
   invalidateFollowCache(followerId, followingId);
-  const status = await checkFollowStatus(followerId, followingId);
+  // Buscar direto do DB sem cache para evitar stale state
+  const { data: existingFollow } = await supabase
+    .from('follows')
+    .select('status')
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId)
+    .maybeSingle();
+  const status: FollowStatus = existingFollow ? (existingFollow.status as FollowStatus) || 'accepted' : null;
   if (status) {
     // Already following or pending → unfollow / cancel request
     await supabase
@@ -537,14 +552,19 @@ export async function acceptFollowRequest(followerId: string, followingId: strin
     .eq('follower_id', followerId)
     .eq('following_id', followingId);
 
-  // Notificar quem pediu que foi aceito
+  // Notificar quem pediu que foi aceito (deletar antiga antes para evitar duplicata)
+  await supabase.from('feed_notifications')
+    .delete()
+    .eq('user_id', followerId)
+    .eq('actor_id', followingId)
+    .in('tipo', ['follow', 'follow_request']);
   await supabase.from('feed_notifications').insert({
     user_id: followerId,
     actor_id: followingId,
     tipo: 'follow',
     post_id: null,
     texto: null,
-  }).then(({ error: nErr }) => { if (nErr) console.error('[acceptFollow] notif error:', nErr); });
+  });
 }
 
 export async function rejectFollowRequest(followerId: string, followingId: string): Promise<void> {
