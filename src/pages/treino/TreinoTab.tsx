@@ -6,12 +6,14 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
+import { useAuthContext } from '../../contexts/AuthContext';
+import ShareWorkoutModal from '../../components/treino/ShareWorkoutModal';
 import type { TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
 import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
@@ -295,6 +297,8 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
 
 export default function TreinoTab() {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const uid = user?.id || '';
   const sessoes = useTreinoStore((s) => s.sessoes);
   const historico = useTreinoStore((s) => s.historico);
   const carregando = useTreinoStore((s) => s.carregando);
@@ -327,6 +331,8 @@ export default function TreinoTab() {
   const [diaSelecionado, setDiaSelecionado] = useState<string | undefined>();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [menuSessaoId, setMenuSessaoId] = useState('');
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareSessao, setShareSessao] = useState<SessaoTreino | null>(null);
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const deleteSessao = useConfirmDelete();
@@ -429,6 +435,15 @@ export default function TreinoTab() {
       setEditDialogOpen(true);
     }
     setMenuAnchor(null);
+  };
+
+  const handleCompartilhar = () => {
+    setMenuAnchor(null);
+    const sessao = sessoes.find((s) => s.id === menuSessaoId);
+    if (sessao) {
+      setShareSessao(sessao);
+      setShareModalOpen(true);
+    }
   };
 
   const handleDeletar = () => {
@@ -833,10 +848,21 @@ export default function TreinoTab() {
         <MenuItem onClick={handleEditar}>
           <Pencil size={18} style={{ marginRight: 10 }} /> Renomear
         </MenuItem>
+        <MenuItem onClick={handleCompartilhar}>
+          <Share2 size={18} style={{ marginRight: 10 }} /> Compartilhar
+        </MenuItem>
         <MenuItem onClick={handleDeletar} sx={{ color: 'error.main' }}>
           <Trash2 size={18} style={{ marginRight: 10 }} /> Excluir
         </MenuItem>
       </Menu>
+
+      {/* Modal compartilhar treino */}
+      <ShareWorkoutModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        sessao={shareSessao}
+        userId={uid}
+      />
 
       {/* FAB — only show on "Meus Treinos" tab */}
       {tabIndex === 0 && (

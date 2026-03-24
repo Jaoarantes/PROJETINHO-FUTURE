@@ -58,7 +58,7 @@ export interface FeedNotification {
   actorId: string;
   actorName: string | null;
   actorPhoto: string | null;
-  tipo: 'like' | 'comment' | 'follow' | 'follow_request';
+  tipo: 'like' | 'comment' | 'follow' | 'follow_request' | 'share_workout';
   postId: string | null;
   texto: string | null; // texto do comentário (se tipo=comment)
   lida: boolean;
