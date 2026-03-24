@@ -9,6 +9,7 @@ import { ArrowLeft, Dumbbell, Footprints, Waves, Clock, Check, Zap, Image, Chevr
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useFeedStore } from '../../store/feedStore';
+import SuccessOverlay from '../../components/SuccessOverlay';
 import { calcularVolumeSessao } from '../../types/treino';
 import type { RegistroTreino, SessaoTreino } from '../../types/treino';
 import type { WorkoutSummary } from '../../types/feed';
@@ -92,6 +93,7 @@ export default function CriarPost() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(!registroParam);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const uid = user?.id;
   const userName = user?.user_metadata?.display_name || profile?.displayName || 'Você';
@@ -147,7 +149,7 @@ export default function CriarPost() {
         fotoUrls,
       });
 
-      navigate('/feed');
+      setSuccessOpen(true);
     } catch (err: any) {
       console.error('Erro ao criar post:', err);
       setError('Erro ao publicar. Tente novamente.');
@@ -537,6 +539,15 @@ export default function CriarPost() {
           {error}
         </Alert>
       </Snackbar>
+
+      <SuccessOverlay
+        open={successOpen}
+        variant="post"
+        onComplete={() => {
+          setSuccessOpen(false);
+          navigate('/feed');
+        }}
+      />
     </Box>
   );
 }

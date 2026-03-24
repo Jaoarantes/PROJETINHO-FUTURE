@@ -12,6 +12,7 @@ import { useTreinoStore } from '../../store/treinoStore';
 import { salvarSessao } from '../../services/treinoService';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
 import type { SessaoTreino, ExercicioTreino } from '../../types/treino';
+import SuccessOverlay from '../../components/SuccessOverlay';
 
 export default function TreinoCompartilhado() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -20,6 +21,7 @@ export default function TreinoCompartilhado() {
   const [share, setShare] = useState<SharedWorkout | null>(null);
   const [loading, setLoading] = useState(true);
   const [copying, setCopying] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
 
   const uid = user?.id;
 
@@ -80,7 +82,7 @@ export default function TreinoCompartilhado() {
       await salvarSessao(uid, novaSessao);
       await atualizarStatusShare(share.id, 'accepted');
 
-      navigate('/treino');
+      setSuccessOpen(true);
     } catch (err) {
       console.error('Erro ao copiar treino:', err);
     } finally {
@@ -246,6 +248,15 @@ export default function TreinoCompartilhado() {
           {share.status === 'accepted' ? 'Já copiado' : 'Copiar'}
         </Button>
       </Box>
+
+      <SuccessOverlay
+        open={successOpen}
+        variant="copiar"
+        onComplete={() => {
+          setSuccessOpen(false);
+          navigate('/treino');
+        }}
+      />
     </Box>
   );
 }
