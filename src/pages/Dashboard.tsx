@@ -245,10 +245,11 @@ function InlineTooltip(props: any) {
 }
 
 const tooltipProps = {
-  allowEscapeViewBox: { x: true, y: true },
+  allowEscapeViewBox: { x: false, y: false },
   wrapperStyle: { zIndex: 50, pointerEvents: 'none' as const },
   cursor: false,
   isAnimationActive: false,
+  offset: 10,
 };
 
 // ── Component ───────────────────────────────────
@@ -922,7 +923,7 @@ export default function Dashboard() {
           badge={periodo === 'tudo' ? 'Histórico completo' : `${heatmapConfig.semanas} semanas`}
           isDark={isDark}
         />
-        <Card sx={{ mb: 1, overflow: 'visible', borderRadius: '8px' }}>
+        <Card sx={{ mb: 1, overflow: 'hidden', borderRadius: '8px' }}>
           <CardContent sx={{ py: 2, px: 1.5 }}>
             <HeatmapCalendar data={heatmap} totalSemanas={heatmapConfig.semanas} isDark={isDark} />
           </CardContent>
@@ -937,12 +938,12 @@ export default function Dashboard() {
       {/* ═══ FREQUENCIA SEMANAL ═══ */}
       <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.3s both' }}>
         <SectionHeader icon={<TrendingUp size={15} />} title="Frequência Semanal" isDark={isDark} />
-        <Card sx={{ mb: 3, overflow: 'visible', position: 'relative', borderRadius: '8px' }}>
-          <CardContent sx={{ py: 2, px: 0.5, overflow: 'visible' }}>
+        <Card sx={{ mb: 3, overflow: 'hidden', position: 'relative', borderRadius: '8px' }}>
+          <CardContent sx={{ py: 2, px: 0.5 }}>
             {stats.frequenciaFormatada.some((d) => d.musculacao + d.corrida + d.natacao > 0) ? (
-              <Box sx={{ overflow: 'visible', position: 'relative' }}>
-                <ResponsiveContainer width="100%" height={200} style={{ overflow: 'visible', outline: 'none' }}>
-                  <BarChart data={stats.frequenciaFormatada} barCategoryGap="20%" style={{ overflow: 'visible' }}>
+              <Box sx={{ position: 'relative' }}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={stats.frequenciaFormatada} barCategoryGap="20%">
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
                     <XAxis
                       dataKey="labelVisible"
@@ -1004,7 +1005,7 @@ export default function Dashboard() {
 
           {/* Volume por treino e por grupo muscular — Radar */}
           <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Grupo Muscular" badge="kg" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+          <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.radarVolumeData.length >= 3 ? (
                 <>
@@ -1093,7 +1094,7 @@ export default function Dashboard() {
             badge={stats.topMuscle !== '—' ? `Foco: ${stats.topMuscle}` : ''}
             isDark={isDark}
           />
-          <Card sx={{ mb: 3, borderRadius: '8px', overflow: 'visible' }}>
+          <Card sx={{ mb: 3, borderRadius: '8px', overflow: 'hidden' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.muscleWeekData.length > 0 ? (
                 <>
@@ -1148,7 +1149,7 @@ export default function Dashboard() {
           {stats.volumeData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Tendência de Volume" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+              <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={stats.volumeData}>
@@ -1194,7 +1195,7 @@ export default function Dashboard() {
 
           {/* Carga máxima por exercício */}
           <SectionHeader icon={<Zap size={15} />} title="Carga Máxima por Exercício" badge="kg" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+          <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 1 }}>
               {stats.cargaMaxData.length >= 1 ? (() => {
                 const exercicioSelecionado = filtroCargaExercicio || stats.ultimoExercicioFeito;
@@ -1287,7 +1288,7 @@ export default function Dashboard() {
             return (
               <>
                 <SectionHeader icon={<TrendingUp size={15} />} title="Evolução por Exercício" isDark={isDark} />
-                <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+                <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                   <CardContent sx={{ py: 2, px: 1.2 }}>
                     <ExercicioSelect
                       exercicios={evolNomes}
@@ -1332,7 +1333,7 @@ export default function Dashboard() {
           )}
 
           <SectionHeader icon={<Footprints size={15} />} title="Evolução de Pace" badge="min/km" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+          <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.paceData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={180}>
@@ -1384,7 +1385,7 @@ export default function Dashboard() {
           {stats.corridaDistData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Distância por Corrida" badge="km" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+              <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={150}>
                     <BarChart data={stats.corridaDistData} barCategoryGap="15%">
@@ -1452,7 +1453,7 @@ export default function Dashboard() {
           )}
 
           <SectionHeader icon={<Waves size={15} />} title="Evolução Natação" badge="metros" isDark={isDark} />
-          <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+          <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.natacaoData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={180}>
@@ -1502,7 +1503,7 @@ export default function Dashboard() {
           {stats.natacaoPaceData.length >= 2 && (
             <>
               <SectionHeader icon={<TrendingUp size={15} />} title="Pace Natação" badge="min/100m" isDark={isDark} />
-              <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+              <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
                   <ResponsiveContainer width="100%" height={150}>
                     <AreaChart data={stats.natacaoPaceData}>
@@ -2022,7 +2023,7 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
   if (inline) return content;
 
   return (
-    <Card sx={{ mb: 2, overflow: 'visible', borderRadius: '8px' }}>
+    <Card sx={{ mb: 2, overflow: 'hidden', borderRadius: '8px' }}>
       <CardContent sx={{ py: 1.5, px: 1.2 }}>
         {content}
       </CardContent>
