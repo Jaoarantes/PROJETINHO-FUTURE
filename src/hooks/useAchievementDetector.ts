@@ -89,18 +89,37 @@ function saveLastLevel(uid: string, level: number) {
   localStorage.setItem(`${LEVEL_KEY}_${uid}`, String(level));
 }
 
+// Session key to avoid re-processing on hot remounts within the same page session
+const SESSION_KEY = 'valere_achievement_session';
+
+function getSessionProcessed(uid: string): boolean {
+  try {
+    return sessionStorage.getItem(`${SESSION_KEY}_${uid}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSessionProcessed(uid: string) {
+  try {
+    sessionStorage.setItem(`${SESSION_KEY}_${uid}`, '1');
+  } catch { /* noop */ }
+}
+
 export function useAchievementDetector(uid: string | undefined, socialStats: SocialStats) {
   const { showToast } = useToast();
   const historico = useTreinoStore((s) => s.historico);
-  const initialized = useRef(false);
+  const processed = useRef(false);
 
   useEffect(() => {
-    if (!uid || historico.length === 0) return;
+    if (!uid || historico.length === 0 || processed.current) return;
+
+    // Mark as processed immediately to prevent double-firing
+    processed.current = true;
 
     const totalXP = calcularXPTotal(historico, socialStats);
     const { level } = calcularLevelInfo(totalXP);
 
-    // Calcular stats para conquistas
     const validos = historico.filter((r) => {
       const d = r.duracaoTotalSegundos || 0;
       if (d < 1200) return false;
@@ -116,7 +135,6 @@ export function useAchievementDetector(uid: string | undefined, socialStats: Soc
     const exerciciosUnicos = new Set<string>();
     validos.forEach((r) => r.exercicios.forEach((ex) => exerciciosUnicos.add(ex.exercicio.nome)));
 
-    // Streak
     const semanas = new Set<string>();
     validos.forEach((r) => {
       const d = new Date(r.concluidoEm);
@@ -140,18 +158,27 @@ export function useAchievementDetector(uid: string | undefined, socialStats: Soc
     const seen = getSeenAchievements(uid);
     const lastLevel = getLastLevel(uid);
 
-    // Na primeira execução, salva o estado atual sem mostrar toasts
-    if (!initialized.current) {
-      initialized.current = true;
-      if (seen.size === 0 && currentUnlocked.size > 0) {
-        // Primeira vez — salva tudo como já visto
+    // Se já processou nesta sessão do browser, apenas salva sem mostrar toasts
+    if (getSessionProcessed(uid)) {
+      // Ainda salva novas conquistas silenciosamente
+      if (currentUnlocked.size > seen.size || level !== lastLevel) {
         saveSeenAchievements(uid, currentUnlocked);
         saveLastLevel(uid, level);
-        return;
       }
+      return;
     }
 
-    // Detecta novas conquistas
+    // Marca sessão como processada
+    markSessionProcessed(uid);
+
+    // Primeira vez de TODAS — salva tudo como já visto, sem toasts
+    if (seen.size === 0 && currentUnlocked.size > 0) {
+      saveSeenAchievements(uid, currentUnlocked);
+      saveLastLevel(uid, level);
+      return;
+    }
+
+    // Detecta apenas conquistas REALMENTE novas
     const newAchievements: AchievementDef[] = [];
     for (const id of currentUnlocked) {
       if (!seen.has(id)) {
@@ -160,7 +187,11 @@ export function useAchievementDetector(uid: string | undefined, socialStats: Soc
       }
     }
 
-    // Mostra toasts para novas conquistas (com delay entre elas)
+    // Salva ANTES de mostrar toasts (previne duplicatas se componente re-render)
+    saveSeenAchievements(uid, currentUnlocked);
+    saveLastLevel(uid, level);
+
+    // Mostra toasts para novas conquistas
     newAchievements.forEach((achievement, i) => {
       setTimeout(() => {
         showToast({
@@ -172,7 +203,7 @@ export function useAchievementDetector(uid: string | undefined, socialStats: Soc
       }, i * 2000);
     });
 
-    // Detecta level up
+    // Level up
     if (lastLevel > 0 && level > lastLevel) {
       setTimeout(() => {
         showToast({
@@ -182,12 +213,6 @@ export function useAchievementDetector(uid: string | undefined, socialStats: Soc
           duration: 5000,
         });
       }, newAchievements.length * 2000);
-    }
-
-    // Salva estado atualizado
-    if (newAchievements.length > 0 || level !== lastLevel) {
-      saveSeenAchievements(uid, currentUnlocked);
-      saveLastLevel(uid, level);
     }
   }, [uid, historico, socialStats, showToast]);
 }
