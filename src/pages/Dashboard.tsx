@@ -17,6 +17,7 @@ import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, CartesianGrid, Cell, ComposedChart, Line,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
 
 // ── Cores por tipo ──────────────────────────────
@@ -408,6 +409,18 @@ export default function Dashboard() {
       });
     const volumeMuscleGroups = Array.from(allMuscleGroups);
 
+    // Radar: volume total por grupo muscular
+    const volumePorGrupoTotal: Record<string, number> = {};
+    volumeData.forEach(d => {
+      volumeMuscleGroups.forEach(grupo => {
+        volumePorGrupoTotal[grupo] = (volumePorGrupoTotal[grupo] || 0) + (d[grupo] || 0);
+      });
+    });
+    const radarVolumeData = volumeMuscleGroups
+      .map(grupo => ({ grupo, volume: Math.round(volumePorGrupoTotal[grupo] || 0) }))
+      .filter(d => d.volume > 0)
+      .sort((a, b) => b.volume - a.volume);
+
     const exercicioMap = new Map<string, { nome: string; dados: any[] }>();
     [...musculacao]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
@@ -621,7 +634,7 @@ export default function Dashboard() {
 
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
-      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, exercicioEvolucao, exercicioEvolucaoFull, paceData, corridaDistData,
+      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, radarVolumeData, exercicioEvolucao, exercicioEvolucaoFull, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
       temMaisExercicios: exercicioEvolucaoFull.length > 3,
@@ -1049,98 +1062,84 @@ export default function Dashboard() {
             </Box>
           )}
 
-          {/* Volume por treino e por grupo muscular */}
-          <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Treino e Grupo Muscular" badge="kg" isDark={isDark} />
+          {/* Volume por treino e por grupo muscular — Radar */}
+          <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Grupo Muscular" badge="kg" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
-              {stats.volumeData.length >= 1 ? (
+              {stats.radarVolumeData.length >= 3 ? (
                 <>
-                  {/* Filtro por grupo muscular */}
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5, px: 0.5 }}>
-                    <FilterChip
-                      label="Todos"
-                      selected={filtroGrupoVolume === null}
-                      onClick={() => setFiltroGrupoVolume(null)}
-                      color={CORES.geral}
-                      isDark={isDark}
-                    />
-                    {stats.volumeMuscleGroups.map((grupo, i) => (
-                      <FilterChip
-                        key={grupo}
-                        label={grupo}
-                        selected={filtroGrupoVolume === grupo}
-                        onClick={() => setFiltroGrupoVolume(filtroGrupoVolume === grupo ? null : grupo)}
-                        color={getMuscleColor(i)}
-                        isDark={isDark}
+                  <ResponsiveContainer width="100%" height={260}>
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={stats.radarVolumeData}>
+                      <PolarGrid
+                        stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}
+                        gridType="polygon"
                       />
-                    ))}
-                  </Box>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart
-                      data={filtroGrupoVolume
-                        ? stats.volumeData.map(d => ({ label: d.label, [filtroGrupoVolume]: d[filtroGrupoVolume] || 0 }))
-                        : stats.volumeData
-                      }
-                      barCategoryGap="15%"
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={40} unit="kg" axisLine={false} tickLine={false} />
+                      <PolarAngleAxis
+                        dataKey="grupo"
+                        tick={{ fontSize: 9, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
+                      />
+                      <PolarRadiusAxis
+                        tick={{ fontSize: 8, fill: isDark ? '#555' : '#bbb' }}
+                        axisLine={false}
+                        tickCount={4}
+                      />
                       <Tooltip
                         {...tooltipProps}
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
-                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
-                              {filtroGrupoVolume ? (
-                                <Typography sx={{ color: getMuscleColor(stats.volumeMuscleGroups.indexOf(filtroGrupoVolume)), fontSize: '1rem', fontWeight: 700 }}>
-                                  {Math.round(d[filtroGrupoVolume] || 0).toLocaleString('pt-BR')} kg
-                                </Typography>
-                              ) : (
-                                <>
-                                  <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700, mb: 0.5 }}>
-                                    Total: {(d.volume || payload.reduce((s: number, e: any) => s + (Number(e.value) || 0), 0)).toLocaleString('pt-BR')} kg
-                                  </Typography>
-                                  {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
-                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.2 }}>
-                                      <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
-                                      <Typography sx={{ color: '#fff', fontSize: '0.68rem', flex: 1 }}>{e.dataKey}</Typography>
-                                      <Typography sx={{ color: '#fff', fontSize: '0.68rem', fontWeight: 700 }}>{Math.round(e.value)} kg</Typography>
-                                    </Box>
-                                  ))}
-                                </>
-                              )}
-                              <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', mt: 0.3 }}>
-                                {d.label}
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
+                              <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700 }}>
+                                {d.volume.toLocaleString('pt-BR')} kg
+                              </Typography>
+                              <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mt: 0.2 }}>
+                                {d.grupo}
                               </Typography>
                             </Box>
                           );
                         }} />}
                       />
-                      {filtroGrupoVolume ? (
-                        <Bar
-                          dataKey={filtroGrupoVolume}
-                          fill={getMuscleColor(stats.volumeMuscleGroups.indexOf(filtroGrupoVolume))}
-                          radius={[3, 3, 0, 0]}
-                          stroke="none"
-                          activeBar={{ stroke: 'none' }}
-                        />
-                      ) : (
-                        stats.volumeMuscleGroups.map((grupo, i) => (
-                          <Bar key={grupo} dataKey={grupo} stackId="vol" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                        ))
-                      )}
+                      <Radar
+                        dataKey="volume"
+                        stroke={CORES.musculacao}
+                        strokeWidth={2}
+                        fill={CORES.musculacao}
+                        fillOpacity={0.2}
+                        dot={{ r: 3, fill: CORES.musculacao, strokeWidth: 0 }}
+                        activeDot={{ r: 5, fill: CORES.musculacao, stroke: '#fff', strokeWidth: 2 }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </>
+              ) : stats.radarVolumeData.length > 0 ? (
+                // Fallback para poucos grupos: bar horizontal
+                <Box sx={{ height: Math.max(100, stats.radarVolumeData.length * 40), width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.radarVolumeData} layout="vertical" margin={{ left: -10, right: 20 }}>
+                      <XAxis type="number" tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} unit="kg" axisLine={false} tickLine={false} />
+                      <YAxis dataKey="grupo" type="category" width={70} tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        {...tooltipProps}
+                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                          if (!payload || !payload.length) return null;
+                          const d = payload[0].payload;
+                          return (
+                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
+                              <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700 }}>{d.volume.toLocaleString('pt-BR')} kg</Typography>
+                              <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mt: 0.2 }}>{d.grupo}</Typography>
+                            </Box>
+                          );
+                        }} />}
+                      />
+                      <Bar dataKey="volume" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
+                        {stats.radarVolumeData.map((_, index) => (
+                          <Cell key={`rv-${index}`} fill={index === 0 ? CORES.musculacao : alpha(CORES.musculacao, 0.4)} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                  {!filtroGrupoVolume && (
-                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
-                      {stats.volumeMuscleGroups.map((grupo, i) => (
-                        <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
-                      ))}
-                    </Box>
-                  )}
-                </>
+                </Box>
               ) : (
                 <EmptyState text="Nenhum treino de musculação neste período" />
               )}
