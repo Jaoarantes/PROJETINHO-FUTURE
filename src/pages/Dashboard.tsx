@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, useTheme, alpha } from '@mui/material';
 import {
@@ -238,69 +237,18 @@ const tooltipStyle = {
   pointerEvents: 'none' as const,
 };
 
-// Global dismiss counter — incremented on scroll/touch to kill all tooltips
-let _dismissGen = 0;
-(() => {
-  if (typeof window === 'undefined') return;
-  const bump = () => { _dismissGen++; };
-  window.addEventListener('scroll', bump, { passive: true, capture: true });
-  window.addEventListener('touchmove', bump, { passive: true });
-  window.addEventListener('touchend', bump, { passive: true });
-})();
-
-// Portal-based custom tooltip: renders at body level, impossible to clip
-function PortalTooltipWrapper(props: any) {
-  const { active, payload, coordinate, renderContent } = props;
-  const [showGen, setShowGen] = useState(0);
-
-  // When recharts activates, snapshot the current dismiss generation
-  useEffect(() => {
-    if (active && payload?.length) {
-      setShowGen(_dismissGen);
-    }
-  }, [active, payload]);
-
-  // If not active or dismissed since last activation, hide
-  if (!active || !payload?.length || !coordinate || _dismissGen !== showGen) return null;
-
-  const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
-    document.querySelector('.recharts-wrapper:hover') ||
-    document.querySelector('.recharts-surface:hover');
-
-  let left = coordinate.x;
-  let top = coordinate.y;
-
-  if (chartElement) {
-    const rect = chartElement.getBoundingClientRect();
-    left = rect.left + coordinate.x + 15;
-    top = rect.top + coordinate.y - 10;
-
-    const tooltipWidth = 180;
-    if (left + tooltipWidth > window.innerWidth) {
-      left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
-    }
-    if (top < 10) top = 10;
-    if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
-  }
-
-  return createPortal(
-    <div style={{
-      position: 'fixed',
-      left,
-      top,
-      zIndex: 99999,
-      pointerEvents: 'none',
-    }}>
-      {renderContent(payload)}
-    </div>,
-    document.body
-  );
+// Simple inline tooltip — no portal, recharts controls visibility natively
+function InlineTooltip(props: any) {
+  const { active, payload, renderContent } = props;
+  if (!active || !payload?.length) return null;
+  return <div style={{ pointerEvents: 'none' }}>{renderContent(payload)}</div>;
 }
 
 const tooltipProps = {
   allowEscapeViewBox: { x: true, y: true },
-  wrapperStyle: { zIndex: 9999, pointerEvents: 'none' as const, overflow: 'visible' as const },
+  wrapperStyle: { zIndex: 50, pointerEvents: 'none' as const },
   cursor: false,
+  isAnimationActive: false,
 };
 
 // ── Component ───────────────────────────────────
@@ -1012,7 +960,7 @@ export default function Dashboard() {
                     />
                     <Tooltip
                       {...tooltipProps}
-                      content={<PortalTooltipWrapper renderContent={(payload: any) => <FreqTooltip active={true} payload={payload} />} />}
+                      content={<InlineTooltip renderContent={(payload: any) => <FreqTooltip active={true} payload={payload} />} />}
                     />
                     <Bar dataKey="musculacao" stackId="a" fill={CORES.musculacao} name="musculacao" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                     <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
@@ -1077,7 +1025,7 @@ export default function Dashboard() {
                       />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
@@ -1113,7 +1061,7 @@ export default function Dashboard() {
                       <YAxis dataKey="grupo" type="category" width={70} tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
@@ -1156,7 +1104,7 @@ export default function Dashboard() {
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const total = payload.reduce((sum: number, e: any) => sum + (Number(e.value) || 0), 0);
                           return (
@@ -1215,7 +1163,7 @@ export default function Dashboard() {
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={38} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
@@ -1287,7 +1235,7 @@ export default function Dashboard() {
                           <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={36} unit="kg" axisLine={false} tickLine={false} />
                           <Tooltip
                             {...tooltipProps}
-                            content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                            content={<InlineTooltip renderContent={(payload: any) => {
                               if (!payload || !payload.length) return null;
                               const d = payload[0].payload;
                               return (
@@ -1400,7 +1348,7 @@ export default function Dashboard() {
                     <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={34} reversed domain={['dataMin - 0.5', 'dataMax + 0.5']} axisLine={false} tickLine={false} />
                     <Tooltip
                       {...tooltipProps}
-                      content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                      content={<InlineTooltip renderContent={(payload: any) => {
                         if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
@@ -1451,7 +1399,7 @@ export default function Dashboard() {
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={33} unit="km" axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
@@ -1520,7 +1468,7 @@ export default function Dashboard() {
                     <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={42} unit="m" axisLine={false} tickLine={false} />
                     <Tooltip
                       {...tooltipProps}
-                      content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                      content={<InlineTooltip renderContent={(payload: any) => {
                         if (!payload || !payload.length) return null;
                         const d = payload[0].payload;
                         return (
@@ -1569,7 +1517,7 @@ export default function Dashboard() {
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={30} reversed domain={['dataMin - 0.3', 'dataMax + 0.3']} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
                           return (
@@ -2009,7 +1957,7 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
                 />
                 <Tooltip
                   {...tooltipProps}
-                  content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                  content={<InlineTooltip renderContent={(payload: any) => {
                     if (!payload || !payload.length) return null;
                     const d = payload[0].payload;
                     return (
