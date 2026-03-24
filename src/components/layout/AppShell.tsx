@@ -4,6 +4,8 @@ import { Box } from '@mui/material';
 import { App as CapApp } from '@capacitor/app';
 import BottomNav from './BottomNav';
 import ActiveWorkoutBar from '../treino/ActiveWorkoutBar';
+import SuccessOverlay from '../SuccessOverlay';
+import { useSuccessOverlayStore } from '../../store/successOverlayStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useExercicioCustomStore } from '../../store/exercicioCustomStore';
@@ -65,6 +67,9 @@ export default function AppShell() {
   }, [location.pathname, navigate]);
 
   const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
+  const overlayOpen = useSuccessOverlayStore((s) => s.open);
+  const overlayVariant = useSuccessOverlayStore((s) => s.variant);
+  const hideOverlay = useSuccessOverlayStore((s) => s.hide);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -82,6 +87,7 @@ export default function AppShell() {
       </Box>
       <ActiveWorkoutBar />
       <BottomNav />
+      <SuccessOverlay open={overlayOpen} variant={overlayVariant} onComplete={hideOverlay} />
     </Box>
   );
 }
