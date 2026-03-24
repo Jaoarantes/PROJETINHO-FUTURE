@@ -87,6 +87,10 @@ create policy "Users can insert own comments"
   on public.feed_comments for insert
   with check (auth.uid()::text = user_id);
 
+create policy "Users can update own comments"
+  on public.feed_comments for update
+  using (auth.uid()::text = user_id);
+
 create policy "Users can delete own comments"
   on public.feed_comments for delete
   using (auth.uid()::text = user_id);
@@ -94,13 +98,18 @@ create policy "Users can delete own comments"
 create index if not exists idx_feed_comments_post on public.feed_comments(post_id);
 
 -- ============================================
--- RPC: Toggle like (atomic)
+-- RPC: Toggle like (atomic + auth validation)
 -- ============================================
 create or replace function public.toggle_like(p_post_id text, p_user_id text)
 returns boolean as $$
 declare
   already_liked boolean;
 begin
+  -- Validar que o caller é o próprio usuário
+  if auth.uid()::text != p_user_id then
+    raise exception 'Forbidden: user_id mismatch';
+  end if;
+
   select exists(
     select 1 from public.feed_likes where post_id = p_post_id and user_id = p_user_id
   ) into already_liked;
@@ -119,13 +128,18 @@ end;
 $$ language plpgsql security definer;
 
 -- ============================================
--- RPC: Add comment (atomic with counter)
+-- RPC: Add comment (atomic + auth validation)
 -- ============================================
 create or replace function public.add_comment(p_post_id text, p_user_id text, p_texto text)
 returns text as $$
 declare
   new_id text;
 begin
+  -- Validar que o caller é o próprio usuário
+  if auth.uid()::text != p_user_id then
+    raise exception 'Forbidden: user_id mismatch';
+  end if;
+
   new_id := gen_random_uuid()::text;
   insert into public.feed_comments (id, post_id, user_id, texto)
   values (new_id, p_post_id, p_user_id, p_texto);
@@ -135,13 +149,18 @@ end;
 $$ language plpgsql security definer;
 
 -- ============================================
--- RPC: Delete comment (atomic with counter)
+-- RPC: Delete comment (atomic + auth validation)
 -- ============================================
 create or replace function public.delete_comment(p_comment_id text, p_user_id text)
 returns void as $$
 declare
   v_post_id text;
 begin
+  -- Validar que o caller é o próprio usuário
+  if auth.uid()::text != p_user_id then
+    raise exception 'Forbidden: user_id mismatch';
+  end if;
+
   select post_id into v_post_id from public.feed_comments
   where id = p_comment_id and user_id = p_user_id;
 
@@ -160,6 +179,82 @@ $$ language plpgsql security definer;
 create policy "Authenticated users can read all profiles"
   on public.profiles for select
   using (auth.role() = 'authenticated');
+
+-- ============================================
+-- SOCIAL FEED - FOLLOWS
+-- ============================================
+create table if not exists public.follows (
+  id text primary key default gen_random_uuid()::text,
+  follower_id text not null references public.profiles(id),
+  following_id text not null references public.profiles(id),
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz default now(),
+  unique(follower_id, following_id)
+);
+
+alter table public.follows enable row level security;
+
+create policy "Users can read follows they are part of"
+  on public.follows for select
+  using (auth.uid()::text = follower_id or auth.uid()::text = following_id);
+
+create policy "Users can insert as follower"
+  on public.follows for insert
+  with check (auth.uid()::text = follower_id);
+
+create policy "Users can delete own follows"
+  on public.follows for delete
+  using (auth.uid()::text = follower_id or auth.uid()::text = following_id);
+
+create policy "Following user can accept requests"
+  on public.follows for update
+  using (auth.uid()::text = following_id);
+
+create index if not exists idx_follows_follower on public.follows(follower_id);
+create index if not exists idx_follows_following on public.follows(following_id);
+
+-- ============================================
+-- SOCIAL FEED - NOTIFICATIONS
+-- ============================================
+create table if not exists public.feed_notifications (
+  id text primary key default gen_random_uuid()::text,
+  user_id text not null references public.profiles(id),
+  actor_id text not null references public.profiles(id),
+  tipo text not null,
+  post_id text,
+  texto text,
+  lida boolean default false,
+  share_id text,
+  created_at timestamptz default now()
+);
+
+alter table public.feed_notifications enable row level security;
+
+create policy "Users can read own notifications"
+  on public.feed_notifications for select
+  using (auth.uid()::text = user_id);
+
+create policy "Authenticated can insert notifications"
+  on public.feed_notifications for insert
+  with check (auth.role() = 'authenticated');
+
+create policy "Users can update own notifications"
+  on public.feed_notifications for update
+  using (auth.uid()::text = user_id);
+
+create policy "Users can delete own notifications"
+  on public.feed_notifications for delete
+  using (auth.uid()::text = user_id);
+
+create index if not exists idx_feed_notifications_user on public.feed_notifications(user_id);
+create index if not exists idx_feed_notifications_created on public.feed_notifications(created_at desc);
+
+-- ============================================
+-- CONSTRAINTS: Limitar tamanho de campos de texto
+-- ============================================
+alter table public.feed_comments add constraint if not exists texto_max_length check (char_length(texto) <= 2000);
+alter table public.feed_posts add constraint if not exists post_texto_max_length check (char_length(texto) <= 5000);
+alter table public.profiles add constraint if not exists display_name_max_length check (char_length(display_name) <= 100);
 
 -- ============================================
 -- Storage: create bucket 'feed-photos' (run in dashboard or via API)

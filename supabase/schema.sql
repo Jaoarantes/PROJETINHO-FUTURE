@@ -98,7 +98,8 @@ create table public.historico (
 
 alter table public.historico enable row level security;
 create policy "Users can CRUD own historico" on public.historico for all using (auth.uid()::text = user_id) with check (auth.uid()::text = user_id);
-create policy "Anyone can read historico" on public.historico for select using (true);
+-- Leitura pública restrita: apenas autenticados podem ler (necessário para feed de treinos compartilhados)
+create policy "Authenticated can read historico" on public.historico for select using (auth.role() = 'authenticated');
 create index idx_historico_user_id on public.historico(user_id);
 
 -- ============================================
