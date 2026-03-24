@@ -246,8 +246,9 @@ export default function SessaoTreino() {
                             minWidth: 'auto',
                             px: 1.5,
                             ...(reordenando ? {
-                                bgcolor: 'primary.main',
+                                bgcolor: '#FF6B00',
                                 color: '#fff',
+                                '&:hover': { bgcolor: '#E65C00' },
                             } : {}),
                         }}
                     >
@@ -263,8 +264,8 @@ export default function SessaoTreino() {
             {tipo === 'corrida' && <CorridaView sessaoId={sessao.id} corrida={sessao.corrida} store={store} isAtivo={isAtivo} onConcluir={(dist) => handleConcluir(dist)} salvando={salvando} />}
             {tipo === 'natacao' && <NatacaoView sessaoId={sessao.id} natacao={sessao.natacao} store={store} />}
 
-            {/* Botão Concluir Treino (Apenas Musculação/Natação, Corrida conclui pelo card) */}
-            {tipo !== 'corrida' && (
+            {/* Botão Concluir Treino (Apenas Musculação/Natação, Corrida conclui pelo card) - esconde durante reordenação */}
+            {tipo !== 'corrida' && !reordenando && (
                 <Button
                     variant="contained"
                     color="success"
