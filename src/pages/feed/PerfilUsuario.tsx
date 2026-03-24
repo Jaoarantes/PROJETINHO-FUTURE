@@ -7,7 +7,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { ArrowLeft, Rss, X, Lock } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { useFeedStore } from '../../store/feedStore';
+import * as feedService from '../../services/feedService';
 import {
   carregarMeusPosts, countFollowers, countFollowing,
   listFollowers, listFollowing, checkFollowStatus, toggleFollow, carregarSocialStats,
@@ -23,8 +23,6 @@ export default function PerfilUsuario() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const toggleLike = useFeedStore((s) => s.toggleLike);
-
   const [profileData, setProfileData] = useState<{
     displayName: string | null;
     username: string | null;
@@ -109,12 +107,25 @@ export default function PerfilUsuario() {
   };
 
   const handleLike = async (postId: string) => {
+    // Otimista local (store faz o seu próprio, mas posts aqui é estado local separado)
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const wasLiked = post.likedByMe;
     setPosts((prev) => prev.map((p) =>
       p.id === postId
         ? { ...p, likedByMe: !p.likedByMe, likesCount: p.likedByMe ? p.likesCount - 1 : p.likesCount + 1 }
         : p
     ));
-    await toggleLike(postId, uid);
+    try {
+      await feedService.toggleLike(postId, uid);
+    } catch {
+      // Reverter se falhar
+      setPosts((prev) => prev.map((p) =>
+        p.id === postId
+          ? { ...p, likedByMe: wasLiked, likesCount: wasLiked ? p.likesCount + 1 : p.likesCount - 1 }
+          : p
+      ));
+    }
   };
 
   const openFollowDialog = async (type: 'followers' | 'following') => {

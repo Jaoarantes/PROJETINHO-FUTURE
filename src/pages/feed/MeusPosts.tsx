@@ -10,6 +10,7 @@ import { alpha } from '@mui/material/styles';
 import { ArrowLeft, Rss, Camera, X, ImagePlus, Trash2, Lock, Unlock, UserCheck, UserX, Users, AtSign } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
+import * as feedService from '../../services/feedService';
 import {
   carregarMeusPosts, countFollowers, countFollowing,
   listFollowers, listFollowing, listPendingRequests,
@@ -25,7 +26,6 @@ import type { FeedPost } from '../../types/feed';
 export default function MeusPosts() {
   const navigate = useNavigate();
   const { user, profile, refreshUser } = useAuthContext();
-  const toggleLike = useFeedStore((s) => s.toggleLike);
   const deletarPost = useFeedStore((s) => s.deletarPost);
   const atualizarPerfilAutor = useFeedStore((s) => s.atualizarPerfilAutor);
   const editarPost = useFeedStore((s) => s.editarPost);
@@ -107,12 +107,24 @@ export default function MeusPosts() {
   };
 
   const handleLike = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    const wasLiked = post.likedByMe;
     setPosts((prev) => prev.map((p) =>
       p.id === postId
         ? { ...p, likedByMe: !p.likedByMe, likesCount: p.likedByMe ? p.likesCount - 1 : p.likesCount + 1 }
         : p
     ));
-    await toggleLike(postId, uid);
+    try {
+      await feedService.toggleLike(postId, uid);
+    } catch {
+      // Reverter se falhar
+      setPosts((prev) => prev.map((p) =>
+        p.id === postId
+          ? { ...p, likedByMe: wasLiked, likesCount: wasLiked ? p.likesCount + 1 : p.likesCount - 1 }
+          : p
+      ));
+    }
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
