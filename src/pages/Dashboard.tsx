@@ -436,20 +436,31 @@ export default function Dashboard() {
       ? exercicioEvolucaoFull
       : exercicioEvolucaoFull.slice(0, 3);
 
-    // Carga máxima por exercício (horizontal bar)
+    // Carga máxima por exercício + evolução de carga
     const cargaMaxPorExercicio: Record<string, { nome: string; cargaMax: number }> = {};
-    musculacao.forEach(r => {
+    const cargaEvolucaoPorExercicio: Record<string, { label: string; cargaMax: number }[]> = {};
+    let ultimoExercicioFeito = '';
+    const musculacaoOrdenada = [...musculacao].sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm));
+    musculacaoOrdenada.forEach(r => {
       r.exercicios.forEach(ex => {
         const nome = ex.exercicio.nome;
         const pesoMax = Math.max(...ex.series.map(s => (s as any).peso ?? 0), 0);
+        if (pesoMax <= 0) return;
         if (!cargaMaxPorExercicio[nome] || pesoMax > cargaMaxPorExercicio[nome].cargaMax) {
           cargaMaxPorExercicio[nome] = { nome, cargaMax: pesoMax };
         }
+        if (!cargaEvolucaoPorExercicio[nome]) cargaEvolucaoPorExercicio[nome] = [];
+        cargaEvolucaoPorExercicio[nome].push({
+          label: formatDateLabel(getConcluidoDate(r.concluidoEm)),
+          cargaMax: pesoMax,
+        });
+        ultimoExercicioFeito = nome;
       });
     });
     const cargaMaxData = Object.values(cargaMaxPorExercicio)
       .filter(d => d.cargaMax > 0)
       .sort((a, b) => b.cargaMax - a.cargaMax);
+    const cargaExercicioNomes = cargaMaxData.map(d => d.nome);
 
     const paceData = [...corrida]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
@@ -611,7 +622,8 @@ export default function Dashboard() {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
       tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, exercicioEvolucao, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
-      cargaMaxData, temMaisExercicios: exercicioEvolucaoFull.length > 3,
+      cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
+      temMaisExercicios: exercicioEvolucaoFull.length > 3,
       streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—',
       muscleWeekData, muscleWeekGroups,
     };
@@ -1245,69 +1257,76 @@ export default function Dashboard() {
           <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 1 }}>
               {stats.cargaMaxData.length >= 1 ? (() => {
-                const cargaFiltrada = filtroCargaExercicio
-                  ? stats.cargaMaxData.filter(d => d.nome === filtroCargaExercicio)
-                  : stats.cargaMaxData;
+                const exercicioSelecionado = filtroCargaExercicio || stats.ultimoExercicioFeito;
+                const evolucaoData = stats.cargaEvolucaoPorExercicio[exercicioSelecionado] || [];
+                const cargaMaxDoExercicio = stats.cargaMaxData.find(d => d.nome === exercicioSelecionado)?.cargaMax || 0;
                 return (
                   <>
-                    {/* Filtro por exercício */}
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5, px: 0.5 }}>
-                      <FilterChip
-                        label="Todos"
-                        selected={filtroCargaExercicio === null}
-                        onClick={() => setFiltroCargaExercicio(null)}
-                        color={CORES.geral}
-                        isDark={isDark}
-                      />
-                      {stats.cargaMaxData.slice(0, 10).map((d) => (
-                        <FilterChip
-                          key={d.nome}
-                          label={d.nome}
-                          selected={filtroCargaExercicio === d.nome}
-                          onClick={() => setFiltroCargaExercicio(filtroCargaExercicio === d.nome ? null : d.nome)}
-                          color={CORES.recorde}
-                          isDark={isDark}
-                        />
-                      ))}
-                    </Box>
-                    <Box sx={{ height: Math.max(120, cargaFiltrada.length * 32), width: '100%' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={cargaFiltrada} layout="vertical" margin={{ left: -10, right: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} horizontal={false} />
-                          <XAxis type="number" tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} unit="kg" axisLine={false} tickLine={false} />
-                          <YAxis
-                            dataKey="nome"
-                            type="category"
-                            width={90}
-                            tick={{ fontSize: 9, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
+                    {/* Dropdown selector */}
+                    <ExercicioSelect
+                      exercicios={stats.cargaExercicioNomes}
+                      selected={exercicioSelecionado}
+                      onChange={(nome) => setFiltroCargaExercicio(nome)}
+                      isDark={isDark}
+                    />
+
+                    {/* Recorde badge */}
+                    {cargaMaxDoExercicio > 0 && (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1.5, px: 0.5 }}>
+                        <Trophy size={13} color={CORES.recorde} />
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
+                          Recorde: <Box component="span" sx={{ color: CORES.recorde, fontWeight: 700 }}>{cargaMaxDoExercicio} kg</Box>
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Evolução de carga */}
+                    {evolucaoData.length >= 2 ? (
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={evolucaoData}>
+                          <defs>
+                            <linearGradient id="gradCargaEvo" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={CORES.recorde} stopOpacity={0.25} />
+                              <stop offset="100%" stopColor={CORES.recorde} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={36} unit="kg" axisLine={false} tickLine={false} />
                           <Tooltip
                             {...tooltipProps}
                             content={<PortalTooltipWrapper renderContent={(payload: any) => {
                               if (!payload || !payload.length) return null;
                               const d = payload[0].payload;
                               return (
-                                <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
+                                <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
                                   <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
                                     {d.cargaMax} kg
                                   </Typography>
-                                  <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', mt: 0.3 }}>
-                                    {d.nome}
+                                  <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.62rem', mt: 0.2 }}>
+                                    {d.label}
                                   </Typography>
                                 </Box>
                               );
                             }} />}
                           />
-                          <Bar dataKey="cargaMax" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
-                            {cargaFiltrada.map((_, index) => (
-                              <Cell key={`carga-${index}`} fill={index === 0 ? CORES.recorde : alpha(CORES.recorde, Math.max(0.25, 0.5 - index * 0.03))} />
-                            ))}
-                          </Bar>
-                        </BarChart>
+                          <Area
+                            type="monotone" dataKey="cargaMax"
+                            stroke={CORES.recorde} strokeWidth={2.5}
+                            fill="url(#gradCargaEvo)"
+                            dot={{ r: 3, fill: CORES.recorde, strokeWidth: 0 }}
+                            activeDot={{ r: 5, fill: CORES.recorde, stroke: '#fff', strokeWidth: 2 }}
+                          />
+                        </AreaChart>
                       </ResponsiveContainer>
-                    </Box>
+                    ) : evolucaoData.length === 1 ? (
+                      <Box sx={{ textAlign: 'center', py: 2 }}>
+                        <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: CORES.recorde }}>{evolucaoData[0].cargaMax} kg</Typography>
+                        <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary', mt: 0.3 }}>{evolucaoData[0].label} — apenas 1 registro</Typography>
+                      </Box>
+                    ) : (
+                      <EmptyState text="Nenhum registro para este exercício" />
+                    )}
                   </>
                 );
               })() : (
@@ -1600,6 +1619,110 @@ export default function Dashboard() {
 // ══════════════════════════════════════════════════
 // ── SUB-COMPONENTS ──────────────────────────────
 // ══════════════════════════════════════════════════
+
+function ExercicioSelect({ exercicios, selected, onChange, isDark }: {
+  exercicios: string[]; selected: string; onChange: (nome: string) => void; isDark: boolean;
+}) {
+  const [aberto, setAberto] = useState(false);
+
+  return (
+    <Box sx={{ position: 'relative', mb: 1.5, px: 0.5 }}>
+      {/* Botão selector */}
+      <Box
+        onClick={() => setAberto(!aberto)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 1.5,
+          py: 1,
+          borderRadius: '10px',
+          cursor: 'pointer',
+          bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            bgcolor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+            borderColor: alpha(CORES.recorde, 0.3),
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <Dumbbell size={14} color={CORES.recorde} />
+          <Typography sx={{
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {selected}
+          </Typography>
+        </Box>
+        {aberto ? <ChevronUp size={16} color={isDark ? '#888' : '#666'} /> : <ChevronDown size={16} color={isDark ? '#888' : '#666'} />}
+      </Box>
+
+      {/* Lista dropdown */}
+      {aberto && (
+        <Box sx={{
+          position: 'absolute',
+          top: '100%',
+          left: 4,
+          right: 4,
+          mt: 0.5,
+          zIndex: 50,
+          bgcolor: isDark ? 'rgba(18,18,18,0.98)' : 'rgba(255,255,255,0.98)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+          borderRadius: '10px',
+          boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.6)' : '0 8px 32px rgba(0,0,0,0.15)',
+          backdropFilter: 'blur(12px)',
+          maxHeight: 240,
+          overflowY: 'auto',
+          py: 0.5,
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-thumb': {
+            bgcolor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+            borderRadius: 2,
+          },
+        }}>
+          {exercicios.map((nome) => (
+            <Box
+              key={nome}
+              onClick={() => { onChange(nome); setAberto(false); }}
+              sx={{
+                px: 1.5,
+                py: 0.8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                transition: 'all 0.15s ease',
+                bgcolor: nome === selected ? alpha(CORES.recorde, isDark ? 0.12 : 0.08) : 'transparent',
+                '&:hover': {
+                  bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                },
+              }}
+            >
+              {nome === selected && (
+                <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: CORES.recorde, flexShrink: 0 }} />
+              )}
+              <Typography sx={{
+                fontSize: '0.75rem',
+                fontWeight: nome === selected ? 700 : 400,
+                color: nome === selected ? (isDark ? '#fff' : '#111') : 'text.secondary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {nome}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 function FilterChip({ label, selected, onClick, color, isDark }: {
   label: string; selected: boolean; onClick: () => void; color: string; isDark: boolean;
