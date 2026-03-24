@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Box, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { CheckCircle, Dumbbell, Send, Copy } from 'lucide-react';
@@ -46,89 +47,100 @@ export default function SuccessOverlay({
   message,
   submessage,
   onComplete,
-  duration = 1400,
+  duration = 1800,
 }: SuccessOverlayProps) {
-  const [phase, setPhase] = useState<'enter' | 'visible' | 'exit' | 'gone'>('gone');
+  const [visible, setVisible] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    if (!open) {
-      setPhase('gone');
-      return;
-    }
+    if (!open) return;
 
-    setPhase('enter');
-    const t1 = setTimeout(() => setPhase('visible'), 50);
-    const t2 = setTimeout(() => setPhase('exit'), duration - 400);
-    const t3 = setTimeout(() => {
-      setPhase('gone');
-      onCompleteRef.current?.();
+    // Show overlay immediately
+    setVisible(true);
+    // Trigger animation on next frame
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setAnimating(true);
+      });
+    });
+
+    // Schedule hide + callback
+    timerRef.current = setTimeout(() => {
+      setAnimating(false);
+      setTimeout(() => {
+        setVisible(false);
+        onCompleteRef.current?.();
+      }, 350);
     }, duration);
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [open, duration]);
 
-  if (phase === 'gone') return null;
+  if (!visible) return null;
 
   const cfg = VARIANT_CONFIG[variant];
   const msg = message || cfg.defaultMessage;
   const sub = submessage || cfg.defaultSub;
 
-  const isVisible = phase === 'visible' || phase === 'enter';
-
-  return (
+  const overlay = (
     <Box
       sx={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
+        zIndex: 99999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: alpha('#000', phase === 'enter' ? 0 : phase === 'exit' ? 0 : 0.6),
-        backdropFilter: isVisible ? 'blur(8px)' : 'blur(0px)',
-        transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        bgcolor: animating ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0)',
+        backdropFilter: animating ? 'blur(10px)' : 'blur(0px)',
+        transition: 'background-color 0.35s ease, backdrop-filter 0.35s ease',
         pointerEvents: 'none',
       }}
     >
       {/* Ripple rings */}
-      <Box sx={{
-        position: 'absolute',
-        width: 200, height: 200,
-        borderRadius: '50%',
-        border: `2px solid ${alpha(cfg.color, 0.2)}`,
-        animation: isVisible ? 'successRipple 1s ease-out forwards' : 'none',
-        '@keyframes successRipple': {
-          '0%': { transform: 'scale(0.3)', opacity: 1 },
-          '100%': { transform: 'scale(2.5)', opacity: 0 },
-        },
-      }} />
-      <Box sx={{
-        position: 'absolute',
-        width: 200, height: 200,
-        borderRadius: '50%',
-        border: `2px solid ${alpha(cfg.color, 0.15)}`,
-        animation: isVisible ? 'successRipple 1s 0.15s ease-out forwards' : 'none',
-        '@keyframes successRipple': {
-          '0%': { transform: 'scale(0.3)', opacity: 1 },
-          '100%': { transform: 'scale(2.5)', opacity: 0 },
-        },
-      }} />
+      {animating && (
+        <>
+          <Box sx={{
+            position: 'absolute',
+            width: 180, height: 180,
+            borderRadius: '50%',
+            border: `2px solid ${alpha(cfg.color, 0.25)}`,
+            animation: 'successRipple 1.2s ease-out forwards',
+            '@keyframes successRipple': {
+              '0%': { transform: 'scale(0.4)', opacity: 1 },
+              '100%': { transform: 'scale(3)', opacity: 0 },
+            },
+          }} />
+          <Box sx={{
+            position: 'absolute',
+            width: 180, height: 180,
+            borderRadius: '50%',
+            border: `2px solid ${alpha(cfg.color, 0.15)}`,
+            animation: 'successRipple2 1.2s 0.2s ease-out forwards',
+            '@keyframes successRipple2': {
+              '0%': { transform: 'scale(0.4)', opacity: 1 },
+              '100%': { transform: 'scale(3)', opacity: 0 },
+            },
+          }} />
+        </>
+      )}
 
       {/* Icon circle */}
       <Box sx={{
-        width: 88, height: 88,
+        width: 92, height: 92,
         borderRadius: '50%',
         bgcolor: cfg.color,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: `0 8px 32px ${alpha(cfg.color, 0.4)}`,
-        transform: phase === 'enter' ? 'scale(0.3)' : phase === 'exit' ? 'scale(0.8)' : 'scale(1)',
-        opacity: phase === 'exit' ? 0 : 1,
-        transition: phase === 'enter'
-          ? 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-          : 'all 0.3s ease-in',
+        boxShadow: `0 12px 40px ${alpha(cfg.color, 0.5)}`,
+        transform: animating ? 'scale(1)' : 'scale(0)',
+        opacity: animating ? 1 : 0,
+        transition: 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease',
       }}>
         {cfg.icon}
       </Box>
@@ -136,16 +148,16 @@ export default function SuccessOverlay({
       {/* Check badge */}
       <Box sx={{
         position: 'relative',
-        mt: -2, ml: 7,
-        width: 32, height: 32,
+        mt: -2.5, ml: 7,
+        width: 34, height: 34,
         borderRadius: '50%',
         bgcolor: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        transform: phase === 'visible' ? 'scale(1)' : 'scale(0)',
-        transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+        transform: animating ? 'scale(1)' : 'scale(0)',
+        transition: 'transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.25s',
       }}>
-        <CheckCircle size={20} color={cfg.color} fill={cfg.color} />
+        <CheckCircle size={22} color={cfg.color} fill={cfg.color} />
       </Box>
 
       {/* Text */}
@@ -154,12 +166,12 @@ export default function SuccessOverlay({
         fontWeight={800}
         sx={{
           color: '#fff',
-          mt: 2,
-          fontSize: '1.4rem',
+          mt: 2.5,
+          fontSize: '1.5rem',
           textAlign: 'center',
-          transform: phase === 'visible' ? 'translateY(0)' : 'translateY(12px)',
-          opacity: phase === 'visible' ? 1 : 0,
-          transition: 'all 0.35s ease 0.15s',
+          transform: animating ? 'translateY(0)' : 'translateY(16px)',
+          opacity: animating ? 1 : 0,
+          transition: 'all 0.4s ease 0.15s',
         }}
       >
         {msg}
@@ -167,17 +179,19 @@ export default function SuccessOverlay({
       <Typography
         variant="body2"
         sx={{
-          color: alpha('#fff', 0.7),
+          color: 'rgba(255,255,255,0.7)',
           mt: 0.5,
-          fontSize: '0.9rem',
+          fontSize: '0.95rem',
           textAlign: 'center',
-          transform: phase === 'visible' ? 'translateY(0)' : 'translateY(12px)',
-          opacity: phase === 'visible' ? 1 : 0,
-          transition: 'all 0.35s ease 0.25s',
+          transform: animating ? 'translateY(0)' : 'translateY(16px)',
+          opacity: animating ? 1 : 0,
+          transition: 'all 0.4s ease 0.25s',
         }}
       >
         {sub}
       </Typography>
     </Box>
   );
+
+  return createPortal(overlay, document.body);
 }
