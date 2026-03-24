@@ -30,6 +30,7 @@ import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthContext } from '../../contexts/AuthContext';
+import SuccessOverlay from '../../components/SuccessOverlay';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
 import PhotoUploader from '../../components/feed/PhotoUploader';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
@@ -71,6 +72,8 @@ export default function SessaoTreino() {
     const [sharePosting, setSharePosting] = useState(false);
     const [confirmConcluir, setConfirmConcluir] = useState(false);
     const [reordenando, setReordenando] = useState(false);
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [successVariant, setSuccessVariant] = useState<'treino' | 'post'>('treino');
     const sessao = sessoes.find((s) => s.id === id);
 
     const isAtivo = treinoAtivo?.sessaoId === id;
@@ -111,21 +114,26 @@ export default function SessaoTreino() {
 
     const tipo = sessao.tipo || 'musculacao';
 
+    const navigateToHistory = () => {
+        navigate('/treino');
+        setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
+            window.dispatchEvent(new CustomEvent('highlight-latest-history'));
+        }, 100);
+    };
+
     const handleConcluir = async (gpsDistancia?: number) => {
         if (!sessao) return;
         setSalvando(true);
         setErroMsg('');
         try {
             const registro = await concluirTreino(sessao.id, { distanciaKm: gpsDistancia });
-            setSnackOpen(true);
             if (registro) {
                 setShareRegistro(registro);
                 setShareOpen(true);
             } else {
-                navigate('/treino');
-                setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
-                }, 100);
+                setSuccessVariant('treino');
+                setSuccessOpen(true);
             }
         } catch (err) {
             console.error('[SessaoTreino] Erro ao concluir treino:', err);
@@ -138,10 +146,8 @@ export default function SessaoTreino() {
     const handleShareSkip = () => {
         setShareOpen(false);
         setShareRegistro(null);
-        navigate('/treino');
-        setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
-        }, 100);
+        setSuccessVariant('treino');
+        setSuccessOpen(true);
     };
 
     const handleSharePost = async () => {
@@ -179,7 +185,8 @@ export default function SessaoTreino() {
                 fotoUrls,
             });
             setShareOpen(false);
-            navigate('/feed');
+            setSuccessVariant('post');
+            setSuccessOpen(true);
         } catch (err) {
             console.error('Erro ao compartilhar:', err);
             setErroMsg('Erro ao compartilhar. Tente novamente.');
@@ -396,6 +403,18 @@ export default function SessaoTreino() {
                 </Box>
             </Dialog>
 
+            <SuccessOverlay
+                open={successOpen}
+                variant={successVariant}
+                onComplete={() => {
+                    setSuccessOpen(false);
+                    if (successVariant === 'post') {
+                        navigate('/feed');
+                    } else {
+                        navigateToHistory();
+                    }
+                }}
+            />
         </Box>
     );
 }

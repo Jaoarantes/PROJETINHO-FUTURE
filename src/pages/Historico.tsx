@@ -1,5 +1,7 @@
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation, Share2, Flame } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { formatPace } from '../utils/geoUtils';
@@ -71,6 +73,19 @@ export default function Historico() {
   const historico = useTreinoStore((s) => s.historico);
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const deleteReg = useConfirmDelete();
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  const handleHighlight = useCallback(() => {
+    if (historico.length > 0) {
+      setHighlightId(historico[0].id);
+      setTimeout(() => setHighlightId(null), 2500);
+    }
+  }, [historico]);
+
+  useEffect(() => {
+    window.addEventListener('highlight-latest-history', handleHighlight);
+    return () => window.removeEventListener('highlight-latest-history', handleHighlight);
+  }, [handleHighlight]);
 
   if (historico.length === 0) {
     return (
@@ -129,7 +144,20 @@ export default function Historico() {
                 }
 
                 return (
-                  <Card key={reg.id} variant="outlined" sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                  <Card key={reg.id} variant="outlined" sx={{
+                    borderRadius: 4, border: '1px solid',
+                    borderColor: highlightId === reg.id ? '#FF6B2C' : 'divider',
+                    overflow: 'hidden',
+                    transition: 'all 0.5s ease',
+                    ...(highlightId === reg.id && {
+                      boxShadow: `0 0 20px ${alpha('#FF6B2C', 0.25)}`,
+                      animation: 'historySlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                      '@keyframes historySlideIn': {
+                        '0%': { opacity: 0, transform: 'translateY(-20px) scale(0.95)' },
+                        '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+                      },
+                    }),
+                  }}>
                     <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                       {/* Header */}
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
