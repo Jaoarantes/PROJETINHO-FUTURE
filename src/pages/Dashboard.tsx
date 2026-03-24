@@ -238,30 +238,50 @@ const tooltipStyle = {
   pointerEvents: 'none' as const,
 };
 
+// Global dismiss counter — incremented on scroll/touch to kill all tooltips
+let _dismissGen = 0;
+(() => {
+  if (typeof window === 'undefined') return;
+  const bump = () => { _dismissGen++; };
+  window.addEventListener('scroll', bump, { passive: true, capture: true });
+  window.addEventListener('touchmove', bump, { passive: true });
+  window.addEventListener('touchend', bump, { passive: true });
+})();
+
 // Portal-based custom tooltip: renders at body level, impossible to clip
-// Stateless — relies purely on recharts' active prop to avoid stale tooltips
 function PortalTooltipWrapper(props: any) {
   const { active, payload, coordinate, renderContent } = props;
+  const [showGen, setShowGen] = useState(0);
 
-  if (!active || !payload?.length || !coordinate) return null;
+  // When recharts activates, snapshot the current dismiss generation
+  useEffect(() => {
+    if (active && payload?.length) {
+      setShowGen(_dismissGen);
+    }
+  }, [active, payload]);
+
+  // If not active or dismissed since last activation, hide
+  if (!active || !payload?.length || !coordinate || _dismissGen !== showGen) return null;
 
   const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
     document.querySelector('.recharts-wrapper:hover') ||
     document.querySelector('.recharts-surface:hover');
 
-  // If no chart is being hovered, don't show (prevents stuck tooltips)
-  if (!chartElement) return null;
+  let left = coordinate.x;
+  let top = coordinate.y;
 
-  const rect = chartElement.getBoundingClientRect();
-  let left = rect.left + coordinate.x + 15;
-  let top = rect.top + coordinate.y - 10;
+  if (chartElement) {
+    const rect = chartElement.getBoundingClientRect();
+    left = rect.left + coordinate.x + 15;
+    top = rect.top + coordinate.y - 10;
 
-  const tooltipWidth = 180;
-  if (left + tooltipWidth > window.innerWidth) {
-    left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
+    const tooltipWidth = 180;
+    if (left + tooltipWidth > window.innerWidth) {
+      left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
+    }
+    if (top < 10) top = 10;
+    if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
   }
-  if (top < 10) top = 10;
-  if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
 
   return createPortal(
     <div style={{
