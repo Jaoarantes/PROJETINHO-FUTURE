@@ -238,62 +238,30 @@ const tooltipStyle = {
   pointerEvents: 'none' as const,
 };
 
-// Global tooltip lock: only one tooltip visible at a time
-let _activeTooltipId: number = 0;
-let _tooltipCounter: number = 0;
-
-// Dismiss all tooltips on scroll/touch (registered once)
-let _globalListenersReady = false;
-function ensureGlobalDismiss() {
-  if (_globalListenersReady) return;
-  _globalListenersReady = true;
-  const dismiss = () => { _activeTooltipId = 0; };
-  window.addEventListener('scroll', dismiss, { passive: true, capture: true });
-  window.addEventListener('touchstart', dismiss, { passive: true });
-  window.addEventListener('pointerdown', dismiss, { passive: true });
-}
-
 // Portal-based custom tooltip: renders at body level, impossible to clip
+// Stateless — relies purely on recharts' active prop to avoid stale tooltips
 function PortalTooltipWrapper(props: any) {
   const { active, payload, coordinate, renderContent } = props;
 
-  const [myId] = useState(() => ++_tooltipCounter);
-
-  useEffect(() => { ensureGlobalDismiss(); }, []);
-
-  const isActive = !!(active && payload?.length && coordinate);
-
-  // When this tooltip becomes active, claim the global lock
-  useEffect(() => {
-    if (isActive) {
-      _activeTooltipId = myId;
-    } else if (_activeTooltipId === myId) {
-      _activeTooltipId = 0;
-    }
-  }, [isActive, myId]);
-
-  // Only render if WE are the active tooltip
-  if (!isActive || _activeTooltipId !== myId) return null;
+  if (!active || !payload?.length || !coordinate) return null;
 
   const chartElement = document.querySelector('.recharts-responsive-container:hover') ||
     document.querySelector('.recharts-wrapper:hover') ||
     document.querySelector('.recharts-surface:hover');
 
-  let left = coordinate.x;
-  let top = coordinate.y;
+  // If no chart is being hovered, don't show (prevents stuck tooltips)
+  if (!chartElement) return null;
 
-  if (chartElement) {
-    const rect = chartElement.getBoundingClientRect();
-    left = rect.left + coordinate.x + 15;
-    top = rect.top + coordinate.y - 10;
+  const rect = chartElement.getBoundingClientRect();
+  let left = rect.left + coordinate.x + 15;
+  let top = rect.top + coordinate.y - 10;
 
-    const tooltipWidth = 180;
-    if (left + tooltipWidth > window.innerWidth) {
-      left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
-    }
-    if (top < 10) top = 10;
-    if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
+  const tooltipWidth = 180;
+  if (left + tooltipWidth > window.innerWidth) {
+    left = Math.max(10, rect.left + coordinate.x - tooltipWidth - 15);
   }
+  if (top < 10) top = 10;
+  if (top + 120 > window.innerHeight) top = window.innerHeight - 120;
 
   return createPortal(
     <div style={{
