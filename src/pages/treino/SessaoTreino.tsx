@@ -114,12 +114,20 @@ export default function SessaoTreino() {
 
     const tipo = sessao.tipo || 'musculacao';
 
-    const navigateToHistory = () => {
+    const goToHistory = () => {
+        setSuccessVariant('treino');
+        setSuccessOpen(true);
         navigate('/treino');
         setTimeout(() => {
             window.dispatchEvent(new CustomEvent('switch-treino-tab', { detail: 1 }));
             window.dispatchEvent(new CustomEvent('highlight-latest-history'));
-        }, 100);
+        }, 150);
+    };
+
+    const goToFeed = () => {
+        setSuccessVariant('post');
+        setSuccessOpen(true);
+        setTimeout(() => navigate('/feed'), 1200);
     };
 
     const handleConcluir = async (gpsDistancia?: number) => {
@@ -132,8 +140,7 @@ export default function SessaoTreino() {
                 setShareRegistro(registro);
                 setShareOpen(true);
             } else {
-                setSuccessVariant('treino');
-                setSuccessOpen(true);
+                goToHistory();
             }
         } catch (err) {
             console.error('[SessaoTreino] Erro ao concluir treino:', err);
@@ -146,8 +153,7 @@ export default function SessaoTreino() {
     const handleShareSkip = () => {
         setShareOpen(false);
         setShareRegistro(null);
-        setSuccessVariant('treino');
-        setSuccessOpen(true);
+        goToHistory();
     };
 
     const handleSharePost = async () => {
@@ -185,8 +191,7 @@ export default function SessaoTreino() {
                 fotoUrls,
             });
             setShareOpen(false);
-            setSuccessVariant('post');
-            setSuccessOpen(true);
+            goToFeed();
         } catch (err) {
             console.error('Erro ao compartilhar:', err);
             setErroMsg('Erro ao compartilhar. Tente novamente.');
@@ -406,14 +411,7 @@ export default function SessaoTreino() {
             <SuccessOverlay
                 open={successOpen}
                 variant={successVariant}
-                onComplete={() => {
-                    setSuccessOpen(false);
-                    if (successVariant === 'post') {
-                        navigate('/feed');
-                    } else {
-                        navigateToHistory();
-                    }
-                }}
+                onComplete={() => setSuccessOpen(false)}
             />
         </Box>
     );

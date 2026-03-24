@@ -83,6 +83,7 @@ export default function TreinoCompartilhado() {
       await atualizarStatusShare(share.id, 'accepted');
 
       setSuccessOpen(true);
+      setTimeout(() => navigate('/treino'), 1200);
     } catch (err) {
       console.error('Erro ao copiar treino:', err);
     } finally {
@@ -252,10 +253,7 @@ export default function TreinoCompartilhado() {
       <SuccessOverlay
         open={successOpen}
         variant="copiar"
-        onComplete={() => {
-          setSuccessOpen(false);
-          navigate('/treino');
-        }}
+        onComplete={() => setSuccessOpen(false)}
       />
     </Box>
   );

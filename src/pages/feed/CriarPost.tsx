@@ -150,6 +150,7 @@ export default function CriarPost() {
       });
 
       setSuccessOpen(true);
+      setTimeout(() => navigate('/feed'), 1200);
     } catch (err: any) {
       console.error('Erro ao criar post:', err);
       setError('Erro ao publicar. Tente novamente.');
@@ -543,10 +544,7 @@ export default function CriarPost() {
       <SuccessOverlay
         open={successOpen}
         variant="post"
-        onComplete={() => {
-          setSuccessOpen(false);
-          navigate('/feed');
-        }}
+        onComplete={() => setSuccessOpen(false)}
       />
     </Box>
   );
