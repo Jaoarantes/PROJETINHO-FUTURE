@@ -28,6 +28,7 @@ const MeusPosts = lazy(() => import('./pages/feed/MeusPosts'));
 const Notificacoes = lazy(() => import('./pages/feed/Notificacoes'));
 const PerfilUsuario = lazy(() => import('./pages/feed/PerfilUsuario'));
 const BuscaUsuarios = lazy(() => import('./pages/feed/BuscaUsuarios'));
+const TreinoCompartilhado = lazy(() => import('./pages/feed/TreinoCompartilhado'));
 const NotificacoesConfig = lazy(() => import('./pages/NotificacoesConfig'));
 
 function Loading() {
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="/feed/notificacoes" element={<Notificacoes />} />
             <Route path="/feed/busca" element={<BuscaUsuarios />} />
             <Route path="/feed/perfil/:userId" element={<PerfilUsuario />} />
+            <Route path="/feed/treino-compartilhado/:shareId" element={<TreinoCompartilhado />} />
             <Route path="/feed/:postId" element={<PostDetalhe />} />
           </Route>
 
