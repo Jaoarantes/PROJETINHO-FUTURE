@@ -893,40 +893,43 @@ function filtrarTreinosValidos(historico: ReturnType<typeof useTreinoStore.getSt
   });
 }
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function sundayOf(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+}
+
 function calcularStreak(historico: ReturnType<typeof useTreinoStore.getState>['historico']): number {
   const validos = filtrarTreinosValidos(historico);
   if (validos.length === 0) return 0;
 
   const semanas = new Set<string>();
   validos.forEach((r) => {
-    const d = new Date(r.concluidoEm);
-    const inicio = new Date(d);
-    inicio.setDate(inicio.getDate() - inicio.getDay());
-    semanas.add(inicio.toISOString().slice(0, 10));
+    semanas.add(toLocalDate(sundayOf(new Date(r.concluidoEm))));
   });
 
   const sorted = Array.from(semanas).sort().reverse();
-  let streak = 0;
 
-  const agora = new Date();
-  agora.setDate(agora.getDate() - agora.getDay());
-  const semanaAtual = agora.toISOString().slice(0, 10);
+  // Se a semana mais recente com treino é mais de 1 semana atrás, streak = 0
+  const maisRecente = sorted[0];
+  const diffMs = sundayOf(new Date()).getTime() - new Date(maisRecente + 'T00:00:00').getTime();
+  const diffSemanas = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  if (diffSemanas > 1) return 0;
 
-  for (let i = 0; i < sorted.length; i++) {
-    const esperada = new Date(agora);
-    esperada.setDate(esperada.getDate() - i * 7);
-    const esperadaStr = esperada.toISOString().slice(0, 10);
-
-    if (sorted[i] === esperadaStr || (i === 0 && sorted[0] <= semanaAtual)) {
-      if (i === 0 && sorted[0] !== semanaAtual) {
-        const diff = (agora.getTime() - new Date(sorted[0]).getTime()) / (1000 * 60 * 60 * 24);
-        if (diff > 14) break;
-      }
+  // Contar semanas consecutivas a partir da mais recente
+  let streak = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    const base = new Date(maisRecente + 'T00:00:00');
+    base.setDate(base.getDate() - i * 7);
+    if (sorted[i] === toLocalDate(base)) {
       streak++;
     } else {
       break;
     }
   }
+
   return streak;
 }
 
@@ -1081,7 +1084,7 @@ function ConquistasSection({ historico, uid }: {
               {stats.streak}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Sem. Streak
+              Semanas Seguidas
             </Typography>
           </CardContent>
         </Card>

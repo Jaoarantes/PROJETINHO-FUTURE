@@ -737,7 +737,7 @@ export default function Dashboard() {
                 mt: 0.3,
                 fontWeight: 600,
               }}>
-                Streak
+                Dias Seguidos
               </Typography>
             </Box>
           )}
