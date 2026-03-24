@@ -33,7 +33,6 @@ function calcularStreak(historico: RegistroTreino[]): number {
   });
 
   const sorted = Array.from(semanas).sort().reverse();
-  const domingoAtual = toLocalDate(sundayOf(new Date()));
 
   // Se a semana mais recente com treino é mais de 1 semana atrás, streak = 0
   const maisRecente = sorted[0];
