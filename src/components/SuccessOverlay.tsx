@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { CheckCircle, Dumbbell, Send, Copy } from 'lucide-react';
@@ -49,6 +49,8 @@ export default function SuccessOverlay({
   duration = 1400,
 }: SuccessOverlayProps) {
   const [phase, setPhase] = useState<'enter' | 'visible' | 'exit' | 'gone'>('gone');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (!open) {
@@ -61,11 +63,11 @@ export default function SuccessOverlay({
     const t2 = setTimeout(() => setPhase('exit'), duration - 400);
     const t3 = setTimeout(() => {
       setPhase('gone');
-      onComplete?.();
+      onCompleteRef.current?.();
     }, duration);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [open, duration, onComplete]);
+  }, [open, duration]);
 
   if (phase === 'gone') return null;
 
