@@ -345,6 +345,7 @@ export default function Dashboard() {
   const [mostrarTodosExercicios, setMostrarTodosExercicios] = useState(false);
   const [filtroGrupoVolume, setFiltroGrupoVolume] = useState<string | null>(null);
   const [filtroCargaExercicio, setFiltroCargaExercicio] = useState<string | null>(null);
+  const [filtroEvolucaoExercicio, setFiltroEvolucaoExercicio] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -620,7 +621,7 @@ export default function Dashboard() {
 
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
-      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, exercicioEvolucao, paceData, corridaDistData,
+      tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, exercicioEvolucao, exercicioEvolucaoFull, paceData, corridaDistData,
       natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
       temMaisExercicios: exercicioEvolucaoFull.length > 3,
@@ -1336,36 +1337,31 @@ export default function Dashboard() {
           </Card>
 
           {/* Evolucao por exercicio */}
-          {stats.exercicioEvolucao.length > 0 && (
-            <>
-              <SectionHeader icon={<TrendingUp size={15} />} title="Evolução por Exercício" isDark={isDark} />
-              {stats.exercicioEvolucao.map((ex, idx) => (
-                <ExerciseCard key={ex.nome} ex={ex} idx={idx} isDark={isDark} />
-              ))}
-
-              {stats.temMaisExercicios && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 0.5, mb: 3 }}>
-                  <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => setMostrarTodosExercicios(!mostrarTodosExercicios)}
-                    startIcon={mostrarTodosExercicios ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    sx={{
-                      borderRadius: '12px',
-                      textTransform: 'none',
-
-                      fontWeight: 600,
-                      fontSize: '0.8rem',
-                      color: CORES.geral,
-                      '&:hover': { bgcolor: alpha(CORES.geral, 0.08) },
-                    }}
-                  >
-                    {mostrarTodosExercicios ? 'Ver menos' : 'Ver todos os exercícios'}
-                  </Button>
-                </Box>
-              )}
-            </>
-          )}
+          {stats.exercicioEvolucaoFull.length > 0 && (() => {
+            const evolNomes = stats.exercicioEvolucaoFull.map(e => e.nome);
+            const evolSelecionado = filtroEvolucaoExercicio && evolNomes.includes(filtroEvolucaoExercicio)
+              ? filtroEvolucaoExercicio
+              : stats.ultimoExercicioFeito && evolNomes.includes(stats.ultimoExercicioFeito)
+                ? stats.ultimoExercicioFeito
+                : evolNomes[0];
+            const exData = stats.exercicioEvolucaoFull.find(e => e.nome === evolSelecionado);
+            return (
+              <>
+                <SectionHeader icon={<TrendingUp size={15} />} title="Evolução por Exercício" isDark={isDark} />
+                <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
+                  <CardContent sx={{ py: 2, px: 1.2 }}>
+                    <ExercicioSelect
+                      exercicios={evolNomes}
+                      selected={evolSelecionado}
+                      onChange={(nome) => setFiltroEvolucaoExercicio(nome)}
+                      isDark={isDark}
+                    />
+                    {exData && <ExerciseCard ex={exData} idx={0} isDark={isDark} inline />}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </Box>
       )}
 
@@ -1955,7 +1951,7 @@ function SectionHeader({ icon, title, badge, isDark }: {
   );
 }
 
-function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boolean }) {
+function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDark: boolean; inline?: boolean }) {
   const bestPeso = Math.max(...ex.dados.map((d: any) => d.pesoMax));
   const bestReps = Math.max(...ex.dados.map((d: any) => d.repsMax));
 
@@ -1966,9 +1962,8 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
     treinoFull: `Treino ${i + 1}`,
   }));
 
-  return (
-    <Card sx={{ mb: 2, overflow: 'visible', borderRadius: '8px' }}>
-      <CardContent sx={{ py: 1.5, px: 1.2 }}>
+  const content = (
+    <>
         {/* Header row */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Box sx={{
@@ -2119,6 +2114,15 @@ function ExerciseCard({ ex, idx, isDark }: { ex: any; idx: number; isDark: boole
             ))}
           </Box>
         )}
+    </>
+  );
+
+  if (inline) return content;
+
+  return (
+    <Card sx={{ mb: 2, overflow: 'visible', borderRadius: '8px' }}>
+      <CardContent sx={{ py: 1.5, px: 1.2 }}>
+        {content}
       </CardContent>
     </Card>
   );
