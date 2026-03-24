@@ -343,6 +343,8 @@ export default function Dashboard() {
   });
 
   const [mostrarTodosExercicios, setMostrarTodosExercicios] = useState(false);
+  const [filtroGrupoVolume, setFiltroGrupoVolume] = useState<string | null>(null);
+  const [filtroCargaExercicio, setFiltroCargaExercicio] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -1040,8 +1042,34 @@ export default function Dashboard() {
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.volumeData.length >= 1 ? (
                 <>
+                  {/* Filtro por grupo muscular */}
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5, px: 0.5 }}>
+                    <FilterChip
+                      label="Todos"
+                      selected={filtroGrupoVolume === null}
+                      onClick={() => setFiltroGrupoVolume(null)}
+                      color={CORES.geral}
+                      isDark={isDark}
+                    />
+                    {stats.volumeMuscleGroups.map((grupo, i) => (
+                      <FilterChip
+                        key={grupo}
+                        label={grupo}
+                        selected={filtroGrupoVolume === grupo}
+                        onClick={() => setFiltroGrupoVolume(filtroGrupoVolume === grupo ? null : grupo)}
+                        color={getMuscleColor(i)}
+                        isDark={isDark}
+                      />
+                    ))}
+                  </Box>
                   <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={stats.volumeData} barCategoryGap="15%">
+                    <BarChart
+                      data={filtroGrupoVolume
+                        ? stats.volumeData.map(d => ({ label: d.label, [filtroGrupoVolume]: d[filtroGrupoVolume] || 0 }))
+                        : stats.volumeData
+                      }
+                      barCategoryGap="15%"
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={40} unit="kg" axisLine={false} tickLine={false} />
@@ -1050,19 +1078,26 @@ export default function Dashboard() {
                         content={<PortalTooltipWrapper renderContent={(payload: any) => {
                           if (!payload || !payload.length) return null;
                           const d = payload[0].payload;
-                          const total = d.volume || 0;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
-                              <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700, mb: 0.5 }}>
-                                Total: {total.toLocaleString('pt-BR')} kg
-                              </Typography>
-                              {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
-                                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.2 }}>
-                                  <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
-                                  <Typography sx={{ color: '#fff', fontSize: '0.68rem', flex: 1 }}>{e.dataKey}</Typography>
-                                  <Typography sx={{ color: '#fff', fontSize: '0.68rem', fontWeight: 700 }}>{Math.round(e.value)} kg</Typography>
-                                </Box>
-                              ))}
+                              {filtroGrupoVolume ? (
+                                <Typography sx={{ color: getMuscleColor(stats.volumeMuscleGroups.indexOf(filtroGrupoVolume)), fontSize: '1rem', fontWeight: 700 }}>
+                                  {Math.round(d[filtroGrupoVolume] || 0).toLocaleString('pt-BR')} kg
+                                </Typography>
+                              ) : (
+                                <>
+                                  <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700, mb: 0.5 }}>
+                                    Total: {(d.volume || payload.reduce((s: number, e: any) => s + (Number(e.value) || 0), 0)).toLocaleString('pt-BR')} kg
+                                  </Typography>
+                                  {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
+                                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.2 }}>
+                                      <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
+                                      <Typography sx={{ color: '#fff', fontSize: '0.68rem', flex: 1 }}>{e.dataKey}</Typography>
+                                      <Typography sx={{ color: '#fff', fontSize: '0.68rem', fontWeight: 700 }}>{Math.round(e.value)} kg</Typography>
+                                    </Box>
+                                  ))}
+                                </>
+                              )}
                               <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', mt: 0.3 }}>
                                 {d.label}
                               </Typography>
@@ -1070,16 +1105,28 @@ export default function Dashboard() {
                           );
                         }} />}
                       />
-                      {stats.volumeMuscleGroups.map((grupo, i) => (
-                        <Bar key={grupo} dataKey={grupo} stackId="vol" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                      ))}
+                      {filtroGrupoVolume ? (
+                        <Bar
+                          dataKey={filtroGrupoVolume}
+                          fill={getMuscleColor(stats.volumeMuscleGroups.indexOf(filtroGrupoVolume))}
+                          radius={[3, 3, 0, 0]}
+                          stroke="none"
+                          activeBar={{ stroke: 'none' }}
+                        />
+                      ) : (
+                        stats.volumeMuscleGroups.map((grupo, i) => (
+                          <Bar key={grupo} dataKey={grupo} stackId="vol" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
+                        ))
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
-                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
-                    {stats.volumeMuscleGroups.map((grupo, i) => (
-                      <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
-                    ))}
-                  </Box>
+                  {!filtroGrupoVolume && (
+                    <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
+                      {stats.volumeMuscleGroups.map((grupo, i) => (
+                        <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
+                      ))}
+                    </Box>
+                  )}
                 </>
               ) : (
                 <EmptyState text="Nenhum treino de musculação neste período" />
@@ -1197,46 +1244,73 @@ export default function Dashboard() {
           <SectionHeader icon={<Zap size={15} />} title="Carga Máxima por Exercício" badge="kg" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'visible', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 1 }}>
-              {stats.cargaMaxData.length >= 1 ? (
-                <Box sx={{ height: Math.max(180, stats.cargaMaxData.length * 32), width: '100%' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.cargaMaxData} layout="vertical" margin={{ left: -10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} unit="kg" axisLine={false} tickLine={false} />
-                      <YAxis
-                        dataKey="nome"
-                        type="category"
-                        width={90}
-                        tick={{ fontSize: 9, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
-                        axisLine={false}
-                        tickLine={false}
+              {stats.cargaMaxData.length >= 1 ? (() => {
+                const cargaFiltrada = filtroCargaExercicio
+                  ? stats.cargaMaxData.filter(d => d.nome === filtroCargaExercicio)
+                  : stats.cargaMaxData;
+                return (
+                  <>
+                    {/* Filtro por exercício */}
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5, px: 0.5 }}>
+                      <FilterChip
+                        label="Todos"
+                        selected={filtroCargaExercicio === null}
+                        onClick={() => setFiltroCargaExercicio(null)}
+                        color={CORES.geral}
+                        isDark={isDark}
                       />
-                      <Tooltip
-                        {...tooltipProps}
-                        content={<PortalTooltipWrapper renderContent={(payload: any) => {
-                          if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
-                          return (
-                            <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
-                              <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
-                                {d.cargaMax} kg
-                              </Typography>
-                              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', mt: 0.3 }}>
-                                {d.nome}
-                              </Typography>
-                            </Box>
-                          );
-                        }} />}
-                      />
-                      <Bar dataKey="cargaMax" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
-                        {stats.cargaMaxData.map((_, index) => (
-                          <Cell key={`carga-${index}`} fill={index === 0 ? CORES.recorde : alpha(CORES.recorde, 0.5 - index * 0.03)} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              ) : (
+                      {stats.cargaMaxData.slice(0, 10).map((d) => (
+                        <FilterChip
+                          key={d.nome}
+                          label={d.nome}
+                          selected={filtroCargaExercicio === d.nome}
+                          onClick={() => setFiltroCargaExercicio(filtroCargaExercicio === d.nome ? null : d.nome)}
+                          color={CORES.recorde}
+                          isDark={isDark}
+                        />
+                      ))}
+                    </Box>
+                    <Box sx={{ height: Math.max(120, cargaFiltrada.length * 32), width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={cargaFiltrada} layout="vertical" margin={{ left: -10, right: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} horizontal={false} />
+                          <XAxis type="number" tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} unit="kg" axisLine={false} tickLine={false} />
+                          <YAxis
+                            dataKey="nome"
+                            type="category"
+                            width={90}
+                            tick={{ fontSize: 9, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            {...tooltipProps}
+                            content={<PortalTooltipWrapper renderContent={(payload: any) => {
+                              if (!payload || !payload.length) return null;
+                              const d = payload[0].payload;
+                              return (
+                                <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 140 }}>
+                                  <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>
+                                    {d.cargaMax} kg
+                                  </Typography>
+                                  <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', mt: 0.3 }}>
+                                    {d.nome}
+                                  </Typography>
+                                </Box>
+                              );
+                            }} />}
+                          />
+                          <Bar dataKey="cargaMax" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
+                            {cargaFiltrada.map((_, index) => (
+                              <Cell key={`carga-${index}`} fill={index === 0 ? CORES.recorde : alpha(CORES.recorde, Math.max(0.25, 0.5 - index * 0.03))} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </>
+                );
+              })() : (
                 <EmptyState text="Nenhum treino com carga registrada" />
               )}
             </CardContent>
@@ -1526,6 +1600,43 @@ export default function Dashboard() {
 // ══════════════════════════════════════════════════
 // ── SUB-COMPONENTS ──────────────────────────────
 // ══════════════════════════════════════════════════
+
+function FilterChip({ label, selected, onClick, color, isDark }: {
+  label: string; selected: boolean; onClick: () => void; color: string; isDark: boolean;
+}) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        px: 1.2,
+        py: 0.4,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '0.65rem',
+        fontWeight: 600,
+        letterSpacing: '0.03em',
+        transition: 'all 0.2s ease',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+        ...(selected ? {
+          background: `linear-gradient(135deg, ${color} 0%, ${alpha(color, 0.8)} 100%)`,
+          color: '#000',
+          boxShadow: `0 2px 8px ${alpha(color, 0.3)}`,
+        } : {
+          bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+          color: 'text.secondary',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+          '&:hover': {
+            bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+            borderColor: alpha(color, 0.3),
+          },
+        }),
+      }}
+    >
+      {label}
+    </Box>
+  );
+}
 
 function GlowStat({ icon, value, label, color, isDark }: {
   icon: React.ReactNode; value: string | number; label: string; color: string; isDark: boolean;
