@@ -21,6 +21,7 @@ const Historico = lazy(() => import('./pages/Historico'));
 const Perfil = lazy(() => import('./pages/Perfil'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const StravaCallback = lazy(() => import('./pages/treino/StravaCallback'));
+const AtividadeDetalhe = lazy(() => import('./pages/treino/AtividadeDetalhe'));
 const FeedTab = lazy(() => import('./pages/feed/FeedTab'));
 const PostDetalhe = lazy(() => import('./pages/feed/PostDetalhe'));
 const CriarPost = lazy(() => import('./pages/feed/CriarPost'));
@@ -106,6 +107,7 @@ export default function App() {
             <Route path="/perfil/notificacoes" element={<NotificacoesConfig />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/strava/callback" element={<StravaCallback />} />
+            <Route path="/atividade/:registroId" element={<AtividadeDetalhe />} />
             <Route path="/feed" element={<FeedTab />} />
             <Route path="/feed/novo" element={<CriarPost />} />
             <Route path="/feed/meus-posts" element={<MeusPosts />} />
