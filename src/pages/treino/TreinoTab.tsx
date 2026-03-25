@@ -346,8 +346,47 @@ export default function TreinoTab() {
   const [shareSessao, setShareSessao] = useState<SessaoTreino | null>(null);
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [editRegOpen, setEditRegOpen] = useState(false);
+  const [editRegData, setEditRegData] = useState<RegistroTreino | null>(null);
+  const [editRegSaving, setEditRegSaving] = useState(false);
+  const atualizarRegistro = useTreinoStore((s) => s.atualizarRegistro);
   const deleteSessao = useConfirmDelete();
   const deleteRegistro = useConfirmDelete();
+
+  const handleOpenEditReg = (reg: RegistroTreino) => {
+    setEditRegData(JSON.parse(JSON.stringify(reg)));
+    setEditRegOpen(true);
+  };
+
+  const handleSaveEditReg = async () => {
+    if (!editRegData) return;
+    setEditRegSaving(true);
+    try {
+      await atualizarRegistro(editRegData);
+      setEditRegOpen(false);
+      setEditRegData(null);
+    } catch (err) {
+      console.error('Erro ao atualizar registro:', err);
+    } finally {
+      setEditRegSaving(false);
+    }
+  };
+
+  const handleEditPeso = (exIdx: number, serieIdx: number, valor: string) => {
+    if (!editRegData) return;
+    const updated = { ...editRegData, exercicios: [...editRegData.exercicios] };
+    updated.exercicios[exIdx] = { ...updated.exercicios[exIdx], series: [...updated.exercicios[exIdx].series] };
+    updated.exercicios[exIdx].series[serieIdx] = { ...updated.exercicios[exIdx].series[serieIdx], peso: valor === '' ? 0 : Number(valor) };
+    setEditRegData(updated);
+  };
+
+  const handleEditReps = (exIdx: number, serieIdx: number, valor: string) => {
+    if (!editRegData) return;
+    const updated = { ...editRegData, exercicios: [...editRegData.exercicios] };
+    updated.exercicios[exIdx] = { ...updated.exercicios[exIdx], series: [...updated.exercicios[exIdx].series] };
+    updated.exercicios[exIdx].series[serieIdx] = { ...updated.exercicios[exIdx].series[serieIdx], repeticoes: valor === '' ? 0 : Number(valor) };
+    setEditRegData(updated);
+  };
 
   // Agrupamento + ordenação
   const sessoesAgrupadas = useMemo(() => {
@@ -665,6 +704,11 @@ export default function TreinoTab() {
                               {/* Exercícios de musculação */}
                               {tipo === 'musculacao' && reg.exercicios.length > 0 && (
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -0.5, mb: -0.5 }}>
+                                    <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleOpenEditReg(reg); }} sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}>
+                                      <Pencil size={14} />
+                                    </IconButton>
+                                  </Box>
                                   {reg.exercicios.map((ex) => (
                                     <Box key={ex.id}>
                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -1003,6 +1047,60 @@ export default function TreinoTab() {
         onClose={deleteRegistro.cancel}
         onConfirm={() => deleteRegistro.confirmDelete(async () => { removerRegistro(deleteRegistro.payload); })}
       />
+
+      {/* Modal editar cargas do histórico */}
+      <Dialog
+        open={editRegOpen}
+        onClose={() => { setEditRegOpen(false); setEditRegData(null); }}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{ sx: { borderRadius: 3, maxHeight: '80vh' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: '1rem', pb: 0.5 }}>Editar Cargas</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {editRegData && editRegData.exercicios.map((ex, exIdx) => (
+            <Box key={ex.id} sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 1 }}>{ex.exercicio.nome}</Typography>
+              {ex.series.map((s, sIdx) => (
+                <Box key={s.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.8 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.7rem', color: 'text.secondary', minWidth: 20 }}>S{sIdx + 1}</Typography>
+                  <TextField
+                    size="small"
+                    label="Peso (kg)"
+                    type="number"
+                    value={s.peso || ''}
+                    onChange={(e) => handleEditPeso(exIdx, sIdx, e.target.value)}
+                    sx={{ flex: 1 }}
+                    inputProps={{ min: 0, step: 0.5, inputMode: 'decimal' }}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 700 }}>×</Typography>
+                  <TextField
+                    size="small"
+                    label="Reps"
+                    type="number"
+                    value={s.repeticoes || ''}
+                    onChange={(e) => handleEditReps(exIdx, sIdx, e.target.value)}
+                    sx={{ flex: 0.7 }}
+                    inputProps={{ min: 0, inputMode: 'numeric' }}
+                  />
+                </Box>
+              ))}
+              {exIdx < editRegData.exercicios.length - 1 && <Divider sx={{ mt: 1.5 }} />}
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setEditRegOpen(false); setEditRegData(null); }} color="inherit">Cancelar</Button>
+          <Button
+            onClick={handleSaveEditReg}
+            variant="contained"
+            disabled={editRegSaving}
+            sx={{ fontWeight: 700, bgcolor: '#FF6B00', '&:hover': { bgcolor: '#E65C00' } }}
+          >
+            {editRegSaving ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
