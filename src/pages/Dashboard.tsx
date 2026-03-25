@@ -517,7 +517,7 @@ export default function Dashboard() {
       const vol = calcularVolumeSessao(r.exercicios);
       if (vol > melhorVolume) {
         melhorVolume = vol;
-        melhorVolumeInfo = { nome: r.treino?.nome || 'Musculação', data: r.concluidoEm };
+        melhorVolumeInfo = { nome: r.nome || 'Musculação', data: r.concluidoEm };
       }
     });
     const maiorDistCorrida = corrida.length > 0
