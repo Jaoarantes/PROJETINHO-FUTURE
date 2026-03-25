@@ -6,7 +6,7 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, HeartPulse, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2, Thermometer } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
@@ -48,14 +48,7 @@ function formatarPace(mps: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')} /km`;
 }
 
-// Formatar m/s para Pace /100m (Natação)
-function formatarPaceNatacao(mps: number): string {
-  if (!mps || mps <= 0) return '--:--';
-  const segPor100m = 100 / mps;
-  const mins = Math.floor(segPor100m / 60);
-  const secs = Math.round(segPor100m % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')} /100m`;
-}
+
 
 function formatarSegundos(seg: number): string {
   const h = Math.floor(seg / 3600);
