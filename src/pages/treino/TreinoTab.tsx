@@ -6,7 +6,7 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
+import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, TrendingUp, Zap, Heart, HeartPulse, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2, Thermometer } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
@@ -771,72 +771,214 @@ export default function TreinoTab() {
 
                               {/* Dados adicionais do Strava */}
                               {reg.stravaData && (
-                                <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1.5, p: 1.5, bgcolor: 'rgba(252, 76, 2, 0.05)', borderRadius: 2, border: '1px solid rgba(252, 76, 2, 0.2)' }}>
+                                <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.5, bgcolor: 'rgba(252, 76, 2, 0.05)', borderRadius: 2, border: '1px solid rgba(252, 76, 2, 0.2)' }}>
 
-                                  {/* Corridas/Pedal (Pace e Elevação) */}
-                                  {tipo === 'corrida' && (
-                                    <>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Clock size={14} color="#FC4C02" />
-                                        <Box>
-                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Pace Médio</Typography>
-                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                            {formatarPace(reg.stravaData.averageSpeedMps)}
-                                          </Typography>
-                                        </Box>
-                                      </Box>
+                                  {/* Header Strava + Device */}
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.65rem', letterSpacing: '0.05em' }}>DADOS DO STRAVA</Typography>
+                                    {reg.stravaData.deviceName && (
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>{reg.stravaData.deviceName}</Typography>
+                                    )}
+                                  </Box>
 
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Zap size={14} color="#FC4C02" />
-                                        <Box>
-                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Max Pace</Typography>
-                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                            {formatarPace(reg.stravaData.maxSpeedMps)}
-                                          </Typography>
-                                        </Box>
-                                      </Box>
-
-                                      {reg.stravaData.elevationGainM > 0 && (
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+                                    {/* Corridas/Pedal (Pace e Elevação) */}
+                                    {tipo === 'corrida' && (
+                                      <>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                          <TrendingUp size={14} color="#FC4C02" />
+                                          <Clock size={14} color="#FC4C02" />
                                           <Box>
-                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Elevação</Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Pace Médio</Typography>
                                             <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                              {reg.stravaData.elevationGainM}m
+                                              {formatarPace(reg.stravaData.averageSpeedMps)}
                                             </Typography>
                                           </Box>
                                         </Box>
-                                      )}
-                                    </>
-                                  )}
 
-                                  {/* Natação (Ritmo /100m) */}
-                                  {tipo === 'natacao' && reg.stravaData.averageSpeedMps > 0 && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <Clock size={14} color="#FC4C02" />
-                                      <Box>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Ritmo /100m</Typography>
-                                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                          {formatarPaceNatacao(reg.stravaData.averageSpeedMps)}
-                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                          <Zap size={14} color="#FC4C02" />
+                                          <Box>
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Max Pace</Typography>
+                                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                              {formatarPace(reg.stravaData.maxSpeedMps)}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+
+                                        {reg.stravaData.elevationGainM > 0 && (
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <TrendingUp size={14} color="#FC4C02" />
+                                            <Box>
+                                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Elevação</Typography>
+                                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                                {reg.stravaData.elevationGainM}m
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        )}
+
+                                        {reg.stravaData.averageCadence != null && (
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Footprints size={14} color="#FC4C02" />
+                                            <Box>
+                                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Cadência</Typography>
+                                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                                {Math.round(reg.stravaData.averageCadence * 2)} ppm
+                                              </Typography>
+                                            </Box>
+                                          </Box>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Natação (Ritmo /100m) */}
+                                    {tipo === 'natacao' && reg.stravaData.averageSpeedMps > 0 && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Clock size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Ritmo /100m</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {formatarPaceNatacao(reg.stravaData.averageSpeedMps)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* FC Média */}
+                                    {reg.stravaData.averageHeartrate != null && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Heart size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>FC Média</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {Math.round(reg.stravaData.averageHeartrate)} bpm
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* FC Máxima */}
+                                    {reg.stravaData.maxHeartrate != null && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <HeartPulse size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>FC Máx</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {Math.round(reg.stravaData.maxHeartrate)} bpm
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Calorias */}
+                                    {reg.stravaData.calories != null && Number(reg.stravaData.calories) > 0 && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Flame size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Calorias</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {Math.round(Number(reg.stravaData.calories))} kcal
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Suffer Score */}
+                                    {reg.stravaData.sufferScore != null && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Zap size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Esforço</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {reg.stravaData.sufferScore}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Watts (ciclismo) */}
+                                    {reg.stravaData.averageWatts != null && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Zap size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Potência Média</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {Math.round(reg.stravaData.averageWatts)}W
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Temperatura */}
+                                    {reg.stravaData.averageTemp != null && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Thermometer size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Temperatura</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {reg.stravaData.averageTemp}°C
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+
+                                    {/* Equipamento */}
+                                    {reg.stravaData.gearName && (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Footprints size={14} color="#FC4C02" />
+                                        <Box>
+                                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>Equipamento</Typography>
+                                          <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
+                                            {reg.stravaData.gearName}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    )}
+                                  </Box>
+
+                                  {/* Splits (km a km) */}
+                                  {reg.stravaData.splits && reg.stravaData.splits.length > 1 && (
+                                    <Box sx={{ mt: 0.5 }}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', mb: 0.5, display: 'block' }}>Splits por km</Typography>
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                                        {reg.stravaData.splits.map((s, i) => (
+                                          <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.3, borderBottom: i < reg.stravaData!.splits!.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                                            <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 700, minWidth: 28, color: 'text.secondary' }}>km {i + 1}</Typography>
+                                            <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600, minWidth: 55 }}>
+                                              {formatarPace(s.averageSpeed)}
+                                            </Typography>
+                                            {s.averageHeartrate != null && (
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                                {Math.round(s.averageHeartrate)} bpm
+                                              </Typography>
+                                            )}
+                                            {s.elevationDifference !== 0 && (
+                                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: s.elevationDifference > 0 ? '#4caf50' : '#f44336' }}>
+                                                {s.elevationDifference > 0 ? '+' : ''}{Math.round(s.elevationDifference)}m
+                                              </Typography>
+                                            )}
+                                          </Box>
+                                        ))}
                                       </Box>
                                     </Box>
                                   )}
 
-                                  {/* Genérico: Batimentos e Calorias */}
-                                  {reg.stravaData.averageHeartrate !== undefined && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <Heart size={14} color="#FC4C02" />
-                                      <Box>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', lineHeight: 1 }}>FC Média</Typography>
-                                        <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.8rem' }}>
-                                          {Math.round(reg.stravaData.averageHeartrate)} bpm
-                                        </Typography>
+                                  {/* Best Efforts */}
+                                  {reg.stravaData.bestEfforts && reg.stravaData.bestEfforts.length > 0 && (
+                                    <Box sx={{ mt: 0.5 }}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', mb: 0.5, display: 'block' }}>Melhores Marcas</Typography>
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {reg.stravaData.bestEfforts.map((b, i) => (
+                                          <Box key={i} sx={{ px: 1, py: 0.3, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
+                                            <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>{b.name}</Typography>
+                                            <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 700, display: 'block' }}>
+                                              {b.movingTime >= 3600 ? `${Math.floor(b.movingTime / 3600)}h${String(Math.floor((b.movingTime % 3600) / 60)).padStart(2, '0')}min` : b.movingTime >= 60 ? `${Math.floor(b.movingTime / 60)}:${String(b.movingTime % 60).padStart(2, '0')}` : `${b.movingTime}s`}
+                                            </Typography>
+                                          </Box>
+                                        ))}
                                       </Box>
                                     </Box>
                                   )}
-
-
 
                                 </Box>
                               )}

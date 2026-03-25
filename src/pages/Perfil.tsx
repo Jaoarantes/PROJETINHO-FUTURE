@@ -16,7 +16,7 @@ import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../hooks/useConfirmDelete';
 import type { RegistroPeso } from '../services/dietaService';
-import { STRAVA_AUTH_URL, getStravaActivities, refreshStravaToken } from '../services/stravaApi';
+import { STRAVA_AUTH_URL, getStravaActivities, getStravaActivityDetail, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 
@@ -151,15 +151,39 @@ export default function Perfil() {
     const selecionadas = stravaActivities.filter((t) => selectedStravaIds.includes(t.id));
     let added = 0;
 
+    // Pegar token atualizado
+    let token = stravaAuth?.accessToken || '';
+    const now = Math.floor(Date.now() / 1000);
+    if (stravaAuth && stravaAuth.expiresAt && stravaAuth.expiresAt < now && user?.id) {
+      const refreshed = await refreshStravaToken(stravaAuth.refreshToken);
+      const newAuth: StravaAuthData = {
+        accessToken: refreshed.access_token,
+        refreshToken: refreshed.refresh_token,
+        expiresAt: refreshed.expires_at,
+        athleteId: stravaAuth.athleteId,
+      };
+      await salvarStravaAuth(user.id, newAuth);
+      setStravaAuth(newAuth);
+      token = refreshed.access_token;
+    }
+
     for (const t of selecionadas) {
       const isRun = t.type === 'Run' || t.type === 'Ride';
       const isSwim = t.type === 'Swim';
       const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout';
 
-      let calorias = t.calories;
+      // Buscar detalhes completos da atividade (splits, laps, best efforts)
+      let detail = t;
+      try {
+        if (token) detail = await getStravaActivityDetail(token, t.id);
+      } catch { /* fallback to summary data */ }
+
+      let calorias = detail.calories;
       if (!calorias) {
-        if (!t.kilojoules) {
-          const minutos = t.moving_time / 60;
+        if (detail.kilojoules) {
+          calorias = Math.round(detail.kilojoules * 0.239006);
+        } else {
+          const minutos = detail.moving_time / 60;
           const pesoEstimado = 75;
           let mets = 7.0;
           if (isRun) mets = t.type === 'Ride' ? 8.0 : 9.8;
@@ -171,29 +195,69 @@ export default function Perfil() {
 
       // Calcular XP para atividade do Strava (mínimo 20min)
       let xpParaGanhar = 0;
-      if (t.moving_time >= 1200) {
-        xpParaGanhar = 100; // Base
-        if (t.moving_time >= 3600) xpParaGanhar += 50;
-        else if (t.moving_time >= 1800) xpParaGanhar += 25;
+      if (detail.moving_time >= 1200) {
+        xpParaGanhar = 100;
+        if (detail.moving_time >= 3600) xpParaGanhar += 50;
+        else if (detail.moving_time >= 1800) xpParaGanhar += 25;
       }
 
       const registro: any = {
         id: `strava_${t.id}`,
         sessaoId: `strava_source`,
-        nome: t.name,
+        nome: detail.name,
         tipo: isRun ? 'corrida' : isSwim ? 'natacao' : 'musculacao',
         exercicios: [],
-        concluidoEm: new Date(t.start_date).toISOString(),
-        duracaoTotalSegundos: t.moving_time,
+        concluidoEm: new Date(detail.start_date).toISOString(),
+        duracaoTotalSegundos: detail.moving_time,
         xpEarned: xpParaGanhar,
         stravaData: {
-          id: t.id,
-          averageSpeedMps: t.average_speed || 0,
-          maxSpeedMps: t.max_speed || 0,
-          elevationGainM: t.total_elevation_gain || 0,
-          averageHeartrate: (t.has_heartrate || t.average_heartrate) ? Math.round(t.average_heartrate || 0) : undefined,
+          id: detail.id,
+          averageSpeedMps: detail.average_speed || 0,
+          maxSpeedMps: detail.max_speed || 0,
+          elevationGainM: detail.total_elevation_gain || 0,
+          averageHeartrate: (detail.has_heartrate || detail.average_heartrate) ? Math.round(detail.average_heartrate || 0) : undefined,
+          maxHeartrate: detail.max_heartrate ? Math.round(detail.max_heartrate) : undefined,
           calories: calorias,
-          summaryPolyline: t.map?.summary_polyline || undefined,
+          summaryPolyline: detail.map?.summary_polyline || undefined,
+          distance: detail.distance || 0,
+          movingTime: detail.moving_time,
+          elapsedTime: detail.elapsed_time,
+          kilojoules: detail.kilojoules || undefined,
+          averageCadence: detail.average_cadence || undefined,
+          averageWatts: detail.average_watts || undefined,
+          maxWatts: detail.max_watts || undefined,
+          weightedAverageWatts: detail.weighted_average_watts || undefined,
+          sufferScore: detail.suffer_score || undefined,
+          averageTemp: detail.average_temp || undefined,
+          deviceName: detail.device_name || undefined,
+          gearName: detail.gear?.name || undefined,
+          splits: detail.splits_metric?.map(s => ({
+            distance: s.distance,
+            elapsedTime: s.elapsed_time,
+            elevationDifference: s.elevation_difference,
+            movingTime: s.moving_time,
+            averageHeartrate: s.average_heartrate,
+            averageSpeed: s.average_speed,
+            paceZone: s.pace_zone,
+          })) || undefined,
+          laps: detail.laps?.map(l => ({
+            name: l.name,
+            distance: l.distance,
+            elapsedTime: l.elapsed_time,
+            movingTime: l.moving_time,
+            averageSpeed: l.average_speed,
+            maxSpeed: l.max_speed,
+            averageHeartrate: l.average_heartrate,
+            maxHeartrate: l.max_heartrate,
+            averageCadence: l.average_cadence,
+            totalElevationGain: l.total_elevation_gain,
+          })) || undefined,
+          bestEfforts: detail.best_efforts?.map(b => ({
+            name: b.name,
+            elapsedTime: b.elapsed_time,
+            movingTime: b.moving_time,
+            distance: b.distance,
+          })) || undefined,
         }
       };
 
@@ -202,9 +266,9 @@ export default function Perfil() {
           etapas: [{
             id: t.id.toString(),
             tipo: t.type === 'Ride' ? 'bicicleta' : 'corrida',
-            distanciaKm: Number((t.distance / 1000).toFixed(2)),
-            duracaoMin: Math.round(t.moving_time / 60),
-            duracaoSegundos: t.moving_time,
+            distanciaKm: Number((detail.distance / 1000).toFixed(2)),
+            duracaoMin: Math.round(detail.moving_time / 60),
+            duracaoSegundos: detail.moving_time,
           }]
         };
       } else if (isSwim) {
@@ -212,9 +276,9 @@ export default function Perfil() {
           etapas: [{
             id: t.id.toString(),
             estilo: 'livre',
-            distanciaM: Math.round(t.distance),
-            duracaoMin: Math.round(t.moving_time / 60),
-            duracaoSegundos: t.moving_time,
+            distanciaM: Math.round(detail.distance),
+            duracaoMin: Math.round(detail.moving_time / 60),
+            duracaoSegundos: detail.moving_time,
           }]
         };
       }
@@ -223,13 +287,13 @@ export default function Perfil() {
         await adicionarRegistro(registro);
         added++;
       } catch (err) {
-        console.error(`Erro ao salvar atividade ${t.name}:`, err);
+        console.error(`Erro ao salvar atividade ${detail.name}:`, err);
       }
     }
 
     setStravaModalOpen(false);
     if (added > 0) {
-      setSnackMsg(`Sucesso! ${added} atividade(s) importada(s).`);
+      setSnackMsg(`Sucesso! ${added} atividade(s) importada(s) com dados completos.`);
     } else {
       setSnackMsg('Erro ao salvar atividades. Verifique o banco de dados.');
     }
