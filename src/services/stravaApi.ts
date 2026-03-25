@@ -35,6 +35,15 @@ export async function getStravaActivities(accessToken: string, perPage = 30): Pr
     return response.json();
 }
 
+export async function getStravaActivityDetail(accessToken: string, activityId: number): Promise<StravaActivity> {
+    const response = await fetch(`https://www.strava.com/api/v3/activities/${activityId}?include_all_efforts=true`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) throw new Error('Falha ao buscar detalhes da atividade no Strava');
+    return response.json();
+}
+
 export async function createStravaActivity(
     accessToken: string,
     nome: string,

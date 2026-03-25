@@ -148,8 +148,48 @@ export interface RegistroTreino {
     maxSpeedMps: number;
     elevationGainM: number;
     averageHeartrate?: number;
+    maxHeartrate?: number;
     calories?: number;
     summaryPolyline?: string;
+    distance?: number;
+    movingTime?: number;
+    elapsedTime?: number;
+    kilojoules?: number;
+    averageCadence?: number;
+    averageWatts?: number;
+    maxWatts?: number;
+    weightedAverageWatts?: number;
+    sufferScore?: number;
+    averageTemp?: number;
+    splits?: Array<{
+      distance: number;
+      elapsedTime: number;
+      elevationDifference: number;
+      movingTime: number;
+      averageHeartrate?: number;
+      averageSpeed: number;
+      paceZone?: number;
+    }>;
+    laps?: Array<{
+      name: string;
+      distance: number;
+      elapsedTime: number;
+      movingTime: number;
+      averageSpeed: number;
+      maxSpeed: number;
+      averageHeartrate?: number;
+      maxHeartrate?: number;
+      averageCadence?: number;
+      totalElevationGain: number;
+    }>;
+    bestEfforts?: Array<{
+      name: string;
+      elapsedTime: number;
+      movingTime: number;
+      distance: number;
+    }>;
+    deviceName?: string;
+    gearName?: string;
   };
 }
 
