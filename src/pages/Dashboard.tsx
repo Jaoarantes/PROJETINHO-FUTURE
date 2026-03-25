@@ -1548,8 +1548,203 @@ export default function Dashboard() {
           )}
         </Box>
       )}
+
+      {/* ═══ MELHORES MARCAS (CORRIDA) ═══ */}
+      <BestEffortsSection historico={historico} isDark={isDark} />
     </Box>
   );
+}
+
+// ══════════════════════════════════════════════════
+// ── MELHORES MARCAS ─────────────────────────────
+// ══════════════════════════════════════════════════
+
+const MARCAS_PRINCIPAIS = [
+  { key: '1km', label: '1 km', distancia: 1000 },
+  { key: '3km', label: '3 km', distancia: 3000 },
+  { key: '5km', label: '5 km', distancia: 5000 },
+  { key: '10km', label: '10 km', distancia: 10000 },
+  { key: '15km', label: '15 km', distancia: 15000 },
+  { key: '21km', label: 'Meia Maratona', distancia: 21097 },
+  { key: '30km', label: '30 km', distancia: 30000 },
+  { key: '42km', label: 'Maratona', distancia: 42195 },
+];
+
+function formatarTempoMarca(seg: number): string {
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  const s = Math.round(seg % 60);
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function calcPaceMarca(distanciaM: number, tempoSeg: number): string {
+  const minKm = (tempoSeg / 60) / (distanciaM / 1000);
+  const mins = Math.floor(minKm);
+  const secs = Math.round((minKm - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
+  const [marcaCustom, setMarcaCustom] = useState<string | null>(null);
+
+  // Coletar todos os bestEfforts de todos os registros
+  const todosBestEfforts = useMemo(() => {
+    const map = new Map<string, { tempo: number; data: string; registroId: string }>();
+
+    for (const reg of historico) {
+      if (!reg.stravaData?.bestEfforts) continue;
+      for (const be of reg.stravaData.bestEfforts) {
+        const existing = map.get(be.name);
+        if (!existing || be.movingTime < existing.tempo) {
+          map.set(be.name, { tempo: be.movingTime, data: reg.concluidoEm, registroId: reg.id });
+        }
+      }
+    }
+
+    return map;
+  }, [historico]);
+
+  // Mapear marcas principais
+  const marcasPrincipais = useMemo(() => {
+    return MARCAS_PRINCIPAIS.map(m => {
+      // Tentar encontrar por nomes comuns do Strava
+      const nomes = getNomesStrava(m.distancia);
+      let melhor: { tempo: number; data: string; registroId: string } | undefined;
+      for (const nome of nomes) {
+        const found = todosBestEfforts.get(nome);
+        if (found && (!melhor || found.tempo < melhor.tempo)) {
+          melhor = found;
+        }
+      }
+      return { ...m, melhor };
+    });
+  }, [todosBestEfforts]);
+
+  // Todas as marcas disponíveis que não estão nas principais
+  const marcasExtras = useMemo(() => {
+    const principalNomes = new Set<string>();
+    for (const m of MARCAS_PRINCIPAIS) {
+      for (const n of getNomesStrava(m.distancia)) principalNomes.add(n);
+    }
+    const extras: { name: string; tempo: number; data: string; registroId: string }[] = [];
+    todosBestEfforts.forEach((val, name) => {
+      if (!principalNomes.has(name)) {
+        extras.push({ name, ...val });
+      }
+    });
+    return extras.sort((a, b) => a.tempo - b.tempo);
+  }, [todosBestEfforts]);
+
+  if (todosBestEfforts.size === 0) return null;
+
+  return (
+    <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.5s both' }}>
+      <SectionHeader icon={<Trophy size={15} />} title="Melhores Marcas" badge="corrida" isDark={isDark} />
+      <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
+        <CardContent sx={{ p: 0 }}>
+          {/* Marcas principais */}
+          {marcasPrincipais.map((m, i) => (
+            <Box
+              key={m.key}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                px: 2,
+                py: 1.3,
+                borderBottom: i < marcasPrincipais.length - 1 ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` : 'none',
+                opacity: m.melhor ? 1 : 0.35,
+              }}
+            >
+              <Box sx={{ flex: '0 0 90px' }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem' }}>{m.label}</Typography>
+              </Box>
+              {m.melhor ? (
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography sx={{ fontWeight: 900, fontSize: '1.1rem', color: CORES.corrida }}>{formatarTempoMarca(m.melhor.tempo)}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ px: 0.8, py: 0.2, bgcolor: alpha(CORES.corrida, 0.1), borderRadius: 1 }}>
+                      <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: CORES.corrida }}>{calcPaceMarca(m.distancia, m.melhor.tempo)} /km</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                      {new Date(m.melhor.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    </Typography>
+                  </Box>
+                </Box>
+              ) : (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>—</Typography>
+              )}
+            </Box>
+          ))}
+
+          {/* Separador + outras marcas */}
+          {marcasExtras.length > 0 && (
+            <>
+              <Box
+                onClick={() => setMarcaCustom(marcaCustom ? null : 'open')}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.5,
+                  py: 1,
+                  cursor: 'pointer',
+                  bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                  borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                  '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' },
+                }}
+              >
+                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.7rem', color: CORES.corrida }}>
+                  {marcaCustom ? 'Esconder' : 'Ver'} outras marcas ({marcasExtras.length})
+                </Typography>
+                {marcaCustom ? <ChevronUp size={14} color={CORES.corrida} /> : <ChevronDown size={14} color={CORES.corrida} />}
+              </Box>
+              {marcaCustom && marcasExtras.map((m, i) => (
+                <Box
+                  key={m.name}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    px: 2,
+                    py: 1,
+                    borderBottom: i < marcasExtras.length - 1 ? `1px solid ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)'}` : 'none',
+                    bgcolor: isDark ? 'rgba(255,255,255,0.01)' : 'rgba(0,0,0,0.01)',
+                  }}
+                >
+                  <Box sx={{ flex: '0 0 90px' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.8rem' }}>{m.name}</Typography>
+                  </Box>
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '0.95rem', color: CORES.corrida }}>{formatarTempoMarca(m.tempo)}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                      {new Date(m.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+
+// Mapeia distâncias para nomes que o Strava usa em best_efforts
+function getNomesStrava(distanciaM: number): string[] {
+  const map: Record<number, string[]> = {
+    1000: ['1k', '1km', '1 km', '1000m'],
+    3000: ['3k', '3km', '3 km', '3000m'],
+    5000: ['5k', '5km', '5 km', '5000m'],
+    10000: ['10k', '10km', '10 km', '10000m'],
+    15000: ['15k', '15km', '15 km', '15000m'],
+    21097: ['Half-Marathon', 'Meia Maratona', '21k', '21km'],
+    30000: ['30k', '30km', '30 km', '30000m'],
+    42195: ['Marathon', 'Maratona', '42k', '42km'],
+  };
+  return map[distanciaM] || [];
 }
 
 // ══════════════════════════════════════════════════
