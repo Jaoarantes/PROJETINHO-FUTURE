@@ -82,6 +82,7 @@ interface TreinoState {
   atualizarGPSAtivo: (distanciaKm: number, coordenadas: { latitude: number; longitude: number; timestamp: number }[]) => void;
   removerRegistro: (id: string) => void;
   adicionarRegistro: (registro: RegistroTreino) => Promise<void>;
+  atualizarRegistro: (registro: RegistroTreino) => Promise<void>;
   toggleDietaSync: (id: string, aplicado: boolean) => Promise<void>;
   autoSyncDiet: boolean;
   setAutoSyncDiet: (val: boolean) => void;
@@ -565,6 +566,20 @@ export const useTreinoStore = create<TreinoState>()(
           set((state) => ({ historico: [registro, ...state.historico].sort((a, b) => new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()) }));
         } catch (err) {
           console.error('[treinoStore] Erro ao salvar registro:', err);
+          throw err;
+        }
+      },
+
+      atualizarRegistro: async (registro) => {
+        const { uid } = get();
+        if (!uid) return;
+        try {
+          await salvarRegistro(uid, registro);
+          set((state) => ({
+            historico: state.historico.map((r) => r.id === registro.id ? registro : r),
+          }));
+        } catch (err) {
+          console.error('[treinoStore] Erro ao atualizar registro:', err);
           throw err;
         }
       },
