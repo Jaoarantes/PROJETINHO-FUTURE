@@ -117,9 +117,9 @@ export default function AtividadeDetalhe() {
 
         {/* Mapa - 98% width, mais quadrado */}
         {sd.summaryPolyline && (
-          <Box sx={{ mb: 2.5, mx: 'auto', width: '98%', borderRadius: 1.5, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <Suspense fallback={<Box sx={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Carregando mapa...</Typography></Box>}>
-              <StravaRouteMap polyline={sd.summaryPolyline} />
+          <Box sx={{ mb: 2.5, mx: -2, borderRadius: 0, overflow: 'hidden' }}>
+            <Suspense fallback={<Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Carregando mapa...</Typography></Box>}>
+              <StravaRouteMap polyline={sd.summaryPolyline} height={250} />
             </Suspense>
           </Box>
         )}
