@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton, Divider, Card } from '@mui/material';
-import { ArrowLeft, Heart, HeartPulse, Flame, Clock, Zap, TrendingUp, Footprints, Thermometer, Timer, Route, Award, Layers, Watch } from 'lucide-react';
-import { Suspense, lazy } from 'react';
+import { Box, Typography, IconButton, Card } from '@mui/material';
+import { ArrowLeft, Heart, HeartPulse, Flame, Zap, TrendingUp, Footprints, Thermometer, Timer, Award, Watch } from 'lucide-react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import { useTreinoStore } from '../../store/treinoStore';
 
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
@@ -30,7 +30,7 @@ function formatarDistancia(metros: number): string {
 
 function StatCard({ icon, label, value, unit, color = '#FF6B00' }: { icon: React.ReactNode; label: string; value: string | number; unit?: string; color?: string }) {
   return (
-    <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: 120, p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.06)' }}>
+    <Box sx={{ flex: '1 1 calc(50% - 8px)', minWidth: 120, p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, border: '1px solid rgba(255,255,255,0.06)' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
         {icon}
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</Typography>
@@ -47,6 +47,13 @@ export default function AtividadeDetalhe() {
   const { registroId } = useParams<{ registroId: string }>();
   const navigate = useNavigate();
   const historico = useTreinoStore((s) => s.historico);
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // Scroll pro topo ao entrar
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    topRef.current?.scrollIntoView();
+  }, []);
 
   const reg = historico.find((r) => r.id === registroId);
 
@@ -64,13 +71,15 @@ export default function AtividadeDetalhe() {
   const dataFormatada = data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const isRun = reg.tipo === 'corrida';
-  const isSwim = reg.tipo === 'natacao';
+
+  // Filtrar splits: só splits completos (>= 800m), remove o último parcial
+  const fullSplits = sd.splits?.filter(s => s.distance >= 800) || [];
 
   return (
-    <Box sx={{ pb: 4, minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Header */}
-      <Box sx={{ position: 'sticky', top: 0, zIndex: 10, bgcolor: 'background.default', borderBottom: '1px solid rgba(255,255,255,0.06)', px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-        <IconButton size="small" onClick={() => navigate(-1)}>
+    <Box ref={topRef} sx={{ pb: 4, minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* Header - não grudado */}
+      <Box sx={{ px: 2, pt: 2, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <IconButton size="small" onClick={() => navigate(-1)} sx={{ ml: -0.5 }}>
           <ArrowLeft size={20} />
         </IconButton>
         <Box sx={{ flex: 1 }}>
@@ -83,8 +92,8 @@ export default function AtividadeDetalhe() {
       </Box>
 
       <Box sx={{ px: 2, pt: 2 }}>
-        {/* Hero Stats */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center', mb: 3, py: 2, bgcolor: 'rgba(255,107,0,0.05)', borderRadius: 3, border: '1px solid rgba(255,107,0,0.15)' }}>
+        {/* Hero Stats - mais quadrado */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center', mb: 2.5, py: 2, bgcolor: 'rgba(255,107,0,0.05)', borderRadius: 1.5, border: '1px solid rgba(255,107,0,0.15)' }}>
           {sd.distance != null && sd.distance > 0 && (
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Distância</Typography>
@@ -106,10 +115,10 @@ export default function AtividadeDetalhe() {
           )}
         </Box>
 
-        {/* Mapa */}
+        {/* Mapa - 98% width, mais quadrado */}
         {sd.summaryPolyline && (
-          <Box sx={{ mb: 3, borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <Suspense fallback={<Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Carregando mapa...</Typography></Box>}>
+          <Box sx={{ mb: 2.5, mx: 'auto', width: '98%', borderRadius: 1.5, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <Suspense fallback={<Box sx={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Carregando mapa...</Typography></Box>}>
               <StravaRouteMap polyline={sd.summaryPolyline} />
             </Suspense>
           </Box>
@@ -160,7 +169,7 @@ export default function AtividadeDetalhe() {
         {(sd.deviceName || sd.gearName) && (
           <>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.8rem', mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>Equipamento</Typography>
-            <Card sx={{ p: 1.5, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
+            <Card sx={{ p: 1.5, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1 }}>
               {sd.deviceName && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: sd.gearName ? 1 : 0 }}>
                   <Watch size={16} color="#FF6B00" />
@@ -183,11 +192,11 @@ export default function AtividadeDetalhe() {
           </>
         )}
 
-        {/* Splits por km */}
-        {sd.splits && sd.splits.length > 1 && (
+        {/* Splits por km - só splits completos */}
+        {fullSplits.length > 1 && (
           <>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.8rem', mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>Splits por km</Typography>
-            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, overflow: 'hidden' }}>
               {/* Header */}
               <Box sx={{ display: 'flex', px: 1.5, py: 1, bgcolor: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <Typography variant="caption" sx={{ flex: '0 0 40px', fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', color: 'text.secondary' }}>KM</Typography>
@@ -196,14 +205,14 @@ export default function AtividadeDetalhe() {
                 <Typography variant="caption" sx={{ flex: '0 0 50px', fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', color: 'text.secondary', textAlign: 'right' }}>Elev.</Typography>
               </Box>
               {(() => {
-                const paces = sd.splits!.map(s => s.averageSpeed > 0 ? 1000 / (s.averageSpeed * 60) : 0);
+                const paces = fullSplits.map(s => s.averageSpeed > 0 ? 1000 / (s.averageSpeed * 60) : 0);
                 const avgPace = paces.reduce((a, b) => a + b, 0) / paces.length;
-                return sd.splits!.map((s, i) => {
+                return fullSplits.map((s, i) => {
                   const pace = s.averageSpeed > 0 ? 1000 / (s.averageSpeed * 60) : 0;
                   const isFast = pace > 0 && pace < avgPace * 0.97;
                   const isSlow = pace > avgPace * 1.03;
                   return (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.8, borderBottom: i < sd.splits!.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', bgcolor: isFast ? 'rgba(76, 175, 80, 0.06)' : isSlow ? 'rgba(244, 67, 54, 0.04)' : 'transparent' }}>
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', px: 1.5, py: 0.8, borderBottom: i < fullSplits.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', bgcolor: isFast ? 'rgba(76, 175, 80, 0.06)' : isSlow ? 'rgba(244, 67, 54, 0.04)' : 'transparent' }}>
                       <Typography variant="body2" sx={{ flex: '0 0 40px', fontWeight: 700, fontSize: '0.8rem', color: 'text.secondary' }}>{i + 1}</Typography>
                       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', color: isFast ? '#4caf50' : isSlow ? '#f44336' : 'text.primary' }}>
@@ -228,7 +237,7 @@ export default function AtividadeDetalhe() {
         {sd.laps && sd.laps.length > 1 && (
           <>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.8rem', mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>Laps</Typography>
-            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, overflow: 'hidden' }}>
               {sd.laps.map((lap, i) => (
                 <Box key={i} sx={{ px: 1.5, py: 1, borderBottom: i < sd.laps!.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.3 }}>
@@ -258,7 +267,7 @@ export default function AtividadeDetalhe() {
         {sd.bestEfforts && sd.bestEfforts.length > 0 && (
           <>
             <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '0.8rem', mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>Melhores Marcas</Typography>
-            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, overflow: 'hidden' }}>
+            <Card sx={{ p: 0, mb: 3, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1, overflow: 'hidden' }}>
               {sd.bestEfforts.map((b, i) => (
                 <Box key={i} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1.5, py: 1, borderBottom: i < sd.bestEfforts!.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
