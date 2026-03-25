@@ -1585,19 +1585,47 @@ function calcPaceMarca(distanciaM: number, tempoSeg: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Calcula tempo estimado para N km a partir dos splits (soma dos N primeiros splits completos)
+function calcularTempoSplits(splits: NonNullable<RegistroTreino['stravaData']>['splits'], numKm: number): number | null {
+  if (!splits || splits.length < numKm) return null;
+  let tempo = 0;
+  for (let i = 0; i < numKm; i++) {
+    if (splits[i].distance < 800) return null; // split incompleto
+    tempo += splits[i].movingTime;
+  }
+  return tempo;
+}
+
 function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
   const [marcaCustom, setMarcaCustom] = useState<string | null>(null);
 
-  // Coletar todos os bestEfforts de todos os registros
+  // Coletar todos os bestEfforts de todos os registros + calcular a partir de splits
   const todosBestEfforts = useMemo(() => {
     const map = new Map<string, { tempo: number; data: string; registroId: string }>();
 
     for (const reg of historico) {
-      if (!reg.stravaData?.bestEfforts) continue;
-      for (const be of reg.stravaData.bestEfforts) {
-        const existing = map.get(be.name);
-        if (!existing || be.movingTime < existing.tempo) {
-          map.set(be.name, { tempo: be.movingTime, data: reg.concluidoEm, registroId: reg.id });
+      // Best efforts do Strava
+      if (reg.stravaData?.bestEfforts) {
+        for (const be of reg.stravaData.bestEfforts) {
+          const existing = map.get(be.name);
+          if (!existing || be.movingTime < existing.tempo) {
+            map.set(be.name, { tempo: be.movingTime, data: reg.concluidoEm, registroId: reg.id });
+          }
+        }
+      }
+
+      // Calcular marcas a partir dos splits para distâncias que o Strava não fornece
+      if (reg.stravaData?.splits) {
+        const splitsDistancias = [3, 15, 30]; // km que o Strava não dá como best effort
+        for (const km of splitsDistancias) {
+          const tempo = calcularTempoSplits(reg.stravaData.splits, km);
+          if (tempo) {
+            const key = `${km}k_calc`;
+            const existing = map.get(key);
+            if (!existing || tempo < existing.tempo) {
+              map.set(key, { tempo, data: reg.concluidoEm, registroId: reg.id });
+            }
+          }
         }
       }
     }
@@ -1617,6 +1645,13 @@ function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]
           melhor = found;
         }
       }
+      // Fallback: tentar marca calculada a partir dos splits
+      if (!melhor) {
+        const km = Math.round(m.distancia / 1000);
+        const calcKey = `${km}k_calc`;
+        const found = todosBestEfforts.get(calcKey);
+        if (found) melhor = found;
+      }
       return { ...m, melhor };
     });
   }, [todosBestEfforts]);
@@ -1629,7 +1664,7 @@ function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]
     }
     const extras: { name: string; tempo: number; data: string; registroId: string }[] = [];
     todosBestEfforts.forEach((val, name) => {
-      if (!principalNomes.has(name)) {
+      if (!principalNomes.has(name) && !name.endsWith('_calc')) {
         extras.push({ name, ...val });
       }
     });
