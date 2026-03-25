@@ -983,6 +983,28 @@ export default function TreinoTab() {
                                 </Box>
                               )}
 
+                              {/* Botão ver detalhes completos */}
+                              {reg.stravaData && (
+                                <Button
+                                  variant="outlined"
+                                  fullWidth
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/atividade/${reg.id}`); }}
+                                  sx={{
+                                    mt: 1.5,
+                                    py: 1,
+                                    borderColor: 'rgba(252, 76, 2, 0.4)',
+                                    color: '#FC4C02',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem',
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    '&:hover': { borderColor: '#FC4C02', bgcolor: 'rgba(252, 76, 2, 0.08)' },
+                                  }}
+                                >
+                                  Ver mais detalhes
+                                </Button>
+                              )}
+
                             </Box>
                           </Collapse>
                         </Card>
