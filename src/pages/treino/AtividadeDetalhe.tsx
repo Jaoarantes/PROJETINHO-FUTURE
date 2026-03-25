@@ -139,6 +139,9 @@ export default function AtividadeDetalhe() {
           {sd.elevationGainM > 0 && (
             <StatCard icon={<TrendingUp size={14} color="#4caf50" />} label="Elevação" value={sd.elevationGainM} unit="m" color="#4caf50" />
           )}
+          {isRun && sd.averageSpeedMps > 0 && (
+            <StatCard icon={<Footprints size={14} color="#FF6B00" />} label="Pace Médio" value={formatarPace(sd.averageSpeedMps)} unit="/km" />
+          )}
           {isRun && sd.maxSpeedMps > 0 && (
             <StatCard icon={<Zap size={14} color="#FF6B00" />} label="Pace Máximo" value={formatarPace(sd.maxSpeedMps)} unit="/km" />
           )}
