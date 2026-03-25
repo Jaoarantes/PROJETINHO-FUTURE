@@ -292,6 +292,7 @@ export default function Dashboard() {
 
   const [filtroCargaExercicio, setFiltroCargaExercicio] = useState<string | null>(null);
   const [filtroEvolucaoExercicio, setFiltroEvolucaoExercicio] = useState<string | null>(null);
+  const [showCargaMax, setShowCargaMax] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -392,7 +393,7 @@ export default function Dashboard() {
       .sort((a, b) => b.dados.length - a.dados.length);
 
     // Carga máxima por exercício + evolução de carga
-    const cargaMaxPorExercicio: Record<string, { nome: string; cargaMax: number }> = {};
+    const cargaMaxPorExercicio: Record<string, { nome: string; cargaMax: number; data: string }> = {};
     const cargaEvolucaoPorExercicio: Record<string, { label: string; cargaMax: number }[]> = {};
     let ultimoExercicioFeito = '';
     const musculacaoOrdenada = [...musculacao].sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm));
@@ -402,7 +403,7 @@ export default function Dashboard() {
         const pesoMax = Math.max(...ex.series.map(s => (s as any).peso ?? 0), 0);
         if (pesoMax <= 0) return;
         if (!cargaMaxPorExercicio[nome] || pesoMax > cargaMaxPorExercicio[nome].cargaMax) {
-          cargaMaxPorExercicio[nome] = { nome, cargaMax: pesoMax };
+          cargaMaxPorExercicio[nome] = { nome, cargaMax: pesoMax, data: r.concluidoEm };
         }
         if (!cargaEvolucaoPorExercicio[nome]) cargaEvolucaoPorExercicio[nome] = [];
         cargaEvolucaoPorExercicio[nome].push({
@@ -991,17 +992,42 @@ export default function Dashboard() {
                   isDark={isDark}
                 />
               )}
-              {stats.cargaMaxData.length > 0 && (
-                <RecordBadge
-                  icon={<Zap size={14} />}
-                  label="Carga Máxima"
-                  value={`${Math.max(...stats.cargaMaxData.map(d => d.cargaMax))}kg`}
-                  color={CORES.musculacao}
-                  isDark={isDark}
-                />
-              )}
+              {stats.cargaMaxData.length > 0 && (() => {
+                const top = stats.cargaMaxData[0];
+                return (
+                  <>
+                    <RecordBadge
+                      icon={<Zap size={14} />}
+                      label="Carga Máxima"
+                      value={`${top.cargaMax}kg`}
+                      color={CORES.musculacao}
+                      isDark={isDark}
+                      onClick={() => setShowCargaMax(v => !v)}
+                    />
+                  </>
+                );
+              })()}
             </Box>
           )}
+          {showCargaMax && stats.cargaMaxData.length > 0 && (() => {
+            const top = stats.cargaMaxData[0];
+            const dataFormatada = new Date(top.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)',
+                border: `1px solid ${alpha(CORES.musculacao, 0.2)}`,
+                animation: 'dash-fadeUp 0.2s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.musculacao }}>
+                  {top.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {top.cargaMax}kg — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
 
           {/* Volume por treino e por grupo muscular — Radar */}
           <SectionHeader icon={<Dumbbell size={15} />} title="Volume por Grupo Muscular" badge="kg" isDark={isDark} />
@@ -1979,8 +2005,8 @@ function TypePill({ icon, count, color, isDark }: {
   );
 }
 
-function RecordBadge({ icon, label, value, color, isDark }: {
-  icon: React.ReactNode; label: string; value: string; color: string; isDark: boolean;
+function RecordBadge({ icon, label, value, color, isDark, onClick }: {
+  icon: React.ReactNode; label: string; value: string; color: string; isDark: boolean; onClick?: () => void;
 }) {
   return (
     <Box sx={{
@@ -1988,7 +2014,8 @@ function RecordBadge({ icon, label, value, color, isDark }: {
       borderRadius: '6px',
       p: '1px',
       background: `linear-gradient(135deg, ${alpha(color, 0.35)} 0%, ${alpha(color, 0.08)} 100%)`,
-    }}>
+      cursor: onClick ? 'pointer' : 'default',
+    }} onClick={onClick}>
       <Box sx={{
         borderRadius: '5px',
         bgcolor: isDark ? 'rgba(10,10,10,0.92)' : 'rgba(255,255,255,0.96)',
