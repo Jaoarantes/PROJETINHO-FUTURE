@@ -293,6 +293,7 @@ export default function Dashboard() {
   const [filtroCargaExercicio, setFiltroCargaExercicio] = useState<string | null>(null);
   const [filtroEvolucaoExercicio, setFiltroEvolucaoExercicio] = useState<string | null>(null);
   const [showCargaMax, setShowCargaMax] = useState(false);
+  const [showVolumeMax, setShowVolumeMax] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -510,9 +511,15 @@ export default function Dashboard() {
       labelVisible: frequenciaData.length > 12 ? (i % 2 === 0 ? d.label : '') : d.label
     }));
 
-    const melhorVolume = musculacao.length > 0
-      ? Math.max(...musculacao.map((r) => calcularVolumeSessao(r.exercicios)))
-      : 0;
+    let melhorVolume = 0;
+    let melhorVolumeInfo = { nome: '', data: '' };
+    musculacao.forEach(r => {
+      const vol = calcularVolumeSessao(r.exercicios);
+      if (vol > melhorVolume) {
+        melhorVolume = vol;
+        melhorVolumeInfo = { nome: r.treino?.nome || 'Musculação', data: r.concluidoEm };
+      }
+    });
     const maiorDistCorrida = corrida.length > 0
       ? Math.max(...corrida.map((r) => r.corrida ? calcularDistanciaCorrida(r.corrida.etapas) : 0))
       : 0;
@@ -577,7 +584,7 @@ export default function Dashboard() {
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
       tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, radarVolumeData, exercicioEvolucaoFull, paceData, corridaDistData,
-      natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, maiorDistCorrida, maiorDistNatacao,
+      natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, melhorVolumeInfo, maiorDistCorrida, maiorDistNatacao,
       cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
       temMaisExercicios: exercicioEvolucaoFull.length > 3,
       streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—',
@@ -990,6 +997,7 @@ export default function Dashboard() {
                   value={`${(stats.melhorVolume / 1000).toFixed(1)}t`}
                   color={CORES.recorde}
                   isDark={isDark}
+                  onClick={() => setShowVolumeMax(v => !v)}
                 />
               )}
               {stats.cargaMaxData.length > 0 && (() => {
@@ -1009,6 +1017,24 @@ export default function Dashboard() {
               })()}
             </Box>
           )}
+          {showVolumeMax && stats.melhorVolume > 0 && (() => {
+            const dataFormatada = new Date(stats.melhorVolumeInfo.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.06)',
+                border: `1px solid ${alpha(CORES.recorde, 0.2)}`,
+                animation: 'dash-fadeUp 0.2s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.recorde }}>
+                  {stats.melhorVolumeInfo.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {(stats.melhorVolume / 1000).toFixed(1)}t — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
           {showCargaMax && stats.cargaMaxData.length > 0 && (() => {
             const top = stats.cargaMaxData[0];
             const dataFormatada = new Date(top.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
