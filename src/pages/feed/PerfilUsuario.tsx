@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button,
   Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText,
+  Tabs, Tab, Card, CardActionArea, CardContent, Chip, Collapse, Divider,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Rss, X, Lock } from 'lucide-react';
+import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, Clock, Calendar, Flame, CircleEllipsis, Gauge } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import * as feedService from '../../services/feedService';
 import {
@@ -16,8 +17,68 @@ import type { FollowUser, FollowStatus } from '../../services/feedService';
 import { getUserProfile } from '../../services/userService';
 import { carregarHistorico } from '../../services/treinoService';
 import { calcularXPTotal, calcularLevelInfo } from '../../utils/xpCalculator';
+import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
+import type { RegistroTreino, TipoSessao, TipoSerie } from '../../types/treino';
+import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
+import { lazy, Suspense } from 'react';
+const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
+
+// ─── Helpers (same as TreinoTab) ───
+const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
+  musculacao: Dumbbell, corrida: Footprints, natacao: Waves, outro: CircleEllipsis,
+};
+const TIPO_CORES: Record<TipoSessao, string> = {
+  musculacao: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
+  corrida: 'linear-gradient(135deg, #FF6B2C 0%, #E55A1B 100%)',
+  natacao: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+  outro: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+};
+
+function formatarSegundos(seg: number): string {
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  const s = Math.round(seg % 60);
+  if (h > 0) return `${h}h${m > 0 ? ` ${m}m` : ''}`;
+  if (m > 0) return `${m}min${s > 0 ? ` ${s}s` : ''}`;
+  return `${s}s`;
+}
+
+function formatarPace(mps: number): string {
+  if (!mps || mps <= 0) return '--:--';
+  const minKm = 1000 / (mps * 60);
+  const mins = Math.floor(minKm);
+  const secs = Math.round((minKm - mins) * 60);
+  return `${mins}:${secs.toString().padStart(2, '0')} /km`;
+}
+
+function formatarDataGrupo(isoString: string): string {
+  const data = new Date(isoString);
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+  const mesmodia = (a: Date, b: Date) =>
+    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (mesmodia(data, hoje)) return 'Hoje';
+  if (mesmodia(data, ontem)) return 'Ontem';
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(data);
+}
+
+function agruparHistoricoPorData(registros: RegistroTreino[]) {
+  const mapa = new Map<string, RegistroTreino[]>();
+  const ordemChaves: string[] = [];
+  for (const reg of registros) {
+    const d = new Date(reg.concluidoEm);
+    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!mapa.has(chave)) { mapa.set(chave, []); ordemChaves.push(chave); }
+    mapa.get(chave)!.push(reg);
+  }
+  return ordemChaves.map((chave) => {
+    const regs = mapa.get(chave)!;
+    return { chave, label: formatarDataGrupo(regs[0].concluidoEm), registros: regs };
+  });
+}
 
 export default function PerfilUsuario() {
   const { userId } = useParams<{ userId: string }>();
@@ -30,7 +91,9 @@ export default function PerfilUsuario() {
     isPrivate: boolean;
   } | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [historico, setHistorico] = useState<RegistroTreino[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historicoLoading, setHistoricoLoading] = useState(true);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
@@ -39,6 +102,8 @@ export default function PerfilUsuario() {
 
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [totalXP, setTotalXP] = useState(0);
+  const [tabIndex, setTabIndex] = useState(0); // 0 = Feed, 1 = Treinos
+  const [expandedReg, setExpandedReg] = useState<string | null>(null);
 
   // Dialog seguidores/seguindo
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
@@ -59,14 +124,19 @@ export default function PerfilUsuario() {
       .catch(console.error)
       .finally(() => setLoading(false));
 
+    carregarHistorico(userId)
+      .then(setHistorico)
+      .catch(console.error)
+      .finally(() => setHistoricoLoading(false));
+
     countFollowers(userId).then(setFollowersCount);
     countFollowing(userId).then(setFollowingCount);
 
     Promise.all([
       carregarHistorico(userId),
       carregarSocialStats(userId),
-    ]).then(([historico, socialStats]) => {
-      setTotalXP(calcularXPTotal(historico, socialStats));
+    ]).then(([hist, socialStats]) => {
+      setTotalXP(calcularXPTotal(hist, socialStats));
     }).catch(() => {});
 
     if (uid && uid !== userId) {
@@ -107,7 +177,6 @@ export default function PerfilUsuario() {
   };
 
   const handleLike = async (postId: string) => {
-    // Otimista local (store faz o seu próprio, mas posts aqui é estado local separado)
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     const wasLiked = post.likedByMe;
@@ -119,7 +188,6 @@ export default function PerfilUsuario() {
     try {
       await feedService.toggleLike(postId, uid);
     } catch {
-      // Reverter se falhar
       setPosts((prev) => prev.map((p) =>
         p.id === postId
           ? { ...p, likedByMe: wasLiked, likesCount: wasLiked ? p.likesCount + 1 : p.likesCount - 1 }
@@ -155,6 +223,246 @@ export default function PerfilUsuario() {
     return { bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' } };
   };
 
+  // ─── Render Treinos Tab Content ───
+  const renderTreinosContent = () => {
+    if (historicoLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
+          <CircularProgress size={28} />
+        </Box>
+      );
+    }
+    if (historico.length === 0) {
+      return (
+        <Box sx={{
+          textAlign: 'center', py: 8, px: 2.5,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+        }}>
+          <Box sx={{
+            width: 80, height: 80, borderRadius: '24px',
+            background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Clock size={36} color="#FF6B2C" />
+          </Box>
+          <Typography variant="body2" color="text.secondary">
+            Nenhum treino registrado ainda.
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, px: 2.5, pt: 2 }}>
+        {agruparHistoricoPorData(historico).map((grupo) => (
+          <Box key={grupo.chave}>
+            {/* Date header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+              <Calendar size={15} style={{ opacity: 0.5 }} />
+              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem', letterSpacing: '0.03em' }}>
+                {grupo.label}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
+                {grupo.registros.length} {grupo.registros.length === 1 ? 'treino' : 'treinos'}
+              </Typography>
+              <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 1 }} />
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {grupo.registros.map((reg) => {
+                const tipo = reg.tipo || 'musculacao';
+                const Icon = TIPO_ICONS[tipo];
+                const data = new Date(reg.concluidoEm);
+                const horaStr = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const isExpanded = expandedReg === reg.id;
+
+                return (
+                  <Card key={reg.id}>
+                    <CardActionArea onClick={() => setExpandedReg(isExpanded ? null : reg.id)}>
+                      <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
+                        <Box sx={{
+                          width: 40, height: 40, borderRadius: '10px',
+                          background: TIPO_CORES[tipo],
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          mr: 1.5, flexShrink: 0,
+                        }}>
+                          <Icon size={20} color="#fff" />
+                        </Box>
+
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle2" fontWeight={600} noWrap>{reg.nome}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
+                            <Chip label={tipo === 'outro' && reg.tipoCustom ? reg.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
+                            {reg.duracaoTotalSegundos && (
+                              <>
+                                <Typography variant="caption" color="text.secondary">·</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                  {formatarSegundos(reg.duracaoTotalSegundos)}
+                                </Typography>
+                              </>
+                            )}
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+
+                    {/* Detalhes expandidos */}
+                    <Collapse in={isExpanded}>
+                      <Divider />
+                      <Box sx={{ px: 2, py: 1.5 }}>
+                        {/* Data e Hora + Calorias */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Calendar size={14} style={{ opacity: 0.5 }} />
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
+                              {horaStr}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Flame size={14} color="#FF6B2C" />
+                            <Typography variant="body2" fontWeight={600} sx={{ color: '#FF6B2C', fontSize: '0.82rem' }}>
+                              {Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg))} kcal
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* Exercícios de musculação */}
+                        {tipo === 'musculacao' && reg.exercicios.length > 0 && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {reg.exercicios.map((ex) => (
+                              <Box key={ex.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                  <Dumbbell size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
+                                  <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.82rem', flex: 1 }}>
+                                    {ex.exercicio.nome}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 3 }}>
+                                  {ex.series.map((s, idx) => {
+                                    const tipoSerie: TipoSerie = (s as { tipo?: TipoSerie }).tipo || 'normal';
+                                    const cor = TIPO_SERIE_CORES[tipoSerie];
+                                    return (
+                                      <Box key={s.id} sx={{
+                                        display: 'flex', alignItems: 'center', gap: 0.4,
+                                        px: 0.8, py: 0.3, borderRadius: 1,
+                                        bgcolor: `${cor}18`,
+                                        border: `1px solid ${cor}40`,
+                                      }}>
+                                        <Box sx={{
+                                          width: 16, height: 16, borderRadius: '4px',
+                                          bgcolor: cor, color: '#fff',
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          fontSize: '0.6rem', fontWeight: 700,
+                                        }}>
+                                          {idx + 1}
+                                        </Box>
+                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                          {s.peso ? `${s.peso}kg` : '—'}×{s.repeticoes}
+                                        </Typography>
+                                      </Box>
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+
+                        {tipo === 'musculacao' && reg.exercicios.length === 0 && (
+                          <Typography variant="caption" color="text.secondary">Nenhum exercício registrado</Typography>
+                        )}
+
+                        {/* Corrida stats */}
+                        {tipo === 'corrida' && (
+                          <Box sx={{ mt: 1 }}>
+                            <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
+                              {(() => {
+                                const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
+                                const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
+                                  ? (reg.duracaoTotalSegundos / 60) / distTotal
+                                  : 0;
+                                return (
+                                  <>
+                                    <Box sx={{ flex: 1 }}>
+                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                                        <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
+                                        <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
+                                      </Box>
+                                    </Box>
+                                    <Box sx={{ flex: 1 }}>
+                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Gauge size={14} color="#FF6B2C" />
+                                        <Typography variant="body2" fontWeight={800}>{formatarPace(1000 / (paceMedio * 60))}</Typography>
+                                      </Box>
+                                    </Box>
+                                    {reg.stravaData && (
+                                      <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
+                                        <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.6rem' }}>STRAVA</Typography>
+                                      </Box>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </Box>
+                          </Box>
+                        )}
+
+                        {/* Natação */}
+                        {tipo === 'natacao' && reg.natacao?.etapas && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {reg.natacao.etapas.map((et, i) => (
+                              <Typography key={et.id} variant="body2" sx={{ fontSize: '0.82rem' }}>
+                                <Waves size={14} style={{ verticalAlign: 'middle', opacity: 0.4, marginRight: 6 }} />
+                                Etapa {i + 1}
+                                {et.distanciaM ? ` · ${et.distanciaM} m` : ''}
+                                {et.duracaoSegundos ? ` · ${formatarSegundos(et.duracaoSegundos)}` : et.duracaoMin ? ` · ${et.duracaoMin} min` : ''}
+                                {et.estilo ? ` · ${et.estilo}` : ''}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+
+                        {/* Mapa Strava */}
+                        {reg.stravaData?.summaryPolyline && (
+                          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={20} /></Box>}>
+                            <StravaRouteMap polyline={reg.stravaData.summaryPolyline} />
+                          </Suspense>
+                        )}
+
+                        {/* Botão ver detalhes Strava */}
+                        {reg.stravaData && (
+                          <Button
+                            variant="outlined"
+                            fullWidth
+                            onClick={(e) => { e.stopPropagation(); navigate(`/atividade/${reg.id}`); }}
+                            sx={{
+                              mt: 1.5, py: 1,
+                              borderColor: 'rgba(252, 76, 2, 0.4)',
+                              color: '#FC4C02',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              '&:hover': { borderColor: '#FC4C02', bgcolor: 'rgba(252, 76, 2, 0.08)' },
+                            }}
+                          >
+                            Ver mais detalhes
+                          </Button>
+                        )}
+                      </Box>
+                    </Collapse>
+                  </Card>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
+
   return (
     <Box sx={{ pt: 1, pb: 4, mx: -2.5 }}>
       {/* Header */}
@@ -171,7 +479,7 @@ export default function PerfilUsuario() {
       </Box>
 
       {/* Profile Header */}
-      <Box sx={{ px: 2.5, pb: 3 }}>
+      <Box sx={{ px: 2.5, pb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <Avatar
             src={profileData?.photoURL || undefined}
@@ -286,8 +594,37 @@ export default function PerfilUsuario() {
         )}
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />
+      {/* ─── Tabs Feed / Treinos ─── */}
+      {canSeeContent && (
+        <Tabs
+          value={tabIndex}
+          onChange={(_, v) => setTabIndex(v)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 40,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              minHeight: 40,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+            },
+            '& .Mui-selected': {
+              color: '#FF6B2C',
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#FF6B2C',
+            },
+          }}
+        >
+          <Tab label="Feed" />
+          <Tab label="Treinos" />
+        </Tabs>
+      )}
+
+      {/* Divider for private/no-content */}
+      {!canSeeContent && <Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}
 
       {/* Conteúdo - privado ou público */}
       {!canSeeContent ? (
@@ -313,41 +650,51 @@ export default function PerfilUsuario() {
             </Typography>
           </Box>
         </Box>
-      ) : loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
-          <CircularProgress size={28} />
-        </Box>
-      ) : posts.length === 0 ? (
-        <Box sx={{
-          textAlign: 'center', py: 8, px: 2.5,
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-        }}>
-          <Box sx={{
-            width: 80, height: 80, borderRadius: '24px',
-            background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Rss size={36} color="#FF6B2C" />
-          </Box>
-          <Typography variant="body2" color="text.secondary">
-            Nenhuma publicação ainda.
-          </Typography>
-        </Box>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {posts.map((post) => (
-            <FeedPostCard
-              key={post.id}
-              post={{
-                ...post,
-                authorPhoto: profileData?.photoURL || post.authorPhoto,
-                authorName: profileData?.displayName || post.authorName,
-              }}
-              currentUserId={uid}
-              onLike={handleLike}
-            />
-          ))}
-        </Box>
+        <>
+          {/* ─── Tab Feed ─── */}
+          {tabIndex === 0 && (
+            loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : posts.length === 0 ? (
+              <Box sx={{
+                textAlign: 'center', py: 8, px: 2.5,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+              }}>
+                <Box sx={{
+                  width: 80, height: 80, borderRadius: '24px',
+                  background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Rss size={36} color="#FF6B2C" />
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Nenhuma publicação ainda.
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {posts.map((post) => (
+                  <FeedPostCard
+                    key={post.id}
+                    post={{
+                      ...post,
+                      authorPhoto: profileData?.photoURL || post.authorPhoto,
+                      authorName: profileData?.displayName || post.authorName,
+                    }}
+                    currentUserId={uid}
+                    onLike={handleLike}
+                  />
+                ))}
+              </Box>
+            )
+          )}
+
+          {/* ─── Tab Treinos ─── */}
+          {tabIndex === 1 && renderTreinosContent()}
+        </>
       )}
 
       {/* Profile photo fullscreen */}
