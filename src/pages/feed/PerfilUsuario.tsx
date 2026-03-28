@@ -228,12 +228,15 @@ export default function PerfilUsuario() {
           id: crypto.randomUUID(),
           etapas: sessao.natacao.etapas.map((e) => ({ ...e, id: crypto.randomUUID() })),
         } : undefined,
+        posicao: undefined,
         criadoEm: new Date().toISOString(),
       };
       await salvarSessao(uid, novaSessao);
-      // Also add to local store
+      // Add to local store and reload from DB to ensure consistency
       useTreinoStore.setState((state) => ({ sessoes: [...state.sessoes, novaSessao] }));
       setCopyDialog(null);
+      // Reload sessions from DB to ensure full sync
+      await useTreinoStore.getState().carregar(uid);
       navigate('/treino');
     } catch (err) {
       console.error('Erro ao copiar treino:', err);
