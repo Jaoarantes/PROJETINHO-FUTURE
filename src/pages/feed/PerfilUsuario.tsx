@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button,
   Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText,
-  Tabs, Tab, Card, CardActionArea, CardContent, Chip, Collapse, Divider,
+  Tabs, Tab, Card, CardContent,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, Clock, Calendar, Flame, CircleEllipsis, Gauge } from 'lucide-react';
+import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, CircleEllipsis } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import * as feedService from '../../services/feedService';
 import {
@@ -15,17 +15,14 @@ import {
 } from '../../services/feedService';
 import type { FollowUser, FollowStatus } from '../../services/feedService';
 import { getUserProfile } from '../../services/userService';
-import { carregarHistorico } from '../../services/treinoService';
+import { carregarHistorico, carregarSessoes } from '../../services/treinoService';
 import { calcularXPTotal, calcularLevelInfo } from '../../utils/xpCalculator';
-import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
-import type { RegistroTreino, TipoSessao, TipoSerie } from '../../types/treino';
-import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
-import { lazy, Suspense } from 'react';
-const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
+import type { SessaoTreino, TipoSessao } from '../../types/treino';
+import { TIPO_SESSAO_LABELS, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
 
-// ─── Helpers (same as TreinoTab) ───
+// ─── Helpers ───
 const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
   musculacao: Dumbbell, corrida: Footprints, natacao: Waves, outro: CircleEllipsis,
 };
@@ -36,48 +33,21 @@ const TIPO_CORES: Record<TipoSessao, string> = {
   outro: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
 };
 
-function formatarSegundos(seg: number): string {
-  const h = Math.floor(seg / 3600);
-  const m = Math.floor((seg % 3600) / 60);
-  const s = Math.round(seg % 60);
-  if (h > 0) return `${h}h${m > 0 ? ` ${m}m` : ''}`;
-  if (m > 0) return `${m}min${s > 0 ? ` ${s}s` : ''}`;
-  return `${s}s`;
-}
-
-function formatarPace(mps: number): string {
-  if (!mps || mps <= 0) return '--:--';
-  const minKm = 1000 / (mps * 60);
-  const mins = Math.floor(minKm);
-  const secs = Math.round((minKm - mins) * 60);
-  return `${mins}:${secs.toString().padStart(2, '0')} /km`;
-}
-
-function formatarDataGrupo(isoString: string): string {
-  const data = new Date(isoString);
-  const hoje = new Date();
-  const ontem = new Date();
-  ontem.setDate(ontem.getDate() - 1);
-  const mesmodia = (a: Date, b: Date) =>
-    a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-  if (mesmodia(data, hoje)) return 'Hoje';
-  if (mesmodia(data, ontem)) return 'Ontem';
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(data);
-}
-
-function agruparHistoricoPorData(registros: RegistroTreino[]) {
-  const mapa = new Map<string, RegistroTreino[]>();
-  const ordemChaves: string[] = [];
-  for (const reg of registros) {
-    const d = new Date(reg.concluidoEm);
-    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    if (!mapa.has(chave)) { mapa.set(chave, []); ordemChaves.push(chave); }
-    mapa.get(chave)!.push(reg);
+function getSessaoSubtitle(sessao: SessaoTreino) {
+  const tipo = sessao.tipo || 'musculacao';
+  if (tipo === 'corrida' && sessao.corrida?.etapas) {
+    const dist = calcularDistanciaCorrida(sessao.corrida.etapas);
+    const etapas = sessao.corrida.etapas.length;
+    return `${dist > 0 ? dist.toFixed(1) + ' km · ' : ''}${etapas} etapa${etapas !== 1 ? 's' : ''}`;
   }
-  return ordemChaves.map((chave) => {
-    const regs = mapa.get(chave)!;
-    return { chave, label: formatarDataGrupo(regs[0].concluidoEm), registros: regs };
-  });
+  if (tipo === 'natacao' && sessao.natacao?.etapas) {
+    const dist = calcularDistanciaNatacao(sessao.natacao.etapas);
+    const etapas = sessao.natacao.etapas.length;
+    return `${dist > 0 ? dist + ' m · ' : ''}${etapas} etapa${etapas !== 1 ? 's' : ''}`;
+  }
+  const count = sessao.exercicios?.length ?? 0;
+  const prefix = tipo === 'outro' && sessao.tipoCustom ? `${sessao.tipoCustom} · ` : '';
+  return `${prefix}${count} exercício${count !== 1 ? 's' : ''}`;
 }
 
 export default function PerfilUsuario() {
@@ -91,9 +61,9 @@ export default function PerfilUsuario() {
     isPrivate: boolean;
   } | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [historico, setHistorico] = useState<RegistroTreino[]>([]);
+  const [sessoes, setSessoes] = useState<SessaoTreino[]>([]);
   const [loading, setLoading] = useState(true);
-  const [historicoLoading, setHistoricoLoading] = useState(true);
+  const [sessoesLoading, setSessoesLoading] = useState(true);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followStatus, setFollowStatus] = useState<FollowStatus>(null);
@@ -103,7 +73,6 @@ export default function PerfilUsuario() {
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [totalXP, setTotalXP] = useState(0);
   const [tabIndex, setTabIndex] = useState(0); // 0 = Feed, 1 = Treinos
-  const [expandedReg, setExpandedReg] = useState<string | null>(null);
 
   // Dialog seguidores/seguindo
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
@@ -124,10 +93,10 @@ export default function PerfilUsuario() {
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    carregarHistorico(userId)
-      .then(setHistorico)
+    carregarSessoes(userId)
+      .then(setSessoes)
       .catch(console.error)
-      .finally(() => setHistoricoLoading(false));
+      .finally(() => setSessoesLoading(false));
 
     countFollowers(userId).then(setFollowersCount);
     countFollowing(userId).then(setFollowingCount);
@@ -223,16 +192,16 @@ export default function PerfilUsuario() {
     return { bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' } };
   };
 
-  // ─── Render Treinos Tab Content ───
+  // ─── Render Treinos Tab Content (sessões registradas) ───
   const renderTreinosContent = () => {
-    if (historicoLoading) {
+    if (sessoesLoading) {
       return (
         <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
           <CircularProgress size={28} />
         </Box>
       );
     }
-    if (historico.length === 0) {
+    if (sessoes.length === 0) {
       return (
         <Box sx={{
           textAlign: 'center', py: 8, px: 2.5,
@@ -243,216 +212,50 @@ export default function PerfilUsuario() {
             background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Clock size={36} color="#FF6B2C" />
+            <Dumbbell size={36} color="#FF6B2C" />
           </Box>
           <Typography variant="body2" color="text.secondary">
-            Nenhum treino registrado ainda.
+            Nenhum treino cadastrado ainda.
           </Typography>
         </Box>
       );
     }
 
+    // Agrupar por tipo
+    const tipos: TipoSessao[] = ['musculacao', 'corrida', 'natacao', 'outro'];
+    const grupos = tipos
+      .map((t) => ({ tipo: t, items: sessoes.filter((s) => (s.tipo || 'musculacao') === t) }))
+      .filter((g) => g.items.length > 0);
+
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, px: 2.5, pt: 2 }}>
-        {agruparHistoricoPorData(historico).map((grupo) => (
-          <Box key={grupo.chave}>
-            {/* Date header */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-              <Calendar size={15} style={{ opacity: 0.5 }} />
-              <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem', letterSpacing: '0.03em' }}>
-                {grupo.label}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.6 }}>
-                {grupo.registros.length} {grupo.registros.length === 1 ? 'treino' : 'treinos'}
-              </Typography>
-              <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 1 }} />
-            </Box>
-
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2.5, pt: 2 }}>
+        {grupos.map((grupo) => (
+          <Box key={grupo.tipo}>
+            <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem', mb: 1, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {TIPO_SESSAO_LABELS[grupo.tipo]}
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {grupo.registros.map((reg) => {
-                const tipo = reg.tipo || 'musculacao';
+              {grupo.items.map((sessao) => {
+                const tipo = sessao.tipo || 'musculacao';
                 const Icon = TIPO_ICONS[tipo];
-                const data = new Date(reg.concluidoEm);
-                const horaStr = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const isExpanded = expandedReg === reg.id;
-
                 return (
-                  <Card key={reg.id}>
-                    <CardActionArea onClick={() => setExpandedReg(isExpanded ? null : reg.id)}>
-                      <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
-                        <Box sx={{
-                          width: 40, height: 40, borderRadius: '10px',
-                          background: TIPO_CORES[tipo],
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          mr: 1.5, flexShrink: 0,
-                        }}>
-                          <Icon size={20} color="#fff" />
-                        </Box>
-
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="subtitle2" fontWeight={600} noWrap>{reg.nome}</Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                            <Chip label={tipo === 'outro' && reg.tipoCustom ? reg.tipoCustom : TIPO_SESSAO_LABELS[tipo]} size="small" sx={{ height: 16, fontSize: '0.55rem' }} />
-                            {reg.duracaoTotalSegundos && (
-                              <>
-                                <Typography variant="caption" color="text.secondary">·</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                  {formatarSegundos(reg.duracaoTotalSegundos)}
-                                </Typography>
-                              </>
-                            )}
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </CardActionArea>
-
-                    {/* Detalhes expandidos */}
-                    <Collapse in={isExpanded}>
-                      <Divider />
-                      <Box sx={{ px: 2, py: 1.5 }}>
-                        {/* Data e Hora + Calorias */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Calendar size={14} style={{ opacity: 0.5 }} />
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem' }}>
-                              {horaStr}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Flame size={14} color="#FF6B2C" />
-                            <Typography variant="body2" fontWeight={600} sx={{ color: '#FF6B2C', fontSize: '0.82rem' }}>
-                              {Math.round(Number(reg.calorias) || calcularCaloriasTreino(reg))} kcal
-                            </Typography>
-                          </Box>
-                        </Box>
-
-                        {/* Exercícios de musculação */}
-                        {tipo === 'musculacao' && reg.exercicios.length > 0 && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                            {reg.exercicios.map((ex) => (
-                              <Box key={ex.id}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                  <Dumbbell size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
-                                  <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.82rem', flex: 1 }}>
-                                    {ex.exercicio.nome}
-                                  </Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 3 }}>
-                                  {ex.series.map((s, idx) => {
-                                    const tipoSerie: TipoSerie = (s as { tipo?: TipoSerie }).tipo || 'normal';
-                                    const cor = TIPO_SERIE_CORES[tipoSerie];
-                                    return (
-                                      <Box key={s.id} sx={{
-                                        display: 'flex', alignItems: 'center', gap: 0.4,
-                                        px: 0.8, py: 0.3, borderRadius: 1,
-                                        bgcolor: `${cor}18`,
-                                        border: `1px solid ${cor}40`,
-                                      }}>
-                                        <Box sx={{
-                                          width: 16, height: 16, borderRadius: '4px',
-                                          bgcolor: cor, color: '#fff',
-                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                          fontSize: '0.6rem', fontWeight: 700,
-                                        }}>
-                                          {idx + 1}
-                                        </Box>
-                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                                          {s.peso ? `${s.peso}kg` : '—'}×{s.repeticoes}
-                                        </Typography>
-                                      </Box>
-                                    );
-                                  })}
-                                </Box>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-
-                        {tipo === 'musculacao' && reg.exercicios.length === 0 && (
-                          <Typography variant="caption" color="text.secondary">Nenhum exercício registrado</Typography>
-                        )}
-
-                        {/* Corrida stats */}
-                        {tipo === 'corrida' && (
-                          <Box sx={{ mt: 1 }}>
-                            <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
-                              {(() => {
-                                const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
-                                const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
-                                  ? (reg.duracaoTotalSegundos / 60) / distTotal
-                                  : 0;
-                                return (
-                                  <>
-                                    <Box sx={{ flex: 1 }}>
-                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Distância</Typography>
-                                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                                        <Typography variant="h6" fontWeight={800} color="primary.main">{distTotal.toFixed(2)}</Typography>
-                                        <Typography variant="caption" fontWeight={700} color="primary.main">km</Typography>
-                                      </Box>
-                                    </Box>
-                                    <Box sx={{ flex: 1 }}>
-                                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ritmo Médio</Typography>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Gauge size={14} color="#FF6B2C" />
-                                        <Typography variant="body2" fontWeight={800}>{formatarPace(1000 / (paceMedio * 60))}</Typography>
-                                      </Box>
-                                    </Box>
-                                    {reg.stravaData && (
-                                      <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, bgcolor: 'rgba(252, 76, 2, 0.1)', borderRadius: 1 }}>
-                                        <Typography variant="caption" sx={{ color: '#FC4C02', fontWeight: 900, fontSize: '0.6rem' }}>STRAVA</Typography>
-                                      </Box>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </Box>
-                          </Box>
-                        )}
-
-                        {/* Natação */}
-                        {tipo === 'natacao' && reg.natacao?.etapas && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            {reg.natacao.etapas.map((et, i) => (
-                              <Typography key={et.id} variant="body2" sx={{ fontSize: '0.82rem' }}>
-                                <Waves size={14} style={{ verticalAlign: 'middle', opacity: 0.4, marginRight: 6 }} />
-                                Etapa {i + 1}
-                                {et.distanciaM ? ` · ${et.distanciaM} m` : ''}
-                                {et.duracaoSegundos ? ` · ${formatarSegundos(et.duracaoSegundos)}` : et.duracaoMin ? ` · ${et.duracaoMin} min` : ''}
-                                {et.estilo ? ` · ${et.estilo}` : ''}
-                              </Typography>
-                            ))}
-                          </Box>
-                        )}
-
-                        {/* Mapa Strava */}
-                        {reg.stravaData?.summaryPolyline && (
-                          <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={20} /></Box>}>
-                            <StravaRouteMap polyline={reg.stravaData.summaryPolyline} />
-                          </Suspense>
-                        )}
-
-                        {/* Botão ver detalhes Strava */}
-                        {reg.stravaData && (
-                          <Button
-                            variant="outlined"
-                            fullWidth
-                            onClick={(e) => { e.stopPropagation(); navigate(`/atividade/${reg.id}`); }}
-                            sx={{
-                              mt: 1.5, py: 1,
-                              borderColor: 'rgba(252, 76, 2, 0.4)',
-                              color: '#FC4C02',
-                              fontWeight: 700,
-                              fontSize: '0.8rem',
-                              borderRadius: 2,
-                              textTransform: 'none',
-                              '&:hover': { borderColor: '#FC4C02', bgcolor: 'rgba(252, 76, 2, 0.08)' },
-                            }}
-                          >
-                            Ver mais detalhes
-                          </Button>
-                        )}
+                  <Card key={sessao.id}>
+                    <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
+                      <Box sx={{
+                        width: 40, height: 40, borderRadius: '10px',
+                        background: TIPO_CORES[tipo],
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        mr: 1.5, flexShrink: 0,
+                      }}>
+                        <Icon size={20} color="#fff" />
                       </Box>
-                    </Collapse>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          {getSessaoSubtitle(sessao)}
+                        </Typography>
+                      </Box>
+                    </CardContent>
                   </Card>
                 );
               })}
