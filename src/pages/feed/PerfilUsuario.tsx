@@ -2,11 +2,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button,
-  Dialog, DialogTitle, DialogContent, List, ListItem, ListItemAvatar, ListItemText,
-  Tabs, Tab, Card, CardContent,
+  Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, ListItemText,
+  Tabs, Tab, Card, CardActionArea, CardContent, Collapse, Divider, Chip,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, CircleEllipsis } from 'lucide-react';
+import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, CircleEllipsis, Copy, ChevronDown } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import * as feedService from '../../services/feedService';
 import {
@@ -15,12 +15,13 @@ import {
 } from '../../services/feedService';
 import type { FollowUser, FollowStatus } from '../../services/feedService';
 import { getUserProfile } from '../../services/userService';
-import { carregarHistorico, carregarSessoes } from '../../services/treinoService';
+import { carregarHistorico, carregarSessoes, salvarSessao } from '../../services/treinoService';
 import { calcularXPTotal, calcularLevelInfo } from '../../utils/xpCalculator';
 import FeedPostCard from '../../components/feed/FeedPostCard';
 import type { FeedPost } from '../../types/feed';
-import type { SessaoTreino, TipoSessao } from '../../types/treino';
-import { TIPO_SESSAO_LABELS, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
+import type { SessaoTreino, TipoSessao, TipoSerie } from '../../types/treino';
+import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES, calcularDistanciaCorrida, calcularDistanciaNatacao } from '../../types/treino';
+import { useTreinoStore } from '../../store/treinoStore';
 
 // ─── Helpers ───
 const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
@@ -73,6 +74,9 @@ export default function PerfilUsuario() {
   const [showProfilePhoto, setShowProfilePhoto] = useState(false);
   const [totalXP, setTotalXP] = useState(0);
   const [tabIndex, setTabIndex] = useState(0); // 0 = Feed, 1 = Treinos
+  const [expandedSessao, setExpandedSessao] = useState<string | null>(null);
+  const [copyDialog, setCopyDialog] = useState<SessaoTreino | null>(null);
+  const [copyLoading, setCopyLoading] = useState(false);
 
   // Dialog seguidores/seguindo
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
@@ -192,6 +196,52 @@ export default function PerfilUsuario() {
     return { bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' } };
   };
 
+  // ─── Copiar Treino ───
+  const handleCopiarTreino = async (sessao: SessaoTreino) => {
+    if (!uid || copyLoading) return;
+    setCopyLoading(true);
+    try {
+      const ownerName = profileData?.displayName || profileData?.username || 'Usuário';
+      const newId = crypto.randomUUID();
+      // Deep clone exercises with new IDs
+      const newExercicios = sessao.exercicios.map((ex) => ({
+        ...ex,
+        id: crypto.randomUUID(),
+        series: ex.series.map((s) => ({
+          ...s,
+          id: crypto.randomUUID(),
+          concluida: false,
+        })),
+      }));
+      const novaSessao: SessaoTreino = {
+        ...sessao,
+        id: newId,
+        nome: `${sessao.nome} (${ownerName})`,
+        exercicios: newExercicios,
+        corrida: sessao.corrida ? {
+          ...sessao.corrida,
+          id: crypto.randomUUID(),
+          etapas: sessao.corrida.etapas.map((e) => ({ ...e, id: crypto.randomUUID() })),
+        } : undefined,
+        natacao: sessao.natacao ? {
+          ...sessao.natacao,
+          id: crypto.randomUUID(),
+          etapas: sessao.natacao.etapas.map((e) => ({ ...e, id: crypto.randomUUID() })),
+        } : undefined,
+        criadoEm: new Date().toISOString(),
+      };
+      await salvarSessao(uid, novaSessao);
+      // Also add to local store
+      useTreinoStore.setState((state) => ({ sessoes: [...state.sessoes, novaSessao] }));
+      setCopyDialog(null);
+      navigate('/treino');
+    } catch (err) {
+      console.error('Erro ao copiar treino:', err);
+    } finally {
+      setCopyLoading(false);
+    }
+  };
+
   // ─── Render Treinos Tab Content (sessões registradas) ───
   const renderTreinosContent = () => {
     if (sessoesLoading) {
@@ -238,24 +288,132 @@ export default function PerfilUsuario() {
               {grupo.items.map((sessao) => {
                 const tipo = sessao.tipo || 'musculacao';
                 const Icon = TIPO_ICONS[tipo];
+                const isExpanded = expandedSessao === sessao.id;
                 return (
                   <Card key={sessao.id}>
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
-                      <Box sx={{
-                        width: 40, height: 40, borderRadius: '10px',
-                        background: TIPO_CORES[tipo],
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        mr: 1.5, flexShrink: 0,
-                      }}>
-                        <Icon size={20} color="#fff" />
+                    <CardActionArea onClick={() => setExpandedSessao(isExpanded ? null : sessao.id)}>
+                      <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2 }}>
+                        <Box sx={{
+                          width: 40, height: 40, borderRadius: '10px',
+                          background: TIPO_CORES[tipo],
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          mr: 1.5, flexShrink: 0,
+                        }}>
+                          <Icon size={20} color="#fff" />
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                            {getSessaoSubtitle(sessao)}
+                          </Typography>
+                        </Box>
+                        <ChevronDown size={18} style={{ opacity: 0.4, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }} />
+                      </CardContent>
+                    </CardActionArea>
+
+                    <Collapse in={isExpanded}>
+                      <Divider />
+                      <Box sx={{ px: 2, py: 1.5 }}>
+                        {/* Exercícios de musculação */}
+                        {tipo === 'musculacao' && sessao.exercicios.length > 0 && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                            {sessao.exercicios.map((ex) => (
+                              <Box key={ex.id}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                  <Dumbbell size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
+                                  <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.82rem', flex: 1 }}>
+                                    {ex.exercicio.nome}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 3 }}>
+                                  {ex.series.map((s, idx) => {
+                                    const tipoSerie: TipoSerie = (s as { tipo?: TipoSerie }).tipo || 'normal';
+                                    const cor = TIPO_SERIE_CORES[tipoSerie];
+                                    return (
+                                      <Box key={s.id} sx={{
+                                        display: 'flex', alignItems: 'center', gap: 0.4,
+                                        px: 0.8, py: 0.3, borderRadius: 1,
+                                        bgcolor: `${cor}18`, border: `1px solid ${cor}40`,
+                                      }}>
+                                        <Box sx={{
+                                          width: 16, height: 16, borderRadius: '4px',
+                                          bgcolor: cor, color: '#fff',
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          fontSize: '0.6rem', fontWeight: 700,
+                                        }}>
+                                          {idx + 1}
+                                        </Box>
+                                        <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                                          {s.peso ? `${s.peso}kg` : '—'}×{s.repeticoes}
+                                        </Typography>
+                                      </Box>
+                                    );
+                                  })}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+
+                        {tipo === 'musculacao' && sessao.exercicios.length === 0 && (
+                          <Typography variant="caption" color="text.secondary">Nenhum exercício cadastrado</Typography>
+                        )}
+
+                        {/* Corrida etapas */}
+                        {tipo === 'corrida' && sessao.corrida?.etapas && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {sessao.corrida.etapas.map((et, i) => (
+                              <Box key={et.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Footprints size={14} style={{ opacity: 0.4 }} />
+                                <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
+                                  Etapa {i + 1}
+                                  {et.distanciaKm ? ` · ${et.distanciaKm} km` : ''}
+                                  {et.tipo ? ` · ${et.tipo}` : ''}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+
+                        {/* Natação etapas */}
+                        {tipo === 'natacao' && sessao.natacao?.etapas && (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {sessao.natacao.etapas.map((et, i) => (
+                              <Box key={et.id} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Waves size={14} style={{ opacity: 0.4 }} />
+                                <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
+                                  Etapa {i + 1}
+                                  {et.distanciaM ? ` · ${et.distanciaM} m` : ''}
+                                  {et.estilo ? ` · ${et.estilo}` : ''}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+
+                        {/* Botão copiar treino */}
+                        {!isOwner && (
+                          <Button
+                            variant="outlined"
+                            fullWidth
+                            startIcon={<Copy size={16} />}
+                            onClick={(e) => { e.stopPropagation(); setCopyDialog(sessao); }}
+                            sx={{
+                              mt: 1.5, py: 0.8,
+                              borderColor: 'rgba(255, 107, 44, 0.4)',
+                              color: '#FF6B2C',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              '&:hover': { borderColor: '#FF6B2C', bgcolor: 'rgba(255, 107, 44, 0.08)' },
+                            }}
+                          >
+                            Copiar treino
+                          </Button>
+                        )}
                       </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                          {getSessaoSubtitle(sessao)}
-                        </Typography>
-                      </Box>
-                    </CardContent>
+                    </Collapse>
                   </Card>
                 );
               })}
@@ -550,6 +708,47 @@ export default function PerfilUsuario() {
             />
           )}
         </Box>
+      </Dialog>
+
+      {/* Dialog: Copiar Treino */}
+      <Dialog
+        open={!!copyDialog}
+        onClose={() => setCopyDialog(null)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.05rem', pb: 0.5 }}>
+          Copiar treino
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            O treino <strong>"{copyDialog?.nome}"</strong> será copiado para a sua aba de treinos com o nome:
+          </Typography>
+          <Typography variant="body2" fontWeight={600} sx={{ color: '#FF6B2C' }}>
+            "{copyDialog?.nome} ({profileData?.displayName || profileData?.username || 'Usuário'})"
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+            Todos os exercícios e séries serão copiados. Você poderá editar livremente depois.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setCopyDialog(null)} sx={{ textTransform: 'none', color: 'text.secondary' }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => copyDialog && handleCopiarTreino(copyDialog)}
+            disabled={copyLoading}
+            startIcon={copyLoading ? <CircularProgress size={16} color="inherit" /> : <Copy size={16} />}
+            sx={{
+              textTransform: 'none', fontWeight: 700, borderRadius: '10px',
+              bgcolor: '#FF6B2C', '&:hover': { bgcolor: '#e55a1b' },
+            }}
+          >
+            Copiar
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Dialog: Seguidores / Seguindo */}
