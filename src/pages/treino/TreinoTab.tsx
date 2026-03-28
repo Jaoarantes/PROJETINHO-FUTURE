@@ -239,7 +239,7 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
             </Box>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="subtitle2" fontWeight={600} noWrap>{sessao.nome}</Typography>
+              <Typography variant="subtitle2" fontWeight={600} sx={{ wordBreak: 'break-word' }}>{sessao.nome}</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                   {getSessaoSubtitle(sessao)}
@@ -255,10 +255,9 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
               </Box>
             </Box>
 
-            <IconButton size="small" onClick={(e) => onMenuOpen(e, sessao.id)} sx={{ mr: -0.5 }}>
+            <IconButton size="small" onClick={(e) => onMenuOpen(e, sessao.id)} sx={{ ml: 0.5, flexShrink: 0 }}>
               <MoreVertical size={16} />
             </IconButton>
-            <ChevronRight size={16} style={{ opacity: 0.3, marginLeft: 2 }} />
           </CardContent>
         </CardActionArea>
       </Box>
