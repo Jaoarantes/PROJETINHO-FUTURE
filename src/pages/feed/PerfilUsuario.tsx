@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button,
   Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, ListItemText,
-  Tabs, Tab, Card, CardActionArea, CardContent, Collapse, Divider, Chip,
+  Tabs, Tab, Card, CardActionArea, CardContent, Collapse, Divider,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { ArrowLeft, Rss, X, Lock, Dumbbell, Footprints, Waves, CircleEllipsis, Copy, ChevronDown } from 'lucide-react';
