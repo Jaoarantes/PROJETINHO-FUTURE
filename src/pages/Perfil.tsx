@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, Avatar, Divider,
   Card, CardContent, CircularProgress, Snackbar, Alert,
-  Dialog, TextField, IconButton,
+  Dialog, TextField, IconButton, Tabs, Tab,
   List, ListItem, Checkbox, Switch
 } from '@mui/material';
 import { LogOut, Moon, Sun, Settings2, Dumbbell, Utensils, Flame, Activity, RefreshCw, Scale, Plus, Trash2, X, Trophy, Zap, Target, Crown, Star, TrendingUp, BarChart3, ChevronRight, ChevronDown, ChevronUp, Check, Rss, Users, MessageCircle, Camera, Bell } from 'lucide-react';
@@ -47,8 +47,10 @@ export default function Perfil() {
 
   // Strava Selection
   const [stravaActivities, setStravaActivities] = useState<StravaActivity[]>([]);
+  const [stravaInvalidas, setStravaInvalidas] = useState<StravaActivity[]>([]);
   const [stravaModalOpen, setStravaModalOpen] = useState(false);
   const [selectedStravaIds, setSelectedStravaIds] = useState<number[]>([]);
+  const [stravaTab, setStravaTab] = useState(0);
 
   // Peso corporal
   const [pesoHistorico, setPesoHistorico] = useState<RegistroPeso[]>([]);
@@ -116,21 +118,27 @@ export default function Perfil() {
         token = refreshed.access_token;
       }
       const atividades = await getStravaActivities(token, 30);
-      // Filtrar tipos suportados, que não estão no histórico, e apenas após data de cadastro
       const dataCadastro = user.created_at ? new Date(user.created_at) : null;
-      const filtradas = atividades.filter((t) => {
-        if (!['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'].includes(t.type)) return false;
+      const TIPOS_VALIDOS = ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'];
+
+      // Remover duplicados e atividades antes do cadastro
+      const novas = atividades.filter((t) => {
         if (historico.some((r) => r.id === `strava_${t.id}`)) return false;
-        // Só importa atividades feitas após o cadastro no app
         if (dataCadastro && new Date(t.start_date) < dataCadastro) return false;
         return true;
       });
 
-      if (filtradas.length === 0) {
+      // Separar em válidos (contam XP) e não válidos
+      const validas = novas.filter((t) => TIPOS_VALIDOS.includes(t.type) && t.moving_time >= 1200);
+      const invalidas = novas.filter((t) => !TIPOS_VALIDOS.includes(t.type) || t.moving_time < 1200);
+
+      if (novas.length === 0) {
         setSnackMsg('Nenhuma atividade nova encontrada no Strava.');
       } else {
-        setStravaActivities(filtradas);
-        setSelectedStravaIds(filtradas.map(f => f.id)); // Seleciona todos por padrão
+        setStravaActivities(validas);
+        setStravaInvalidas(invalidas);
+        setSelectedStravaIds(validas.map(f => f.id));
+        setStravaTab(0);
         setStravaModalOpen(true);
       }
     } catch (err: any) {
@@ -148,7 +156,9 @@ export default function Perfil() {
   };
 
   const handleImportSelected = async () => {
-    const selecionadas = stravaActivities.filter((t) => selectedStravaIds.includes(t.id));
+    const todasAtividades = [...stravaActivities, ...stravaInvalidas];
+    const selecionadas = todasAtividades.filter((t) => selectedStravaIds.includes(t.id));
+    const TIPOS_VALIDOS = ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'];
     let added = 0;
 
     // Pegar token atualizado
@@ -168,9 +178,11 @@ export default function Perfil() {
     }
 
     for (const t of selecionadas) {
-      const isRun = t.type === 'Run' || t.type === 'Ride';
+      const isRun = t.type === 'Run' || t.type === 'Ride' || t.type === 'Walk' || t.type === 'Hike';
       const isSwim = t.type === 'Swim';
-      const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout';
+      const isMusculacao = t.type === 'WeightTraining' || t.type === 'Workout' || t.type === 'Crossfit' || t.type === 'Yoga' || t.type === 'Pilates';
+      // Tipos não mapeados vão para corrida se tiver distância, senão musculação
+      const tipoFallback = (t.distance && t.distance > 0) ? 'corrida' : 'musculacao';
 
       // Buscar detalhes completos da atividade (splits, laps, best efforts)
       let detail = t;
@@ -193,9 +205,10 @@ export default function Perfil() {
         }
       }
 
-      // Calcular XP para atividade do Strava (mínimo 20min)
+      // Calcular XP: apenas atividades válidas (tipo suportado + >= 20min)
+      const ehValida = TIPOS_VALIDOS.includes(t.type) && detail.moving_time >= 1200;
       let xpParaGanhar = 0;
-      if (detail.moving_time >= 1200) {
+      if (ehValida) {
         xpParaGanhar = 100;
         if (detail.moving_time >= 3600) xpParaGanhar += 50;
         else if (detail.moving_time >= 1800) xpParaGanhar += 25;
@@ -205,7 +218,7 @@ export default function Perfil() {
         id: `strava_${t.id}`,
         sessaoId: `strava_source`,
         nome: detail.name,
-        tipo: isRun ? 'corrida' : isSwim ? 'natacao' : 'musculacao',
+        tipo: isRun ? 'corrida' : isSwim ? 'natacao' : isMusculacao ? 'musculacao' : tipoFallback,
         exercicios: [],
         concluidoEm: new Date(detail.start_date).toISOString(),
         duracaoTotalSegundos: detail.moving_time,
@@ -261,11 +274,12 @@ export default function Perfil() {
         }
       };
 
-      if (isRun) {
+      if (isRun || (!isSwim && !isMusculacao && tipoFallback === 'corrida')) {
+        const etapaTipo = t.type === 'Ride' ? 'bicicleta' : t.type === 'Walk' || t.type === 'Hike' ? 'caminhada' : 'corrida';
         registro.corrida = {
           etapas: [{
             id: t.id.toString(),
-            tipo: t.type === 'Ride' ? 'bicicleta' : 'corrida',
+            tipo: etapaTipo,
             distanciaKm: Number((detail.distance / 1000).toFixed(2)),
             duracaoMin: Math.round(detail.moving_time / 60),
             duracaoSegundos: detail.moving_time,
@@ -608,64 +622,113 @@ export default function Perfil() {
           <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.5 }}>
             <IconButton onClick={() => setStravaModalOpen(false)} sx={{ mr: 1 }}><X size={20} /></IconButton>
             <Typography variant="h6" fontWeight={700} sx={{ flex: 1, fontSize: '1.1rem' }}>Treinos no Strava</Typography>
-            <Button
-              size="small"
-              onClick={() => {
-                if (selectedStravaIds.length === stravaActivities.length) {
-                  setSelectedStravaIds([]);
-                } else {
-                  setSelectedStravaIds(stravaActivities.map(a => a.id));
-                }
-              }}
-              sx={{ fontSize: '0.8rem', textTransform: 'none', fontWeight: 600 }}
-            >
-              {selectedStravaIds.length === stravaActivities.length ? 'Desmarcar todos' : 'Selecionar todos'}
-            </Button>
+            {(() => {
+              const listaAtual = stravaTab === 0 ? stravaActivities : stravaInvalidas;
+              const todosSelAtual = listaAtual.every(a => selectedStravaIds.includes(a.id));
+              return listaAtual.length > 0 ? (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    if (todosSelAtual) {
+                      setSelectedStravaIds(prev => prev.filter(id => !listaAtual.some(a => a.id === id)));
+                    } else {
+                      setSelectedStravaIds(prev => [...new Set([...prev, ...listaAtual.map(a => a.id)])]);
+                    }
+                  }}
+                  sx={{ fontSize: '0.8rem', textTransform: 'none', fontWeight: 600 }}
+                >
+                  {todosSelAtual ? 'Desmarcar todos' : 'Selecionar todos'}
+                </Button>
+              ) : null;
+            })()}
           </Box>
 
-          {/* Lista scrollável */}
-          <List sx={{ flex: 1, overflow: 'auto', px: 1 }}>
-            {stravaActivities.map((t) => {
-              const checked = selectedStravaIds.includes(t.id);
-              const dataStr = new Date(t.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-              const distStr = t.distance > 0 ? `${(t.distance / 1000).toFixed(1)}km` : '';
-              const durMin = Math.round(t.moving_time / 60);
+          {/* Tabs */}
+          <Tabs
+            value={stravaTab}
+            onChange={(_, v) => setStravaTab(v)}
+            variant="fullWidth"
+            sx={{
+              mx: 2, minHeight: 40,
+              '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' },
+              '& .Mui-selected': { color: '#FC4C02' },
+              '& .MuiTabs-indicator': { bgcolor: '#FC4C02' },
+            }}
+          >
+            <Tab label={`Válidos (${stravaActivities.length})`} />
+            <Tab label={`Não válidos (${stravaInvalidas.length})`} />
+          </Tabs>
 
+          {stravaTab === 1 && stravaInvalidas.length > 0 && (
+            <Box sx={{ mx: 2, mt: 1, px: 1.5, py: 1, borderRadius: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                Atividades com tipo não suportado ou menos de 20 minutos. Podem ser importadas mas <b>não contam XP</b>.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Lista scrollável */}
+          {(() => {
+            const listaAtual = stravaTab === 0 ? stravaActivities : stravaInvalidas;
+            if (listaAtual.length === 0) {
               return (
-                <ListItem
-                  key={t.id}
-                  disablePadding
-                  sx={{ mb: 0.5 }}
-                  onClick={() => {
-                    const idx = selectedStravaIds.indexOf(t.id);
-                    const next = [...selectedStravaIds];
-                    if (idx === -1) next.push(t.id); else next.splice(idx, 1);
-                    setSelectedStravaIds(next);
-                  }}
-                >
-                  <Box sx={{
-                    display: 'flex', alignItems: 'center', width: '100%',
-                    px: 2, py: 1.5, borderRadius: 2,
-                    bgcolor: checked ? 'action.selected' : 'action.hover',
-                    transition: 'background 0.15s',
-                  }}>
-                    <Checkbox
-                      edge="start"
-                      checked={checked}
-                      disableRipple
-                      sx={{ mr: 1.5, p: 0 }}
-                    />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography fontWeight={600} fontSize="0.9rem" noWrap>{t.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {dataStr} • {t.type} {distStr ? `• ${distStr}` : ''} • {durMin}min
-                      </Typography>
-                    </Box>
-                  </Box>
-                </ListItem>
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', px: 3 }}>
+                  <Typography color="text.secondary" textAlign="center">
+                    {stravaTab === 0 ? 'Nenhuma atividade válida para XP encontrada.' : 'Nenhuma atividade nesta categoria.'}
+                  </Typography>
+                </Box>
               );
-            })}
-          </List>
+            }
+            return (
+              <List sx={{ flex: 1, overflow: 'auto', px: 1, mt: 0.5 }}>
+                {listaAtual.map((t) => {
+                  const checked = selectedStravaIds.includes(t.id);
+                  const dataStr = new Date(t.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                  const distStr = t.distance > 0 ? `${(t.distance / 1000).toFixed(1)}km` : '';
+                  const durMin = Math.round(t.moving_time / 60);
+
+                  return (
+                    <ListItem
+                      key={t.id}
+                      disablePadding
+                      sx={{ mb: 0.5 }}
+                      onClick={() => {
+                        const idx = selectedStravaIds.indexOf(t.id);
+                        const next = [...selectedStravaIds];
+                        if (idx === -1) next.push(t.id); else next.splice(idx, 1);
+                        setSelectedStravaIds(next);
+                      }}
+                    >
+                      <Box sx={{
+                        display: 'flex', alignItems: 'center', width: '100%',
+                        px: 2, py: 1.5, borderRadius: 2,
+                        bgcolor: checked ? 'action.selected' : 'action.hover',
+                        transition: 'background 0.15s',
+                      }}>
+                        <Checkbox
+                          edge="start"
+                          checked={checked}
+                          disableRipple
+                          sx={{ mr: 1.5, p: 0 }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography fontWeight={600} fontSize="0.9rem" noWrap>{t.name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {dataStr} • {t.type} {distStr ? `• ${distStr}` : ''} • {durMin}min
+                          </Typography>
+                        </Box>
+                        {stravaTab === 1 && (
+                          <Typography variant="caption" sx={{ ml: 1, color: 'warning.main', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            0 XP
+                          </Typography>
+                        )}
+                      </Box>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            );
+          })()}
 
           {/* Botão fixo no rodapé */}
           <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
