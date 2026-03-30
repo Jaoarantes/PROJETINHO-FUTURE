@@ -19,6 +19,7 @@ import type { RegistroPeso } from '../services/dietaService';
 import { STRAVA_AUTH_URL, getStravaActivities, getStravaActivityDetail, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
+import { supabase } from '../supabase';
 
 import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
 import { carregarSocialStats } from '../services/feedService';
@@ -121,9 +122,18 @@ export default function Perfil() {
       const dataCadastro = user.created_at ? new Date(user.created_at) : null;
       const TIPOS_VALIDOS = ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'];
 
+      // Buscar IDs já importados diretamente do banco (não depende do store)
+      const stravaIds = atividades.map(a => `strava_${a.id}`);
+      const { data: jaImportados } = await supabase
+        .from('historico')
+        .select('id')
+        .eq('user_id', user.id)
+        .in('id', stravaIds);
+      const idsJaImportados = new Set((jaImportados || []).map((r: any) => r.id));
+
       // Remover duplicados e atividades antes do cadastro
       const novas = atividades.filter((t) => {
-        if (historico.some((r) => r.id === `strava_${t.id}`)) return false;
+        if (idsJaImportados.has(`strava_${t.id}`)) return false;
         if (dataCadastro && new Date(t.start_date) < dataCadastro) return false;
         return true;
       });
