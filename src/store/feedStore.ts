@@ -233,7 +233,11 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
           get().atualizarPerfilAutor(row.id, row.display_name, row.photo_url);
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.warn('[feedStore] Realtime subscription error:', err);
+        }
+      });
 
     set({ _realtimeChannel: channel });
   },

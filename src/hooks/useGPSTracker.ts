@@ -57,7 +57,7 @@ async function startForegroundService() {
             id: 1,
             title: 'Valere - Corrida em andamento',
             body: 'Rastreando sua corrida via GPS...',
-            smallIcon: 'ic_stat_directions_run',
+            smallIcon: 'ic_stat_valere',
         });
     } catch (err) {
         console.warn('[GPS] Foreground service não disponível:', err);

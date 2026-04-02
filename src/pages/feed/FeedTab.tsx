@@ -42,7 +42,11 @@ export default function FeedTab() {
       carregarFeed(uid, true);
     }
     if (uid && hasUsername) {
-      iniciarRealtime(uid);
+      try {
+        iniciarRealtime(uid);
+      } catch (err) {
+        console.warn('[FeedTab] Realtime não disponível:', err);
+      }
     }
     return () => pararRealtime();
   }, [uid, hasUsername]);
