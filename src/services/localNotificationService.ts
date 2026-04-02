@@ -38,7 +38,7 @@ export async function scheduleWorkoutReminders(days: number[], hour: number, min
       on: { weekday: day === 0 ? 1 : day + 1, hour, minute }, // Capacitor uses 1=Sunday
       allowWhileIdle: true,
     },
-    smallIcon: 'ic_launcher',
+    smallIcon: 'ic_stat_valere',
     largeIcon: 'ic_launcher',
   }));
 
@@ -58,7 +58,7 @@ export async function scheduleMealReminders(meals: { type: string; label: string
       on: { hour: meal.hour, minute: meal.minute },
       allowWhileIdle: true,
     },
-    smallIcon: 'ic_launcher',
+    smallIcon: 'ic_stat_valere',
     largeIcon: 'ic_launcher',
   }));
 
