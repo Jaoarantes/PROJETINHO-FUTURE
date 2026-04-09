@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Card, CardActionArea, CardContent,
@@ -168,7 +168,7 @@ const overlayStyle = {
   boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
 };
 
-function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOpen, onIniciar, isOverlay, isDragging: propIsDragging }: SortableTreinoCardProps) {
+const SortableTreinoCard = memo(function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOpen, onIniciar, isOverlay, isDragging: propIsDragging }: SortableTreinoCardProps) {
   const {
     attributes,
     listeners,
@@ -285,7 +285,7 @@ function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOp
       )}
     </Card>
   );
-}
+});
 
 export default function TreinoTab() {
   const navigate = useNavigate();
@@ -462,11 +462,13 @@ export default function TreinoTab() {
     setEditDialogOpen(false);
   };
 
-  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>, id: string) => {
+  const handleNavigate = useCallback((id: string) => navigate(`/treino/${id}`), [navigate]);
+
+  const handleMenuOpen = useCallback((e: React.MouseEvent<HTMLElement>, id: string) => {
     e.stopPropagation();
     setMenuAnchor(e.currentTarget);
     setMenuSessaoId(id);
-  };
+  }, []);
 
   const handleEditar = () => {
     const sessao = sessoes.find((s) => s.id === menuSessaoId);
@@ -567,7 +569,7 @@ export default function TreinoTab() {
                                   index={index}
                                   tipo={tipo}
                                   isAtivo={treinoAtivo?.sessaoId === sessao.id}
-                                  onNavigate={(id) => navigate(`/treino/${id}`)}
+                                  onNavigate={handleNavigate}
                                   onMenuOpen={handleMenuOpen}
                                   onIniciar={iniciarTreino}
                                 />

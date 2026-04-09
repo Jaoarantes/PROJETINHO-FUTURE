@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Box, Typography, IconButton, Card, CardContent, Button,
   LinearProgress, Collapse, Dialog, DialogTitle, DialogContent,
@@ -70,8 +70,8 @@ export default function DietaTab() {
   const atualizarPerfil = useDietaStore((s) => s.atualizarPerfil);
   const carregando = useDietaStore((s) => s.carregando);
   const uid = useDietaStore((s) => s.uid);
-  const diario = getDiarioAtual();
-  const totais = calcularMacrosDia(diario.refeicoes);
+  const diario = useMemo(() => getDiarioAtual(), [dataSelecionada, diarios]);
+  const totais = useMemo(() => calcularMacrosDia(diario.refeicoes), [diario.refeicoes]);
 
   const corProteina = '#16A34A';
   const corCarbo = '#FF6B2C';
@@ -164,9 +164,15 @@ export default function DietaTab() {
     setSnackMsg('Cópia desfeita!');
   };
 
-  const aguaPct = Math.min(((diario.aguaML || 0) / (metas.agua || 2500)) * 100, 100);
-  const tiposExistentes = diario.refeicoes.map((r) => r.tipo);
-  const refeicoesFaltantes = ALL_REFEICOES.filter((t) => !tiposExistentes.includes(t));
+  const aguaPct = useMemo(
+    () => Math.min(((diario.aguaML || 0) / (metas.agua || 2500)) * 100, 100),
+    [diario.aguaML, metas.agua],
+  );
+  const tiposExistentes = useMemo(() => diario.refeicoes.map((r) => r.tipo), [diario.refeicoes]);
+  const refeicoesFaltantes = useMemo(
+    () => ALL_REFEICOES.filter((t) => !tiposExistentes.includes(t)),
+    [tiposExistentes],
+  );
 
   // Calorie balance
   const metaCaloriasDia = diario.metaCalorias || metas.calorias;
