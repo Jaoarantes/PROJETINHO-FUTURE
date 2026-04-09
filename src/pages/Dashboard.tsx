@@ -11,7 +11,7 @@ import {
   calcularVolumeSessao, calcularVolumeExercicio,
   calcularDistanciaCorrida, calcularDistanciaNatacao,
 } from '../types/treino';
-import type { RegistroTreino } from '../types/treino';
+import type { RegistroTreino, EtapaCorrida } from '../types/treino';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -1637,15 +1637,48 @@ function calcPaceMarca(distanciaM: number, tempoSeg: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Calcula tempo estimado para N km a partir dos splits (soma dos N primeiros splits completos)
-function calcularTempoSplits(splits: NonNullable<RegistroTreino['stravaData']>['splits'], numKm: number): number | null {
-  if (!splits || splits.length < numKm) return null;
+// Calcula tempo estimado para uma distância (em metros) a partir dos splits do Strava
+function calcularTempoSplits(splits: NonNullable<RegistroTreino['stravaData']>['splits'], distanciaM: number): number | null {
+  if (!splits || splits.length === 0) return null;
+  const numKmInteiros = Math.floor(distanciaM / 1000);
+  if (splits.length < numKmInteiros) return null;
+
   let tempo = 0;
-  for (let i = 0; i < numKm; i++) {
+  for (let i = 0; i < numKmInteiros; i++) {
     if (splits[i].distance < 800) return null; // split incompleto
     tempo += splits[i].movingTime;
   }
-  return tempo;
+
+  // Fração restante (ex: 97m para meia maratona 21.097km)
+  const fracaoRestanteM = distanciaM % 1000;
+  if (fracaoRestanteM > 0 && splits.length > numKmInteiros) {
+    const splitParcial = splits[numKmInteiros];
+    if (splitParcial && splitParcial.distance > 50) {
+      tempo += splitParcial.movingTime * (fracaoRestanteM / splitParcial.distance);
+    }
+  }
+
+  return tempo > 0 ? Math.round(tempo) : null;
+}
+
+// Calcula tempo estimado para uma distância (em metros) a partir das etapas de corrida do app
+function calcularTempoEtapas(etapas: EtapaCorrida[], distanciaAlvoM: number): number | null {
+  if (!etapas || etapas.length === 0) return null;
+  let distAcumM = 0;
+  let tempoAcumSeg = 0;
+  for (const etapa of etapas) {
+    const etapaDistM = (etapa.distanciaKm || 0) * 1000;
+    const etapaDurSeg = etapa.duracaoSegundos ?? (etapa.duracaoMin || 0) * 60;
+    if (etapaDistM <= 0 || etapaDurSeg <= 0) continue;
+    if (distAcumM + etapaDistM >= distanciaAlvoM) {
+      const restanteM = distanciaAlvoM - distAcumM;
+      tempoAcumSeg += etapaDurSeg * (restanteM / etapaDistM);
+      return Math.round(tempoAcumSeg);
+    }
+    distAcumM += etapaDistM;
+    tempoAcumSeg += etapaDurSeg;
+  }
+  return null;
 }
 
 function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
@@ -1666,12 +1699,29 @@ function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]
         }
       }
 
-      // Calcular marcas a partir dos splits para distâncias que o Strava não fornece
+      // Calcular marcas a partir dos splits (distâncias que o Strava não fornece como best effort)
       if (reg.stravaData?.splits) {
-        const splitsDistancias = [3, 15, 30]; // km que o Strava não dá como best effort
-        for (const km of splitsDistancias) {
-          const tempo = calcularTempoSplits(reg.stravaData.splits, km);
+        const splitsDistanciasM = [3000, 15000, 21097, 30000];
+        for (const distM of splitsDistanciasM) {
+          const tempo = calcularTempoSplits(reg.stravaData.splits, distM);
           if (tempo) {
+            const km = Math.round(distM / 1000);
+            const key = `${km}k_calc`;
+            const existing = map.get(key);
+            if (!existing || tempo < existing.tempo) {
+              map.set(key, { tempo, data: reg.concluidoEm, registroId: reg.id });
+            }
+          }
+        }
+      }
+
+      // Calcular marcas a partir das etapas de corrida registradas no app
+      if (reg.corrida?.etapas && reg.corrida.etapas.length > 0) {
+        const etapasDistanciasM = [1000, 3000, 5000, 10000, 15000, 21097, 30000, 42195];
+        for (const distM of etapasDistanciasM) {
+          const tempo = calcularTempoEtapas(reg.corrida.etapas, distM);
+          if (tempo) {
+            const km = Math.round(distM / 1000);
             const key = `${km}k_calc`;
             const existing = map.get(key);
             if (!existing || tempo < existing.tempo) {
