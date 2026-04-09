@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, IconButton, Button, Card, CardContent,
@@ -439,6 +439,99 @@ function SortableExerciseCard({ exTreino, children }: {
     );
 }
 
+/* ── Exercício Card (memoizado para evitar re-render de todos ao editar um) ── */
+type ExTreino = ReturnType<typeof useTreinoStore.getState>['sessoes'][0]['exercicios'][0];
+interface ExercicioCardProps {
+    exTreino: ExTreino;
+    sessaoId: string;
+    onDeleteExercicio: (payload: { sessaoId: string; exId: string }) => void;
+    onDeleteSerie: (payload: { sessaoId: string; exId: string; serieId: string }) => void;
+    onSerieClick: (e: React.MouseEvent<HTMLElement>, sessaoId: string, exId: string, serieId: string) => void;
+}
+const ExercicioCard = memo(function ExercicioCard({ exTreino, sessaoId, onDeleteExercicio, onDeleteSerie, onSerieClick }: ExercicioCardProps) {
+    // Acessa as actions diretamente (referências estáveis — não causam re-render)
+    const atualizarSerie = useTreinoStore((s) => s.atualizarSerie);
+    const adicionarSerie = useTreinoStore((s) => s.adicionarSerie);
+    return (
+        <CardContent sx={{ pb: '12px !important', px: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>{exTreino.exercicio.nome}</Typography>
+                    <Chip label={exTreino.exercicio.grupoMuscular} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem', mt: 0.2 }} />
+                </Box>
+                <IconButton size="small" color="error" onClick={() => onDeleteExercicio({ sessaoId, exId: exTreino.id })}>
+                    <Trash2 size={16} />
+                </IconButton>
+            </Box>
+
+            {/* Legenda de cores */}
+            <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
+                {(Object.entries(TIPO_SERIE_LABELS) as [TipoSerie, string][]).map(([key, label]) => (
+                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: TIPO_SERIE_CORES[key] }} />
+                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: 'text.secondary' }}>{label}</Typography>
+                    </Box>
+                ))}
+            </Box>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5, mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ width: 36, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Série</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>KG</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reps</Typography>
+                <Box sx={{ width: 32 }} />
+            </Box>
+
+            {exTreino.series.map((serie, idx) => {
+                const tipoSerie = serie.tipo || 'normal';
+                const cor = TIPO_SERIE_CORES[tipoSerie];
+                return (
+                    <Box key={serie.id} sx={{
+                        display: 'flex', alignItems: 'center', px: 0.5, py: 0.4, borderRadius: 1,
+                        '&:hover': { bgcolor: 'action.hover' },
+                    }}>
+                        <Box
+                            onClick={(e) => onSerieClick(e, sessaoId, exTreino.id, serie.id)}
+                            sx={{
+                                width: 28, height: 28, borderRadius: '6px',
+                                bgcolor: cor, color: '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
+                                mr: 0.5,
+                                transition: 'transform 0.1s',
+                                '&:active': { transform: 'scale(0.9)' },
+                            }}
+                        >
+                            {idx + 1}
+                        </Box>
+                        <TextField
+                            size="small" type="number" placeholder="—"
+                            value={serie.peso ?? ''}
+                            onChange={(e) => atualizarSerie(sessaoId, exTreino.id, serie.id, { peso: e.target.value ? Number(e.target.value) : undefined })}
+                            sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            slotProps={{ htmlInput: { min: 0, step: 0.5, inputMode: 'decimal' } }}
+                        />
+                        <TextField
+                            size="small" type="number"
+                            value={serie.repeticoes || ''}
+                            onChange={(e) => atualizarSerie(sessaoId, exTreino.id, serie.id, { repeticoes: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0 })}
+                            sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            slotProps={{ htmlInput: { min: 0, inputMode: 'numeric' } }}
+                            placeholder="0"
+                        />
+                        <IconButton size="small" onClick={() => onDeleteSerie({ sessaoId, exId: exTreino.id, serieId: serie.id })} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
+                            <MinusCircle size={18} />
+                        </IconButton>
+                    </Box>
+                );
+            })}
+
+            <Button size="small" startIcon={<PlusCircle size={18} />} onClick={() => adicionarSerie(sessaoId, exTreino.id)} sx={{ mt: 0.5, fontSize: '0.8rem' }}>
+                Adicionar série
+            </Button>
+        </CardContent>
+    );
+});
+
 /* ── Musculação View ────────────────── */
 function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando }: {
     sessao: ReturnType<typeof useTreinoStore.getState>['sessoes'][0];
@@ -447,7 +540,8 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
     setPickerOpen: (v: boolean) => void;
     reordenando: boolean;
 }) {
-    const { removerExercicio, atualizarSerie, adicionarSerie, removerSerie, reordenarExercicios } = store;
+    const { removerExercicio, removerSerie, reordenarExercicios } = store;
+    const atualizarSerie = useTreinoStore((s) => s.atualizarSerie);
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [menuTarget, setMenuTarget] = useState<{ sessaoId: string; exId: string; serieId: string } | null>(null);
     const [activeExId, setActiveExId] = useState<string | null>(null);
@@ -479,10 +573,18 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
         }
     };
 
-    const handleSerieClick = (e: React.MouseEvent<HTMLElement>, sessaoId: string, exId: string, serieId: string) => {
+    const handleSerieClick = useCallback((e: React.MouseEvent<HTMLElement>, sessaoId: string, exId: string, serieId: string) => {
         setMenuAnchor(e.currentTarget);
         setMenuTarget({ sessaoId, exId, serieId });
-    };
+    }, []);
+
+    const handleDeleteExercicio = useCallback((payload: { sessaoId: string; exId: string }) => {
+        deleteExercicio.requestDelete(payload);
+    }, [deleteExercicio.requestDelete]);
+
+    const handleDeleteSerie = useCallback((payload: { sessaoId: string; exId: string; serieId: string }) => {
+        deleteSerie.requestDelete(payload);
+    }, [deleteSerie.requestDelete]);
 
     const handleTipoSelect = (tipo: TipoSerie) => {
         if (menuTarget) {
@@ -490,87 +592,6 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
         }
         setMenuAnchor(null);
         setMenuTarget(null);
-    };
-
-    const renderExerciseContent = (exTreino: typeof sessao.exercicios[0]) => {
-        return (
-        <CardContent sx={{ pb: '12px !important', px: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ fontSize: '0.95rem' }}>{exTreino.exercicio.nome}</Typography>
-                    <Chip label={exTreino.exercicio.grupoMuscular} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.6rem', mt: 0.2 }} />
-                </Box>
-                <IconButton size="small" color="error" onClick={() => deleteExercicio.requestDelete({ sessaoId: sessao.id, exId: exTreino.id })}>
-                    <Trash2 size={16} />
-                </IconButton>
-            </Box>
-
-            {/* Legenda de cores */}
-            <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-                {(Object.entries(TIPO_SERIE_LABELS) as [TipoSerie, string][]).map(([key, label]) => (
-                    <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: TIPO_SERIE_CORES[key] }} />
-                        <Typography variant="caption" sx={{ fontSize: '0.55rem', color: 'text.secondary' }}>{label}</Typography>
-                    </Box>
-                ))}
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5, mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ width: 36, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Série</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>KG</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reps</Typography>
-                <Box sx={{ width: 32 }} />
-            </Box>
-
-            {exTreino.series.map((serie, idx) => {
-                const tipoSerie = serie.tipo || 'normal';
-                const cor = TIPO_SERIE_CORES[tipoSerie];
-                return (
-                    <Box key={serie.id} sx={{
-                        display: 'flex', alignItems: 'center', px: 0.5, py: 0.4, borderRadius: 1,
-                        '&:hover': { bgcolor: 'action.hover' },
-                    }}>
-                        <Box
-                            onClick={(e) => handleSerieClick(e, sessao.id, exTreino.id, serie.id)}
-                            sx={{
-                                width: 28, height: 28, borderRadius: '6px',
-                                bgcolor: cor, color: '#fff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem',
-                                mr: 0.5,
-                                transition: 'transform 0.1s',
-                                '&:active': { transform: 'scale(0.9)' },
-                            }}
-                        >
-                            {idx + 1}
-                        </Box>
-                        <TextField
-                            size="small" type="number" placeholder="—"
-                            value={serie.peso ?? ''}
-                            onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { peso: e.target.value ? Number(e.target.value) : undefined })}
-                            sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                            slotProps={{ htmlInput: { min: 0, step: 0.5, inputMode: 'decimal' } }}
-                        />
-                        <TextField
-                            size="small" type="number"
-                            value={serie.repeticoes || ''}
-                            onChange={(e) => atualizarSerie(sessao.id, exTreino.id, serie.id, { repeticoes: e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0 })}
-                            sx={{ flex: 1, mx: 0.5, '& input': { textAlign: 'center', py: 0.8, fontSize: '0.85rem' }, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                            slotProps={{ htmlInput: { min: 0, inputMode: 'numeric' } }}
-                            placeholder="0"
-                        />
-                        <IconButton size="small" onClick={() => deleteSerie.requestDelete({ sessaoId: sessao.id, exId: exTreino.id, serieId: serie.id })} disabled={exTreino.series.length <= 1} sx={{ width: 32 }}>
-                            <MinusCircle size={18} />
-                        </IconButton>
-                    </Box>
-                );
-            })}
-
-            <Button size="small" startIcon={<PlusCircle size={18} />} onClick={() => adicionarSerie(sessao.id, exTreino.id)} sx={{ mt: 0.5, fontSize: '0.8rem' }}>
-                Adicionar série
-            </Button>
-        </CardContent>
-    );
     };
 
     return (
@@ -660,7 +681,13 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
                     {sessao.exercicios.map((exTreino) => (
                         <Card key={exTreino.id}>
-                            {renderExerciseContent(exTreino)}
+                            <ExercicioCard
+                                exTreino={exTreino}
+                                sessaoId={sessao.id}
+                                onDeleteExercicio={handleDeleteExercicio}
+                                onDeleteSerie={handleDeleteSerie}
+                                onSerieClick={handleSerieClick}
+                            />
                         </Card>
                     ))}
                 </Box>
