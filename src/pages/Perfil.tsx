@@ -178,6 +178,7 @@ export default function Perfil() {
     const todasAtividades = [...stravaActivities, ...stravaInvalidas];
     const selecionadas = todasAtividades.filter((t) => selectedStravaIds.includes(t.id));
     const TIPOS_VALIDOS = ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'];
+    const dataCadastro = user?.created_at ? new Date(user.created_at) : null;
     let added = 0;
 
     // Pegar token atualizado
@@ -224,8 +225,10 @@ export default function Perfil() {
         }
       }
 
-      // Calcular XP: apenas atividades válidas (tipo suportado + >= 20min)
-      const ehValida = TIPOS_VALIDOS.includes(t.type) && detail.moving_time >= 1200;
+      // Calcular XP: apenas atividades válidas (tipo suportado + >= 20min + após data de cadastro)
+      const ehValida = TIPOS_VALIDOS.includes(t.type) &&
+        detail.moving_time >= 1200 &&
+        (!dataCadastro || new Date(detail.start_date) >= dataCadastro);
       let xpParaGanhar = 0;
       if (ehValida) {
         xpParaGanhar = 100;
