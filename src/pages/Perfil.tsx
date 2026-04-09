@@ -16,7 +16,7 @@ import { carregarPesoHistorico, salvarRegistroPeso, deletarRegistroPeso } from '
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../hooks/useConfirmDelete';
 import type { RegistroPeso } from '../services/dietaService';
-import { STRAVA_AUTH_URL, getStravaActivities, getStravaActivityDetail, refreshStravaToken } from '../services/stravaApi';
+import { STRAVA_AUTH_URL, getAllStravaActivities, getStravaActivityDetail, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
 import { calcularVolumeSessao } from '../types/treino';
 import { supabase } from '../supabase';
@@ -118,29 +118,38 @@ export default function Perfil() {
         setStravaAuth(newAuth);
         token = refreshed.access_token;
       }
-      const atividades = await getStravaActivities(token, 30);
+      // Buscar TODAS as atividades do Strava (todas as páginas)
+      const atividades = await getAllStravaActivities(token);
       const dataCadastro = user.created_at ? new Date(user.created_at) : null;
       const TIPOS_VALIDOS = ['Run', 'Ride', 'Swim', 'WeightTraining', 'Workout'];
 
-      // Buscar IDs já importados diretamente do banco (não depende do store)
+      // Buscar IDs já importados diretamente do banco (em chunks para não estourar limite do Supabase)
       const stravaIds = atividades.map(a => `strava_${a.id}`);
-      const { data: jaImportados } = await supabase
-        .from('historico')
-        .select('id')
-        .eq('user_id', user.id)
-        .in('id', stravaIds);
-      const idsJaImportados = new Set((jaImportados || []).map((r: any) => r.id));
+      const idsJaImportados = new Set<string>();
+      for (let i = 0; i < stravaIds.length; i += 500) {
+        const { data: chunk } = await supabase
+          .from('historico')
+          .select('id')
+          .eq('user_id', user.id)
+          .in('id', stravaIds.slice(i, i + 500));
+        (chunk || []).forEach((r: any) => idsJaImportados.add(r.id));
+      }
 
-      // Remover duplicados e atividades antes do cadastro
-      const novas = atividades.filter((t) => {
-        if (idsJaImportados.has(`strava_${t.id}`)) return false;
-        if (dataCadastro && new Date(t.start_date) < dataCadastro) return false;
-        return true;
-      });
+      // Filtrar apenas não-importadas ainda
+      const novas = atividades.filter(t => !idsJaImportados.has(`strava_${t.id}`));
 
-      // Separar em válidos (contam XP) e não válidos
-      const validas = novas.filter((t) => TIPOS_VALIDOS.includes(t.type) && t.moving_time >= 1200);
-      const invalidas = novas.filter((t) => !TIPOS_VALIDOS.includes(t.type) || t.moving_time < 1200);
+      // Válidos: tipo suportado + 20min+ + após data de cadastro (contam XP)
+      const validas = novas.filter(t =>
+        TIPOS_VALIDOS.includes(t.type) &&
+        t.moving_time >= 1200 &&
+        (!dataCadastro || new Date(t.start_date) >= dataCadastro)
+      );
+      // Não válidos: tipo errado, muito curto, ou antes do cadastro (podem importar mas sem XP)
+      const invalidas = novas.filter(t =>
+        !TIPOS_VALIDOS.includes(t.type) ||
+        t.moving_time < 1200 ||
+        (dataCadastro && new Date(t.start_date) < dataCadastro)
+      );
 
       if (novas.length === 0) {
         setSnackMsg('Nenhuma atividade nova encontrada no Strava.');
