@@ -205,10 +205,20 @@ export default function Perfil() {
       const tipoFallback = (t.distance && t.distance > 0) ? 'corrida' : 'musculacao';
 
       // Buscar detalhes completos da atividade (splits, laps, best efforts)
+      // Pequeno delay para não bater rate limit da API do Strava (100 req/15min)
+      await new Promise(r => setTimeout(r, 200));
       let detail = t;
       try {
         if (token) detail = await getStravaActivityDetail(token, t.id);
       } catch { /* fallback to summary data */ }
+
+      // Garantir que o polyline do mapa sempre vem — o dado resumido da lista já tem summary_polyline
+      if (!detail.map?.summary_polyline && t.map?.summary_polyline) {
+        detail = {
+          ...detail,
+          map: { ...detail.map, summary_polyline: t.map.summary_polyline } as any,
+        };
+      }
 
       let calorias = detail.calories;
       if (!calorias) {
