@@ -26,13 +26,27 @@ export async function refreshStravaToken(refreshToken: string): Promise<StravaTo
     return data as StravaTokenResponse;
 }
 
-export async function getStravaActivities(accessToken: string, perPage = 30): Promise<StravaActivity[]> {
-    const response = await fetch(`https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-    });
+export async function getStravaActivities(accessToken: string, perPage = 30, page = 1): Promise<StravaActivity[]> {
+    const response = await fetch(
+        `https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}&page=${page}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
 
     if (!response.ok) throw new Error('Falha ao buscar atividades no Strava');
     return response.json();
+}
+
+export async function getAllStravaActivities(accessToken: string): Promise<StravaActivity[]> {
+    const todas: StravaActivity[] = [];
+    let page = 1;
+    while (true) {
+        const pagina = await getStravaActivities(accessToken, 100, page);
+        if (pagina.length === 0) break;
+        todas.push(...pagina);
+        if (pagina.length < 100) break;
+        page++;
+    }
+    return todas;
 }
 
 export async function getStravaActivityDetail(accessToken: string, activityId: number): Promise<StravaActivity> {
