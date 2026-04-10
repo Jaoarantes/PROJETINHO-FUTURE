@@ -2295,17 +2295,40 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
           <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, mb: penultimo ? 0.5 : 0 }}>
             {ultimo.pesoMax}kg × {ultimo.repsMax} reps · {ultimo.series} séries · vol {ultimo.volume}kg
           </Typography>
-          {penultimo && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pt: 0.5, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
-              <TrendIcon size={13} color={trendColor as string} />
-              <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
-                {ultimo.pesoMax}kg vs {penultimo.pesoMax}kg ({penultimo.label})
-                <Box component="span" sx={{ fontWeight: 700, color: trendColor, ml: 0.5 }}>
-                  {trendPeso > 0 ? '+' : ''}{trendPeso}kg
+          {penultimo && (() => {
+            const diffs = [
+              { label: 'Peso', atual: ultimo.pesoMax, anterior: penultimo.pesoMax, unit: 'kg' },
+              { label: 'Reps', atual: ultimo.repsMax, anterior: penultimo.repsMax, unit: '' },
+              { label: 'Séries', atual: ultimo.series, anterior: penultimo.series, unit: '' },
+              { label: 'Volume', atual: ultimo.volume, anterior: penultimo.volume, unit: 'kg' },
+            ];
+            return (
+              <Box sx={{ pt: 0.5, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+                <Typography sx={{ fontSize: '0.58rem', color: 'text.secondary', mb: 0.4 }}>
+                  vs treino anterior ({penultimo.label})
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.6 }}>
+                  {diffs.map((d) => {
+                    const diff = d.atual - d.anterior;
+                    const cor = diff > 0 ? '#16A34A' : diff < 0 ? '#EF4444' : 'text.secondary';
+                    return (
+                      <Box key={d.label} sx={{
+                        flex: 1, textAlign: 'center', py: 0.4, borderRadius: '4px',
+                        bgcolor: diff !== 0 ? alpha(cor as string, 0.06) : 'transparent',
+                      }}>
+                        <Typography sx={{ fontSize: '0.5rem', color: 'text.secondary', textTransform: 'uppercase' }}>
+                          {d.label}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: cor }}>
+                          {diff > 0 ? '+' : ''}{diff}{d.unit}
+                        </Typography>
+                      </Box>
+                    );
+                  })}
                 </Box>
-              </Typography>
-            </Box>
-          )}
+              </Box>
+            );
+          })()}
         </Box>
       )}
 
