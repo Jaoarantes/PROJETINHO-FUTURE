@@ -337,6 +337,7 @@ export default function TreinoTab() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareSessao, setShareSessao] = useState<SessaoTreino | null>(null);
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
+  const [historicoLimit, setHistoricoLimit] = useState(7);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editRegOpen, setEditRegOpen] = useState(false);
   const [editRegData, setEditRegData] = useState<RegistroTreino | null>(null);
@@ -613,7 +614,7 @@ export default function TreinoTab() {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              {agruparHistoricoPorData(historico).map((grupo) => (
+              {agruparHistoricoPorData(historico.slice(0, historicoLimit)).map((grupo) => (
                 <Box key={grupo.chave}>
                   {/* Date header */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
@@ -839,6 +840,15 @@ export default function TreinoTab() {
                   </Box>
                 </Box>
               ))}
+              {historico.length > historicoLimit && (
+                <Button
+                  fullWidth
+                  onClick={() => setHistoricoLimit(prev => prev + 20)}
+                  sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
+                >
+                  Carregar mais ({historico.length - historicoLimit} restantes)
+                </Button>
+              )}
             </Box>
           )}
         </>
