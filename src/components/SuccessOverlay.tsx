@@ -73,7 +73,7 @@ export default function SuccessOverlay({
       setTimeout(() => {
         setVisible(false);
         onCompleteRef.current?.();
-      }, 350);
+      }, 200);
     }, duration);
 
     return () => {
@@ -97,9 +97,8 @@ export default function SuccessOverlay({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: animating ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0)',
-        backdropFilter: animating ? 'blur(10px)' : 'blur(0px)',
-        transition: 'background-color 0.35s ease, backdrop-filter 0.35s ease',
+        bgcolor: animating ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0)',
+        transition: 'background-color 0.2s ease',
         pointerEvents: 'none',
       }}
     >
@@ -111,10 +110,10 @@ export default function SuccessOverlay({
             width: 180, height: 180,
             borderRadius: '50%',
             border: `2px solid ${alpha(cfg.color, 0.25)}`,
-            animation: 'successRipple 1.2s ease-out forwards',
+            animation: 'successRipple 0.6s ease-out forwards',
             '@keyframes successRipple': {
-              '0%': { transform: 'scale(0.4)', opacity: 1 },
-              '100%': { transform: 'scale(3)', opacity: 0 },
+              '0%': { transform: 'scale(0.5)', opacity: 1 },
+              '100%': { transform: 'scale(2.5)', opacity: 0 },
             },
           }} />
           <Box sx={{
@@ -122,10 +121,10 @@ export default function SuccessOverlay({
             width: 180, height: 180,
             borderRadius: '50%',
             border: `2px solid ${alpha(cfg.color, 0.15)}`,
-            animation: 'successRipple2 1.2s 0.2s ease-out forwards',
+            animation: 'successRipple2 0.6s 0.1s ease-out forwards',
             '@keyframes successRipple2': {
-              '0%': { transform: 'scale(0.4)', opacity: 1 },
-              '100%': { transform: 'scale(3)', opacity: 0 },
+              '0%': { transform: 'scale(0.5)', opacity: 1 },
+              '100%': { transform: 'scale(2.5)', opacity: 0 },
             },
           }} />
         </>
@@ -140,7 +139,7 @@ export default function SuccessOverlay({
         boxShadow: `0 12px 40px ${alpha(cfg.color, 0.5)}`,
         transform: animating ? 'scale(1)' : 'scale(0)',
         opacity: animating ? 1 : 0,
-        transition: 'transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease',
+        transition: 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease',
       }}>
         {cfg.icon}
       </Box>
@@ -155,7 +154,7 @@ export default function SuccessOverlay({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
         transform: animating ? 'scale(1)' : 'scale(0)',
-        transition: 'transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.25s',
+        transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.12s',
       }}>
         <CheckCircle size={22} color={cfg.color} fill={cfg.color} />
       </Box>
@@ -171,7 +170,7 @@ export default function SuccessOverlay({
           textAlign: 'center',
           transform: animating ? 'translateY(0)' : 'translateY(16px)',
           opacity: animating ? 1 : 0,
-          transition: 'all 0.4s ease 0.15s',
+          transition: 'all 0.2s ease 0.08s',
         }}
       >
         {msg}
@@ -183,9 +182,9 @@ export default function SuccessOverlay({
           mt: 0.5,
           fontSize: '0.95rem',
           textAlign: 'center',
-          transform: animating ? 'translateY(0)' : 'translateY(16px)',
+          transform: animating ? 'translateY(0)' : 'translateY(8px)',
           opacity: animating ? 1 : 0,
-          transition: 'all 0.4s ease 0.25s',
+          transition: 'all 0.2s ease 0.12s',
         }}
       >
         {sub}

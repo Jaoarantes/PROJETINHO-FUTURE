@@ -148,14 +148,9 @@ export default function Historico() {
                     borderRadius: 4, border: '1px solid',
                     borderColor: highlightId === reg.id ? '#FF6B2C' : 'divider',
                     overflow: 'hidden',
-                    transition: 'all 0.5s ease',
+                    transition: 'border-color 0.15s ease',
                     ...(highlightId === reg.id && {
-                      boxShadow: `0 0 20px ${alpha('#FF6B2C', 0.25)}`,
-                      animation: 'historySlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                      '@keyframes historySlideIn': {
-                        '0%': { opacity: 0, transform: 'translateY(-20px) scale(0.95)' },
-                        '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
-                      },
+                      boxShadow: `0 0 12px ${alpha('#FF6B2C', 0.2)}`,
                     }),
                   }}>
                     <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
