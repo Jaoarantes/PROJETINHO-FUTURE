@@ -2288,20 +2288,21 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
       {/* Last workout vs previous */}
       {ultimo && (
         <Box sx={{
-          display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, px: 1, py: 0.8,
+          mb: 1.5, px: 1, py: 0.8,
           borderRadius: '6px', bgcolor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.015)',
         }}>
-          <Box sx={{ flex: 1 }}>
-            <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', mb: 0.2 }}>Último treino ({ultimo.label})</Typography>
-            <Typography sx={{ fontSize: '0.82rem', fontWeight: 600 }}>
-              {ultimo.pesoMax}kg × {ultimo.repsMax} reps · {ultimo.series} séries · vol {ultimo.volume}kg
-            </Typography>
-          </Box>
+          <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary', mb: 0.3 }}>Último treino ({ultimo.label})</Typography>
+          <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, mb: penultimo ? 0.5 : 0 }}>
+            {ultimo.pesoMax}kg × {ultimo.repsMax} reps · {ultimo.series} séries · vol {ultimo.volume}kg
+          </Typography>
           {penultimo && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
-              <TrendIcon size={14} color={trendColor as string} />
-              <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: trendColor }}>
-                {currentTrend > 0 ? '+' : ''}{metrica === 'peso' ? `${currentTrend}kg` : metrica === 'volume' ? `${currentTrend}kg` : `${currentTrend}kg`}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, pt: 0.5, borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` }}>
+              <TrendIcon size={13} color={trendColor as string} />
+              <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>
+                {ultimo.pesoMax}kg vs {penultimo.pesoMax}kg ({penultimo.label})
+                <Box component="span" sx={{ fontWeight: 700, color: trendColor, ml: 0.5 }}>
+                  {trendPeso > 0 ? '+' : ''}{trendPeso}kg
+                </Box>
               </Typography>
             </Box>
           )}
