@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 import type { FeedPost, FeedComment, FeedNotification } from '../types/feed';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 
 export async function carregarFeed(uid: string, page: number): Promise<FeedPost[]> {
   const from = page * PAGE_SIZE;

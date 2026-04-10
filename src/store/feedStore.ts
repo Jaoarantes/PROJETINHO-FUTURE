@@ -51,7 +51,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
       const posts = await feedService.carregarFeed(uid, page);
       set({
         posts: reset ? posts : [...get().posts, ...posts],
-        hasMore: posts.length >= 20,
+        hasMore: posts.length >= 5,
         page: page + 1,
         loading: false,
       });
