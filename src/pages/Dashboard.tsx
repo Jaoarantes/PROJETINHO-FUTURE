@@ -2204,8 +2204,6 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
   const bestPesoDate = dados.find((d: any) => d.pesoMax === bestPeso)?.label || '';
   const best1RMDate = dados.find((d: any) => d.umRM === best1RM)?.label || '';
 
-  // Trends (last vs previous)
-  const trendPeso = penultimo ? ultimo.pesoMax - penultimo.pesoMax : 0;
   // Chart config
   const chartKey = metrica === 'peso' ? 'pesoMax' : metrica === 'volume' ? 'volume' : 'umRM';
   const chartUnit = 'kg';
