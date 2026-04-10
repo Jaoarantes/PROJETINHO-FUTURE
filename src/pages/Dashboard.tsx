@@ -169,11 +169,11 @@ function injectKeyframes() {
   style.id = STYLE_ID;
   style.textContent = `
     @keyframes dash-fadeUp {
-      from { opacity: 0; transform: translateY(18px); }
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     @keyframes dash-glowPulse {
-      0%, 100% { opacity: 0.6; }
+      0%, 100% { opacity: 0.7; }
       50%      { opacity: 1; }
     }
     @keyframes dash-shimmer {
@@ -218,7 +218,7 @@ function injectKeyframes() {
       opacity: 0 !important;
     }
     @keyframes dash-countUp {
-      from { opacity: 0; transform: scale(0.7); }
+      from { opacity: 0; transform: scale(0.85); }
       to   { opacity: 1; transform: scale(1); }
     }
   `;
@@ -626,7 +626,7 @@ export default function Dashboard() {
   if (carregando && historico.length === 0) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 2 }}>
-        <Zap size={48} color={CORES.geral} style={{ animation: 'dash-glowPulse 1.5s infinite' }} />
+        <Zap size={48} color={CORES.geral} style={{ animation: 'dash-glowPulse 2.5s infinite' }} />
         <Typography variant="body2" color="text.secondary" sx={{ letterSpacing: '0.05em' }}>
           CARREGANDO ESTATÍSTICAS...
         </Typography>
@@ -677,7 +677,7 @@ export default function Dashboard() {
           alignItems: 'center',
           gap: 1,
           mb: 1.5,
-          animation: 'dash-fadeUp 0.4s ease-out',
+          animation: 'dash-fadeUp 0.15s ease-out',
         }}>
           <IconButton
             onClick={() => navigate(-1)}
@@ -719,7 +719,7 @@ export default function Dashboard() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              animation: 'dash-countUp 0.5s ease-out 0.3s both',
+              animation: 'dash-countUp 0.2s ease-out both',
             }}>
               <Box sx={{
                 width: 44,
@@ -765,7 +765,7 @@ export default function Dashboard() {
           mb: periodo === 'custom' ? 1.5 : 0,
           overflowX: 'auto',
           pb: 0.5,
-          animation: 'dash-fadeUp 0.4s ease-out 0.1s both',
+          animation: 'dash-fadeUp 0.15s ease-out 0.1s both',
           '&::-webkit-scrollbar': { display: 'none' },
         }}>
           {PERIODOS.map((p) => (
@@ -808,7 +808,7 @@ export default function Dashboard() {
           <Box sx={{
             display: 'flex',
             gap: 1,
-            animation: 'dash-fadeUp 0.3s ease-out',
+            animation: 'dash-fadeUp 0.15s ease-out',
           }}>
             <Box sx={{ flex: 1 }}>
               <Typography variant="caption" color="text.secondary" sx={{
@@ -878,7 +878,7 @@ export default function Dashboard() {
         gridTemplateColumns: '1fr 1fr',
         gap: 1,
         mb: 1,
-        animation: 'dash-fadeUp 0.5s ease-out 0.15s both',
+        animation: 'dash-fadeUp 0.15s ease-out both',
       }}>
         <GlowStat
           icon={<Zap size={16} />}
@@ -916,7 +916,7 @@ export default function Dashboard() {
         gridTemplateColumns: '1fr 1fr 1fr',
         gap: 1,
         mb: 3,
-        animation: 'dash-fadeUp 0.5s ease-out 0.2s both',
+        animation: 'dash-fadeUp 0.15s ease-out both',
       }}>
         <TypePill icon={<Dumbbell size={14} />} count={stats.musculacao} color={CORES.musculacao} isDark={isDark} />
         <TypePill icon={<Footprints size={14} />} count={stats.corrida} color={CORES.corrida} isDark={isDark} />
@@ -924,7 +924,7 @@ export default function Dashboard() {
       </Box>
 
       {/* ═══ HEATMAP ═══ */}
-      <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.25s both' }}>
+      <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
         <SectionHeader
           icon={<Calendar size={15} />}
           title="Atividade"
@@ -944,7 +944,7 @@ export default function Dashboard() {
       </Box>
 
       {/* ═══ FREQUENCIA SEMANAL ═══ */}
-      <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.3s both' }}>
+      <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
         <SectionHeader icon={<TrendingUp size={15} />} title="Frequência Semanal" isDark={isDark} />
         <Card sx={{ mb: 3, overflow: 'hidden', position: 'relative', borderRadius: '8px' }}>
           <CardContent sx={{ py: 2, px: 0.5 }}>
@@ -986,7 +986,7 @@ export default function Dashboard() {
 
       {/* ═══ MUSCULACAO ═══ */}
       {stats.musculacao > 0 && (
-        <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.35s both' }}>
+        <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
           {/* Record highlights */}
           {(stats.melhorVolume > 0 || stats.cargaMaxData.length > 0) && (
             <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
@@ -1024,7 +1024,7 @@ export default function Dashboard() {
                 mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
                 bgcolor: isDark ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.06)',
                 border: `1px solid ${alpha(CORES.recorde, 0.2)}`,
-                animation: 'dash-fadeUp 0.2s ease-out both',
+                animation: 'dash-fadeUp 0.12s ease-out both',
               }}>
                 <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.recorde }}>
                   {stats.melhorVolumeInfo.nome}
@@ -1043,7 +1043,7 @@ export default function Dashboard() {
                 mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
                 bgcolor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)',
                 border: `1px solid ${alpha(CORES.musculacao, 0.2)}`,
-                animation: 'dash-fadeUp 0.2s ease-out both',
+                animation: 'dash-fadeUp 0.12s ease-out both',
               }}>
                 <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.musculacao }}>
                   {top.nome}
@@ -1359,7 +1359,7 @@ export default function Dashboard() {
 
       {/* ═══ CORRIDA ═══ */}
       {stats.corrida > 0 && (
-        <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.4s both' }}>
+        <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
           {/* Highlights */}
           {(stats.paceData.length > 0 || stats.maiorDistCorrida > 0) && (
             <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
@@ -1479,7 +1479,7 @@ export default function Dashboard() {
 
       {/* ═══ NATACAO ═══ */}
       {stats.natacao > 0 && (
-        <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.45s both' }}>
+        <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
           {/* Highlights */}
           {(stats.maiorDistNatacao > 0 || stats.natacaoPaceData.length > 0) && (
             <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
@@ -1776,7 +1776,7 @@ function BestEffortsSection({ historico, isDark }: { historico: RegistroTreino[]
   if (todosBestEfforts.size === 0) return null;
 
   return (
-    <Box sx={{ animation: 'dash-fadeUp 0.5s ease-out 0.5s both' }}>
+    <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
       <SectionHeader icon={<Trophy size={15} />} title="Melhores Marcas" badge="corrida" isDark={isDark} />
       <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
         <CardContent sx={{ p: 0 }}>

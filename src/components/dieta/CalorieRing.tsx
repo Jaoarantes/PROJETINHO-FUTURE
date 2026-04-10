@@ -58,7 +58,7 @@ export default function CalorieRing({ consumido, meta, size = 180 }: Props) {
           strokeDashoffset={dashOffset}
           filter={pct > 0.05 ? 'url(#ring-glow)' : undefined}
           style={{
-            transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         />
       </svg>
