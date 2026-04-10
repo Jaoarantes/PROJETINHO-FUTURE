@@ -2296,6 +2296,9 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
                 <Typography sx={{ fontSize: '0.58rem', color: 'text.secondary', mb: 0.4 }}>
                   vs treino anterior ({penultimo.label})
                 </Typography>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, mb: 0.4 }}>
+                  {penultimo.pesoMax}kg × {penultimo.repsMax} reps · {penultimo.series} séries · vol {penultimo.volume}kg
+                </Typography>
                 <Box sx={{ display: 'flex', gap: 0.6 }}>
                   {diffs.map((d) => {
                     const diff = d.atual - d.anterior;
@@ -2309,7 +2312,7 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
                           {d.label}
                         </Typography>
                         <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: cor }}>
-                          {diff > 0 ? '+' : ''}{diff}{d.unit}
+                          {diff === 0 ? '=' : `${diff > 0 ? '+' : ''}${diff}${d.unit}`}
                         </Typography>
                       </Box>
                     );
