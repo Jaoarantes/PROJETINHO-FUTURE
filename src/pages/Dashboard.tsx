@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, useTheme, alpha } from '@mui/material';
 import {
-  ArrowLeft, Dumbbell, Footprints, Waves, Calendar, TrendingUp, TrendingDown, Minus,
+  ArrowLeft, Dumbbell, Footprints, Waves, Calendar, TrendingUp,
   Clock, Flame, Zap, Trophy, Target, ChevronDown, ChevronUp, Info,
 } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
@@ -15,7 +15,7 @@ import type { RegistroTreino, EtapaCorrida } from '../types/treino';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
-  BarChart, Bar, CartesianGrid, Cell, ComposedChart, Line,
+  BarChart, Bar, CartesianGrid, Cell, ComposedChart,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
 
@@ -2206,10 +2206,6 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
 
   // Trends (last vs previous)
   const trendPeso = penultimo ? ultimo.pesoMax - penultimo.pesoMax : 0;
-  const trendVolume = penultimo ? ultimo.volume - penultimo.volume : 0;
-  const trend1RM = penultimo ? Number((ultimo.umRM - penultimo.umRM).toFixed(1)) : 0;
-  const currentTrend = metrica === 'peso' ? trendPeso : metrica === 'volume' ? trendVolume : trend1RM;
-
   // Chart config
   const chartKey = metrica === 'peso' ? 'pesoMax' : metrica === 'volume' ? 'volume' : 'umRM';
   const chartUnit = 'kg';
@@ -2227,8 +2223,6 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
   const prev3 = dados.slice(-6, -3);
   const avgPesoLast = last3.reduce((s: number, d: any) => s + d.pesoMax, 0) / last3.length;
   const avgVolLast = last3.reduce((s: number, d: any) => s + d.volume, 0) / last3.length;
-  const avg1RMLast = last3.reduce((s: number, d: any) => s + d.umRM, 0) / last3.length;
-
   let dica = '';
   if (prev3.length >= 3) {
     const avgPesoPrev = prev3.reduce((s: number, d: any) => s + d.pesoMax, 0) / prev3.length;
@@ -2254,9 +2248,6 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
     { key: 'volume' as const, label: 'Volume', cor: CORES.corrida },
     { key: '1rm' as const, label: '1RM', cor: CORES.recorde },
   ];
-
-  const TrendIcon = currentTrend > 0 ? TrendingUp : currentTrend < 0 ? TrendingDown : Minus;
-  const trendColor = currentTrend > 0 ? '#16A34A' : currentTrend < 0 ? '#EF4444' : 'text.secondary';
 
   const content = (
     <>
