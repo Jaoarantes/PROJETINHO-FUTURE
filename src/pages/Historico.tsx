@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip } from '@mui/material';
+import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip, Button } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigation, Share2, Flame } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
@@ -74,6 +74,7 @@ export default function Historico() {
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const deleteReg = useConfirmDelete();
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [limite, setLimite] = useState(7);
 
   const handleHighlight = useCallback(() => {
     if (historico.length > 0) {
@@ -109,7 +110,7 @@ export default function Historico() {
       </Alert>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {agruparPorData(historico).map((grupo) => (
+        {agruparPorData(historico.slice(0, limite)).map((grupo) => (
           <Box key={grupo.data}>
             {/* Date header */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
@@ -258,6 +259,15 @@ export default function Historico() {
             </Box>
           </Box>
         ))}
+        {historico.length > limite && (
+          <Button
+            fullWidth
+            onClick={() => setLimite(prev => prev + 15)}
+            sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
+          >
+            Ver mais ({historico.length - limite} restantes)
+          </Button>
+        )}
       </Box>
 
       <ConfirmDeleteDialog
