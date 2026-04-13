@@ -258,8 +258,26 @@ export const useTreinoStore = create<TreinoState>()(
       },
 
       adicionarExercicio: (sessaoId, exercicio, seriesCount, repsCount) => {
-        const { ultimasCargas } = get();
-        const salvas = ultimasCargas[exercicio.id];
+        const { ultimasCargas, historico } = get();
+        let salvas = ultimasCargas[exercicio.id];
+
+        // Se não tem cargas salvas localmente, busca no histórico de treinos
+        if (!salvas || salvas.length === 0) {
+          const historicoOrdenado = [...historico].sort((a, b) =>
+            new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()
+          );
+          for (const reg of historicoOrdenado) {
+            const exHist = reg.exercicios?.find((e) => e.exercicio.id === exercicio.id);
+            if (exHist && exHist.series.length > 0) {
+              salvas = exHist.series.map((s) => ({
+                peso: s.peso,
+                repeticoes: s.repeticoes,
+                tipo: s.tipo,
+              }));
+              break;
+            }
+          }
+        }
 
         set((state) => updateSessao(state, sessaoId, (s) => {
           let series: SerieConfig[];
