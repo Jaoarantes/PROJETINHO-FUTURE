@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -39,7 +39,28 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const adicionarExercicio = useTreinoStore((s) => s.adicionarExercicio);
   const ultimasCargas = useTreinoStore((s) => s.ultimasCargas);
+  const historico = useTreinoStore((s) => s.historico);
   const { exerciciosCustom } = useExerciciosCustom();
+
+  // Busca cargas do histórico se não houver em ultimasCargas
+  const getUltimasCargas = useCallback((exId: number) => {
+    const local = ultimasCargas[exId];
+    if (local && local.length > 0) return local;
+    const historicoOrdenado = [...historico].sort((a, b) =>
+      new Date(b.concluidoEm).getTime() - new Date(a.concluidoEm).getTime()
+    );
+    for (const reg of historicoOrdenado) {
+      const exHist = reg.exercicios?.find((e) => e.exercicio.id === exId);
+      if (exHist && exHist.series.length > 0) {
+        return exHist.series.map((s) => ({
+          peso: s.peso,
+          repeticoes: s.repeticoes,
+          tipo: s.tipo,
+        }));
+      }
+    }
+    return null;
+  }, [ultimasCargas, historico]);
 
   const [step, setStep] = useState<'buscar' | 'configurar'>('buscar');
   const [termo, setTermo] = useState('');
@@ -61,7 +82,7 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
 
   const handleSelect = (ex: Exercicio) => {
     setSelecionado(ex);
-    const salvas = ultimasCargas[ex.id];
+    const salvas = getUltimasCargas(ex.id);
     if (salvas && salvas.length > 0) {
       setSeries(salvas.length);
       setReps(salvas[0].repeticoes || 12);
@@ -325,7 +346,7 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                 <Typography variant="h6" color="primary.main">
                   {series} séries × {reps} reps
                 </Typography>
-                {selecionado && ultimasCargas[selecionado.id] && (
+                {selecionado && getUltimasCargas(selecionado.id) && (
                   <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: 'block' }}>
                     Cargas anteriores serão restauradas
                   </Typography>
