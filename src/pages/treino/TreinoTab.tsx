@@ -255,11 +255,11 @@ const SortableTreinoCard = memo(function SortableTreinoCard({ sessao, index, tip
               </Box>
             </Box>
 
-            <IconButton size="small" onClick={(e) => onMenuOpen(e, sessao.id)} sx={{ ml: 0.5, flexShrink: 0 }}>
-              <MoreVertical size={16} />
-            </IconButton>
           </CardContent>
         </CardActionArea>
+        <IconButton size="small" onClick={(e) => { e.stopPropagation(); onMenuOpen(e, sessao.id); }} sx={{ ml: 0.5, flexShrink: 0, alignSelf: 'center', mr: 0.5 }}>
+          <MoreVertical size={16} />
+        </IconButton>
       </Box>
 
       {/* Começar treino button */}
