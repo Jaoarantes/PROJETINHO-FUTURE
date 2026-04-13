@@ -294,6 +294,10 @@ export default function Dashboard() {
   const [filtroEvolucaoExercicio, setFiltroEvolucaoExercicio] = useState<string | null>(null);
   const [showCargaMax, setShowCargaMax] = useState(false);
   const [showVolumeMax, setShowVolumeMax] = useState(false);
+  const [showPaceCorrida, setShowPaceCorrida] = useState(false);
+  const [showDistCorrida, setShowDistCorrida] = useState(false);
+  const [showPaceNatacao, setShowPaceNatacao] = useState(false);
+  const [showDistNatacao, setShowDistNatacao] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -522,12 +526,45 @@ export default function Dashboard() {
         melhorVolumeInfo = { nome: r.nome || 'Treino sem nome', data: r.concluidoEm };
       }
     });
-    const maiorDistCorrida = corrida.length > 0
-      ? Math.max(...corrida.map((r) => r.corrida ? calcularDistanciaCorrida(r.corrida.etapas) : 0))
-      : 0;
-    const maiorDistNatacao = natacao.length > 0
-      ? Math.max(...natacao.map((r) => r.natacao ? calcularDistanciaNatacao(r.natacao.etapas) : 0))
-      : 0;
+    let maiorDistCorrida = 0;
+    let maiorDistCorridaInfo = { nome: '', data: '' };
+    let melhorPaceCorrida = Infinity;
+    let melhorPaceCorridaInfo = { nome: '', data: '', distancia: 0 };
+    corrida.forEach(r => {
+      if (!r.corrida?.etapas) return;
+      const dist = calcularDistanciaCorrida(r.corrida.etapas);
+      if (dist > maiorDistCorrida) {
+        maiorDistCorrida = dist;
+        maiorDistCorridaInfo = { nome: r.nome || 'Corrida', data: r.concluidoEm };
+      }
+      const durMin = r.corrida.etapas.reduce((a, e) => a + (e.duracaoMin ?? 0), 0);
+      const pace = calcPace(dist, durMin);
+      if (pace && pace < melhorPaceCorrida && pace <= 20) {
+        melhorPaceCorrida = pace;
+        melhorPaceCorridaInfo = { nome: r.nome || 'Corrida', data: r.concluidoEm, distancia: dist };
+      }
+    });
+
+    let maiorDistNatacao = 0;
+    let maiorDistNatacaoInfo = { nome: '', data: '' };
+    let melhorPaceNatacao = Infinity;
+    let melhorPaceNatacaoInfo = { nome: '', data: '', distancia: 0 };
+    natacao.forEach(r => {
+      if (!r.natacao?.etapas) return;
+      const dist = calcularDistanciaNatacao(r.natacao.etapas);
+      if (dist > maiorDistNatacao) {
+        maiorDistNatacao = dist;
+        maiorDistNatacaoInfo = { nome: r.nome || 'Natação', data: r.concluidoEm };
+      }
+      const durMin = r.natacao.etapas.reduce((a, e) => a + (e.duracaoMin ?? 0), 0);
+      if (dist > 0 && durMin > 0) {
+        const pace100m = (durMin / dist) * 100;
+        if (pace100m < melhorPaceNatacao && pace100m <= 20) {
+          melhorPaceNatacao = pace100m;
+          melhorPaceNatacaoInfo = { nome: r.nome || 'Natação', data: r.concluidoEm, distancia: dist };
+        }
+      }
+    });
 
     // Streak calculation
     const diasTreinados = new Set(historicoFiltrado.map(r => getConcluidoDate(r.concluidoEm)));
@@ -586,7 +623,9 @@ export default function Dashboard() {
     return {
       total, musculacao: musculacao.length, corrida: corrida.length, natacao: natacao.length,
       tempoTotal, caloriasTotais, volumeData, volumeMuscleGroups, radarVolumeData, exercicioEvolucaoFull, paceData, corridaDistData,
-      natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, melhorVolumeInfo, maiorDistCorrida, maiorDistNatacao,
+      natacaoData, natacaoPaceData, frequenciaFormatada, melhorVolume, melhorVolumeInfo,
+      maiorDistCorrida, maiorDistCorridaInfo, melhorPaceCorridaInfo,
+      maiorDistNatacao, maiorDistNatacaoInfo, melhorPaceNatacaoInfo,
       cargaMaxData, cargaEvolucaoPorExercicio, cargaExercicioNomes, ultimoExercicioFeito,
       temMaisExercicios: exercicioEvolucaoFull.length > 3,
       streak, mediaSemanal, muscleData, topMuscle: muscleData[0]?.name || '—',
@@ -1372,6 +1411,7 @@ export default function Dashboard() {
                   value={`${formatPace(Math.min(...stats.paceData.map((d) => d.pace)))} /km`}
                   color={CORES.corrida}
                   isDark={isDark}
+                  onClick={() => setShowPaceCorrida(v => !v)}
                 />
               )}
               {stats.maiorDistCorrida > 0 && (
@@ -1381,10 +1421,47 @@ export default function Dashboard() {
                   value={`${stats.maiorDistCorrida.toFixed(1)} km`}
                   color={CORES.recorde}
                   isDark={isDark}
+                  onClick={() => setShowDistCorrida(v => !v)}
                 />
               )}
             </Box>
           )}
+          {showPaceCorrida && stats.melhorPaceCorridaInfo.nome && (() => {
+            const dataFormatada = new Date(stats.melhorPaceCorridaInfo.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.06)',
+                border: `1px solid ${alpha(CORES.corrida, 0.2)}`,
+                animation: 'dash-fadeUp 0.12s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.corrida }}>
+                  {stats.melhorPaceCorridaInfo.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {stats.melhorPaceCorridaInfo.distancia.toFixed(1)} km — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
+          {showDistCorrida && stats.maiorDistCorridaInfo.nome && (() => {
+            const dataFormatada = new Date(stats.maiorDistCorridaInfo.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(245,158,11,0.08)' : 'rgba(245,158,11,0.06)',
+                border: `1px solid ${alpha(CORES.recorde, 0.2)}`,
+                animation: 'dash-fadeUp 0.12s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.recorde }}>
+                  {stats.maiorDistCorridaInfo.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {stats.maiorDistCorrida.toFixed(1)} km — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
 
           <SectionHeader icon={<Footprints size={15} />} title="Evolução de Pace" badge="min/km" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
@@ -1492,6 +1569,7 @@ export default function Dashboard() {
                   value={`${stats.maiorDistNatacao} m`}
                   color={CORES.natacao}
                   isDark={isDark}
+                  onClick={() => setShowDistNatacao(v => !v)}
                 />
               )}
               {stats.natacaoPaceData.length > 0 && (
@@ -1501,10 +1579,47 @@ export default function Dashboard() {
                   value={`${formatPace(Math.min(...stats.natacaoPaceData.map((d) => d.pace)))} /100m`}
                   color={CORES.tempo}
                   isDark={isDark}
+                  onClick={() => setShowPaceNatacao(v => !v)}
                 />
               )}
             </Box>
           )}
+          {showDistNatacao && stats.maiorDistNatacaoInfo.nome && (() => {
+            const dataFormatada = new Date(stats.maiorDistNatacaoInfo.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(6,182,212,0.08)' : 'rgba(6,182,212,0.06)',
+                border: `1px solid ${alpha(CORES.natacao, 0.2)}`,
+                animation: 'dash-fadeUp 0.12s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.natacao }}>
+                  {stats.maiorDistNatacaoInfo.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {stats.maiorDistNatacao} m — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
+          {showPaceNatacao && stats.melhorPaceNatacaoInfo.nome && (() => {
+            const dataFormatada = new Date(stats.melhorPaceNatacaoInfo.data).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+            return (
+              <Box sx={{
+                mb: 2, mx: 0.5, p: 1.5, borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(139,92,246,0.08)' : 'rgba(139,92,246,0.06)',
+                border: `1px solid ${alpha(CORES.tempo, 0.2)}`,
+                animation: 'dash-fadeUp 0.12s ease-out both',
+              }}>
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: CORES.tempo }}>
+                  {stats.melhorPaceNatacaoInfo.nome}
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.3 }}>
+                  {stats.melhorPaceNatacaoInfo.distancia} m — {dataFormatada}
+                </Typography>
+              </Box>
+            );
+          })()}
 
           <SectionHeader icon={<Waves size={15} />} title="Evolução Natação" badge="metros" isDark={isDark} />
           <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
