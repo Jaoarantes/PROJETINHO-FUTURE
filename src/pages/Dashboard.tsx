@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, useTheme, alpha } from '@mui/material';
 import {
@@ -58,6 +58,27 @@ function startOfWeek(d: Date): Date {
   result.setDate(result.getDate() - result.getDay());
   result.setHours(0, 0, 0, 0);
   return result;
+}
+
+// ── Lazy chart: só renderiza quando visível na tela ──
+function LazyChart({ height, children }: { height: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { rootMargin: '100px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <Box ref={ref} sx={{ minHeight: height }}>
+      {visible ? children : null}
+    </Box>
+  );
 }
 
 // ── Helpers gerais ──────────────────────────────
@@ -991,7 +1012,7 @@ export default function Dashboard() {
           <CardContent sx={{ py: 2, px: 0.5 }}>
             {stats.frequenciaFormatada.some((d) => d.musculacao + d.corrida + d.natacao > 0) ? (
               <Box sx={{ position: 'relative' }}>
-                <ResponsiveContainer width="100%" height={200}>
+                <LazyChart height={200}><ResponsiveContainer width="100%" height={200}>
                   <BarChart data={stats.frequenciaFormatada} barCategoryGap="20%">
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
                     <XAxis
@@ -1016,7 +1037,7 @@ export default function Dashboard() {
                     <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                     <Bar dataKey="natacao" stackId="a" fill={CORES.natacao} radius={[0, 0, 0, 0]} name="natacao" stroke="none" activeBar={{ stroke: 'none' }} />
                   </BarChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer></LazyChart>
               </Box>
             ) : (
               <EmptyState text="Nenhum treino concluído neste período" />
@@ -1102,7 +1123,7 @@ export default function Dashboard() {
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.radarVolumeData.length >= 3 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={260}>
+                  <LazyChart height={260}><ResponsiveContainer width="100%" height={260}>
                     <RadarChart cx="50%" cy="50%" outerRadius="75%" data={stats.radarVolumeData}>
                       <PolarGrid
                         stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}
@@ -1144,7 +1165,7 @@ export default function Dashboard() {
                         activeDot={{ r: 5, fill: CORES.musculacao, stroke: '#fff', strokeWidth: 2 }}
                       />
                     </RadarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></LazyChart>
                 </>
               ) : stats.radarVolumeData.length > 0 ? (
                 // Fallback para poucos grupos: bar horizontal
@@ -1191,7 +1212,7 @@ export default function Dashboard() {
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.muscleWeekData.length > 0 ? (
                 <>
-                  <ResponsiveContainer width="100%" height={220}>
+                  <LazyChart height={220}><ResponsiveContainer width="100%" height={220}>
                     <BarChart data={stats.muscleWeekData} barCategoryGap="15%">
                       <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
                       <XAxis dataKey="label" tick={{ fontSize: 9, fill: isDark ? '#666' : '#999' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
@@ -1225,7 +1246,7 @@ export default function Dashboard() {
                         <Bar key={grupo} dataKey={grupo} stackId="muscle" fill={getMuscleColor(i)} radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                       ))}
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></LazyChart>
                   <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
                     {stats.muscleWeekGroups.map((grupo, i) => (
                       <HeatLegend key={grupo} color={getMuscleColor(i)} label={grupo} />
@@ -1244,7 +1265,7 @@ export default function Dashboard() {
               <SectionHeader icon={<TrendingUp size={15} />} title="Tendência de Volume" isDark={isDark} />
               <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
-                  <ResponsiveContainer width="100%" height={180}>
+                  <LazyChart height={180}><ResponsiveContainer width="100%" height={180}>
                     <AreaChart data={stats.volumeData}>
                       <defs>
                         <linearGradient id="gradVolume" x1="0" y1="0" x2="0" y2="1">
@@ -1280,7 +1301,7 @@ export default function Dashboard() {
                         activeDot={{ r: 5, fill: CORES.musculacao, stroke: '#fff', strokeWidth: 2 }}
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></LazyChart>
                 </CardContent>
               </Card>
             </>
@@ -1316,7 +1337,7 @@ export default function Dashboard() {
 
                     {/* Evolução de carga */}
                     {evolucaoData.length >= 2 ? (
-                      <ResponsiveContainer width="100%" height={160}>
+                      <LazyChart height={160}><ResponsiveContainer width="100%" height={160}>
                         <AreaChart data={evolucaoData}>
                           <defs>
                             <linearGradient id="gradCargaEvo" x1="0" y1="0" x2="0" y2="1">
@@ -1352,7 +1373,7 @@ export default function Dashboard() {
                             activeDot={{ r: 5, fill: CORES.recorde, stroke: '#fff', strokeWidth: 2 }}
                           />
                         </AreaChart>
-                      </ResponsiveContainer>
+                      </ResponsiveContainer></LazyChart>
                     ) : evolucaoData.length === 1 ? (
                       <Box sx={{ textAlign: 'center', py: 2 }}>
                         <Typography sx={{ fontSize: '1.3rem', fontWeight: 700, color: CORES.recorde }}>{evolucaoData[0].cargaMax} kg</Typography>
@@ -1467,7 +1488,7 @@ export default function Dashboard() {
           <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.paceData.length >= 2 ? (
-                <ResponsiveContainer width="100%" height={180}>
+                <LazyChart height={180}><ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={stats.paceData}>
                     <defs>
                       <linearGradient id="gradPace" x1="0" y1="0" x2="0" y2="1">
@@ -1505,7 +1526,7 @@ export default function Dashboard() {
                       activeDot={{ r: 5, fill: CORES.corrida, stroke: '#fff', strokeWidth: 2 }}
                     />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer></LazyChart>
               ) : (
                 <EmptyState text="Complete pelo menos 2 corridas com distância" />
               )}
@@ -1518,7 +1539,7 @@ export default function Dashboard() {
               <SectionHeader icon={<TrendingUp size={15} />} title="Distância por Corrida" badge="km" isDark={isDark} />
               <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
-                  <ResponsiveContainer width="100%" height={150}>
+                  <LazyChart height={150}><ResponsiveContainer width="100%" height={150}>
                     <BarChart data={stats.corridaDistData} barCategoryGap="15%">
                       <defs>
                         <linearGradient id="gradDistCorr" x1="0" y1="0" x2="0" y2="1">
@@ -1548,7 +1569,7 @@ export default function Dashboard() {
                       />
                       <Bar dataKey="distancia" fill="url(#gradDistCorr)" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></LazyChart>
                 </CardContent>
               </Card>
             </>
@@ -1625,7 +1646,7 @@ export default function Dashboard() {
           <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
             <CardContent sx={{ py: 2, px: 0.5 }}>
               {stats.natacaoData.length >= 2 ? (
-                <ResponsiveContainer width="100%" height={180}>
+                <LazyChart height={180}><ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={stats.natacaoData}>
                     <defs>
                       <linearGradient id="gradNatacao" x1="0" y1="0" x2="0" y2="1">
@@ -1661,7 +1682,7 @@ export default function Dashboard() {
                       activeDot={{ r: 5, fill: CORES.natacao, stroke: '#fff', strokeWidth: 2 }}
                     />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer></LazyChart>
               ) : (
                 <EmptyState text="Complete pelo menos 2 treinos de natação com distância" />
               )}
@@ -1674,7 +1695,7 @@ export default function Dashboard() {
               <SectionHeader icon={<TrendingUp size={15} />} title="Pace Natação" badge="min/100m" isDark={isDark} />
               <Card sx={{ mb: 3, overflow: 'hidden', borderRadius: '8px' }}>
                 <CardContent sx={{ py: 2, px: 0.5 }}>
-                  <ResponsiveContainer width="100%" height={150}>
+                  <LazyChart height={150}><ResponsiveContainer width="100%" height={150}>
                     <AreaChart data={stats.natacaoPaceData}>
                       <defs>
                         <linearGradient id="gradNatPace" x1="0" y1="0" x2="0" y2="1">
@@ -1710,7 +1731,7 @@ export default function Dashboard() {
                         activeDot={{ r: 5, fill: CORES.natacao, stroke: '#fff', strokeWidth: 2 }}
                       />
                     </AreaChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></LazyChart>
                 </CardContent>
               </Card>
             </>
@@ -2460,7 +2481,7 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
 
       {/* Chart */}
       {total >= 2 ? (
-        <ResponsiveContainer width="100%" height={140}>
+        <LazyChart height={140}><ResponsiveContainer width="100%" height={140}>
           <ComposedChart data={dadosComTreino}>
             <defs>
               <linearGradient id={`gradEx_${idx}_${metrica}`} x1="0" y1="0" x2="0" y2="1">
@@ -2514,7 +2535,7 @@ function ExerciseCard({ ex, idx, isDark, inline }: { ex: any; idx: number; isDar
               activeDot={{ r: 6, fill: chartColor, stroke: '#fff', strokeWidth: 2 }}
             />
           </ComposedChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></LazyChart>
       ) : (
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', py: 1 }}>
           {dados.map((d: any, i: number) => (
