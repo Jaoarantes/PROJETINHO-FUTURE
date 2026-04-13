@@ -1,2 +1,0 @@
-src/pages/Perfil.tsx(7,183): error TS6133: 'Camera' is declared but its value is never read.
-src/pages/treino/TreinoTab.tsx(9,164): error TS6133: 'MapPin' is declared but its value is never read.

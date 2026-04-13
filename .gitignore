@@ -13,14 +13,6 @@ dist-ssr/
 .env.local
 .env.*.local
 
-# Firebase
-firebase-debug.log
-.firebase/
-firebase-service-account.json
-
-# Scripts com dados sensíveis
-scripts/firebase-export/
-
 # Capacitor - Android/iOS build
 android/
 ios/
