@@ -285,36 +285,68 @@ export function salvarPRCache(uid: string, cache: PRCache) {
 }
 
 // ── All-time PRs (para Histórico e Dashboard) ────────────────────────────────
-export interface PRAtual {
+
+export interface RankedPR {
+  tipo: MedalType;
   registroId: string;
   valor: number;
   valorFormatado: string;
   data: string;
 }
 
-export interface PRCorridaCategoria extends PRAtual {
-  label: string;
+export interface ExercicioRankings {
+  nomeExercicio: string;
+  rankings: RankedPR[]; // até 10 entradas ordenadas
+}
+
+export interface CategoriaCorridaRankings {
   key: string;
+  label: string;
+  rankings: RankedPR[];
 }
 
 export interface AllTimePRs {
-  musculacao: Map<string, { nomeExercicio: string; carga: PRAtual }>;
-  corrida: PRCorridaCategoria[];
+  musculacao: Map<string, ExercicioRankings>;
+  corrida: CategoriaCorridaRankings[];
+  registrosComOuro: Set<string>;
+  registrosComPrata: Set<string>;
+  registrosComBronze: Set<string>;
   registrosComPR: Set<string>;
 }
 
 const CORRIDA_BUCKETS: { key: string; label: string; minKm: number }[] = [
-  { key: 'dist', label: 'Maior distância', minKm: 0.5 },
-  { key: 'pace_geral', label: 'Melhor pace', minKm: 1 },
-  { key: 'pace_5km', label: 'Pace 5km', minKm: 5 },
-  { key: 'pace_10km', label: 'Pace 10km', minKm: 10 },
-  { key: 'pace_meia', label: 'Meia maratona', minKm: 21.0975 },
-  { key: 'pace_maratona', label: 'Maratona', minKm: 42.195 },
+  { key: 'dist',         label: 'Maior distância',  minKm: 0.5 },
+  { key: 'pace_geral',   label: 'Melhor pace',       minKm: 1 },
+  { key: 'pace_5km',     label: 'Pace 5km',          minKm: 5 },
+  { key: 'pace_10km',    label: 'Pace 10km',         minKm: 10 },
+  { key: 'pace_meia',    label: 'Meia maratona',     minKm: 21.0975 },
+  { key: 'pace_maratona',label: 'Maratona',          minKm: 42.195 },
 ];
 
+function buildRankings(
+  entries: { registroId: string; valor: number; data: string }[],
+  formatVal: (v: number) => string,
+  ascending = false,
+): RankedPR[] {
+  const sorted = [...entries].sort((a, b) => ascending ? a.valor - b.valor : b.valor - a.valor);
+  const result: RankedPR[] = [];
+  for (let i = 0; i < Math.min(sorted.length, 10); i++) {
+    const tipo = medalPorPosicao(i + 1);
+    if (!tipo) break;
+    result.push({
+      tipo,
+      registroId: sorted[i].registroId,
+      valor: sorted[i].valor,
+      valorFormatado: formatVal(sorted[i].valor),
+      data: sorted[i].data,
+    });
+  }
+  return result;
+}
+
 export function computeAllTimePRs(historico: RegistroTreino[]): AllTimePRs {
-  // ── Musculação ──────────────────────────────────────────────────────────────
-  const musculacao = new Map<string, { nomeExercicio: string; carga: PRAtual }>();
+  // ── Musculação: uma entrada por (exercício × treino), sem exigir concluida ──
+  const exEntries = new Map<string, Map<string, number>>(); // nome → registroId → cargaMax
 
   for (const reg of historico) {
     if (reg.tipo !== 'musculacao' && reg.tipo !== 'outro') continue;
@@ -322,83 +354,82 @@ export function computeAllTimePRs(historico: RegistroTreino[]): AllTimePRs {
       const nome = ex.exercicio.nome;
       let cargaMax = 0;
       for (const serie of ex.series) {
-        if (!serie.concluida) continue;
+        // Não exige concluida — histórico antigo pode não ter o flag
         cargaMax = Math.max(cargaMax, serie.peso ?? 0);
       }
       if (cargaMax === 0) continue;
-      const atual = musculacao.get(nome);
-      if (!atual || cargaMax > atual.carga.valor) {
-        musculacao.set(nome, {
-          nomeExercicio: nome,
-          carga: {
-            registroId: reg.id,
-            valor: cargaMax,
-            valorFormatado: `${cargaMax}kg`,
-            data: reg.concluidoEm,
-          },
-        });
-      }
+      if (!exEntries.has(nome)) exEntries.set(nome, new Map());
+      const byReg = exEntries.get(nome)!;
+      byReg.set(reg.id, Math.max(byReg.get(reg.id) ?? 0, cargaMax));
     }
   }
 
-  // ── Corrida ─────────────────────────────────────────────────────────────────
-  interface CorridaBest { registroId: string; valor: number; data: string }
-  const bestDist: CorridaBest = { registroId: '', valor: 0, data: '' };
-  const bestPaces = new Map<string, CorridaBest>();
+  const musculacao = new Map<string, ExercicioRankings>();
+  for (const [nome, byReg] of exEntries) {
+    const entries = Array.from(byReg.entries()).map(([registroId, valor]) => {
+      const reg = historico.find((r) => r.id === registroId);
+      return { registroId, valor, data: reg?.concluidoEm ?? '' };
+    });
+    const rankings = buildRankings(entries, (v) => `${v}kg`);
+    if (rankings.length > 0) musculacao.set(nome, { nomeExercicio: nome, rankings });
+  }
+
+  // ── Corrida: uma entrada por treino por categoria ───────────────────────────
+  const distEntries = new Map<string, number>(); // registroId → distanciaKm
+  const paceEntries = new Map<string, Map<string, number>>(); // key → registroId → pace
 
   for (const reg of historico) {
     const entry = extrairCorridaEntry(reg);
     if (!entry) continue;
-
-    // Maior distância
-    if (entry.distanciaKm > bestDist.valor) {
-      bestDist.valor = entry.distanciaKm;
-      bestDist.registroId = reg.id;
-      bestDist.data = reg.concluidoEm;
-    }
-
-    // Melhor pace por bucket (menor = melhor)
+    distEntries.set(reg.id, Math.max(distEntries.get(reg.id) ?? 0, entry.distanciaKm));
     for (const b of CORRIDA_BUCKETS) {
-      if (b.key === 'dist') continue;
-      if (entry.distanciaKm < b.minKm) continue;
-      const cur = bestPaces.get(b.key);
-      if (!cur || entry.pace < cur.valor) {
-        bestPaces.set(b.key, { registroId: reg.id, valor: entry.pace, data: reg.concluidoEm });
-      }
+      if (b.key === 'dist' || entry.distanciaKm < b.minKm) continue;
+      if (!paceEntries.has(b.key)) paceEntries.set(b.key, new Map());
+      const byReg = paceEntries.get(b.key)!;
+      // pace menor = melhor, guarda o menor
+      const cur = byReg.get(reg.id);
+      if (cur === undefined || entry.pace < cur) byReg.set(reg.id, entry.pace);
     }
   }
 
-  const corrida: PRCorridaCategoria[] = [];
+  const corrida: CategoriaCorridaRankings[] = [];
 
-  if (bestDist.valor > 0) {
-    corrida.push({
-      key: 'dist',
-      label: 'Maior distância',
-      registroId: bestDist.registroId,
-      valor: bestDist.valor,
-      valorFormatado: `${bestDist.valor.toFixed(2)}km`,
-      data: bestDist.data,
+  if (distEntries.size > 0) {
+    const entries = Array.from(distEntries.entries()).map(([registroId, valor]) => {
+      const reg = historico.find((r) => r.id === registroId);
+      return { registroId, valor, data: reg?.concluidoEm ?? '' };
     });
+    const rankings = buildRankings(entries, (v) => `${v.toFixed(2)}km`);
+    if (rankings.length > 0) corrida.push({ key: 'dist', label: 'Maior distância', rankings });
   }
 
   for (const b of CORRIDA_BUCKETS) {
     if (b.key === 'dist') continue;
-    const best = bestPaces.get(b.key);
-    if (!best) continue;
-    corrida.push({
-      key: b.key,
-      label: b.label,
-      registroId: best.registroId,
-      valor: best.valor,
-      valorFormatado: formatPaceStr(best.valor),
-      data: best.data,
+    const byReg = paceEntries.get(b.key);
+    if (!byReg || byReg.size === 0) continue;
+    const entries = Array.from(byReg.entries()).map(([registroId, valor]) => {
+      const reg = historico.find((r) => r.id === registroId);
+      return { registroId, valor, data: reg?.concluidoEm ?? '' };
     });
+    const rankings = buildRankings(entries, formatPaceStr, true); // ascending = menor pace = melhor
+    if (rankings.length > 0) corrida.push({ key: b.key, label: b.label, rankings });
   }
 
-  // ── Set de registros que contêm algum PR ────────────────────────────────────
-  const registrosComPR = new Set<string>();
-  for (const pr of musculacao.values()) registrosComPR.add(pr.carga.registroId);
-  for (const pr of corrida) registrosComPR.add(pr.registroId);
+  // ── Sets de registros por tipo de medalha ───────────────────────────────────
+  const registrosComOuro  = new Set<string>();
+  const registrosComPrata = new Set<string>();
+  const registrosComBronze = new Set<string>();
 
-  return { musculacao, corrida, registrosComPR };
+  const addToSets = (tipo: MedalType, id: string) => {
+    if (tipo === 'ouro')   registrosComOuro.add(id);
+    if (tipo === 'prata')  registrosComPrata.add(id);
+    if (tipo === 'bronze') registrosComBronze.add(id);
+  };
+
+  for (const ex of musculacao.values()) ex.rankings.forEach((r) => addToSets(r.tipo, r.registroId));
+  for (const cat of corrida) cat.rankings.forEach((r) => addToSets(r.tipo, r.registroId));
+
+  const registrosComPR = new Set<string>([...registrosComOuro, ...registrosComPrata, ...registrosComBronze]);
+
+  return { musculacao, corrida, registrosComOuro, registrosComPrata, registrosComBronze, registrosComPR };
 }

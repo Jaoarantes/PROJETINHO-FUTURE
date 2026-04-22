@@ -169,22 +169,31 @@ export default function Historico() {
                         <Box sx={{ flex: 1 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap' }}>
                             <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{reg.nome}</Typography>
-                            {allTimePRs.registrosComPR.has(reg.id) && (
-                              <Chip
-                                label="🥇 PR"
-                                size="small"
-                                sx={{
-                                  height: 18,
-                                  fontSize: '0.62rem',
-                                  fontWeight: 800,
-                                  bgcolor: alpha('#F59E0B', 0.15),
-                                  color: '#F59E0B',
-                                  border: `1px solid ${alpha('#F59E0B', 0.3)}`,
-                                  letterSpacing: '0.02em',
-                                  '& .MuiChip-label': { px: 0.8 },
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const isOuro   = allTimePRs.registrosComOuro.has(reg.id);
+                              const isPrata  = allTimePRs.registrosComPrata.has(reg.id);
+                              const isBronze = allTimePRs.registrosComBronze.has(reg.id);
+                              if (!isOuro && !isPrata && !isBronze) return null;
+                              const emoji = isOuro ? '🥇' : isPrata ? '🥈' : '🥉';
+                              const label = isOuro ? 'PR' : isPrata ? 'Top 3' : 'Top 10';
+                              const cor   = isOuro ? '#F59E0B' : isPrata ? '#94A3B8' : '#CD7C48';
+                              return (
+                                <Chip
+                                  label={`${emoji} ${label}`}
+                                  size="small"
+                                  sx={{
+                                    height: 18,
+                                    fontSize: '0.62rem',
+                                    fontWeight: 800,
+                                    bgcolor: alpha(cor, 0.15),
+                                    color: cor,
+                                    border: `1px solid ${alpha(cor, 0.35)}`,
+                                    letterSpacing: '0.02em',
+                                    '& .MuiChip-label': { px: 0.8 },
+                                  }}
+                                />
+                              );
+                            })()}
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Calendar size={12} style={{ opacity: 0.5 }} />
