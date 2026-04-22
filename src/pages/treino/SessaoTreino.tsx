@@ -33,6 +33,7 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useSuccessOverlayStore } from '../../store/successOverlayStore';
 import ExercicioPicker from '../../components/treino/ExercicioPicker';
 import PhotoUploader from '../../components/feed/PhotoUploader';
+import PRMedalhasModal from '../../components/treino/PRMedalhasModal';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { formatPace } from '../../utils/geoUtils';
 import { uploadFeedPhoto, compressImage } from '../../services/feedService';
@@ -58,6 +59,8 @@ export default function SessaoTreino() {
     const { user } = useAuthContext();
     const store = useTreinoStore();
     const { sessoes, concluirTreino, treinoAtivo, carregando } = store;
+    const ultimosPRs = useTreinoStore((s) => s.ultimosPRs);
+    const limparUltimosPRs = useTreinoStore((s) => s.limparUltimosPRs);
     const criarPost = useFeedStore((s) => s.criarPost);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [snackOpen, setSnackOpen] = useState(false);
@@ -72,6 +75,8 @@ export default function SessaoTreino() {
     const [sharePosting, setSharePosting] = useState(false);
     const [confirmConcluir, setConfirmConcluir] = useState(false);
     const [reordenando, setReordenando] = useState(false);
+    const [prModalOpen, setPrModalOpen] = useState(false);
+    const [pendingRegistro, setPendingRegistro] = useState<RegistroTreino | null>(null);
     const showOverlay = useSuccessOverlayStore((s) => s.show);
     const sessao = sessoes.find((s) => s.id === id);
 
@@ -134,8 +139,15 @@ export default function SessaoTreino() {
         try {
             const registro = await concluirTreino(sessao.id, { distanciaKm: gpsDistancia });
             if (registro) {
-                setShareRegistro(registro);
-                setShareOpen(true);
+                // Lê direto do store (após o await, o state já foi atualizado pelo Zustand)
+                const prs = useTreinoStore.getState().ultimosPRs;
+                if (prs.length > 0) {
+                    setPendingRegistro(registro);
+                    setPrModalOpen(true);
+                } else {
+                    setShareRegistro(registro);
+                    setShareOpen(true);
+                }
             } else {
                 goToHistory();
             }
@@ -144,6 +156,18 @@ export default function SessaoTreino() {
             setErroMsg('Erro ao salvar o treino. Verifique sua conexão e tente novamente.');
         } finally {
             setSalvando(false);
+        }
+    };
+
+    const handlePRModalClose = () => {
+        setPrModalOpen(false);
+        limparUltimosPRs();
+        if (pendingRegistro) {
+            setShareRegistro(pendingRegistro);
+            setPendingRegistro(null);
+            setShareOpen(true);
+        } else {
+            goToHistory();
         }
     };
 
@@ -405,6 +429,13 @@ export default function SessaoTreino() {
                     </Box>
                 </Box>
             </Dialog>
+
+            {/* Modal de medalhas de PR */}
+            <PRMedalhasModal
+                open={prModalOpen}
+                medalhas={ultimosPRs}
+                onClose={handlePRModalClose}
+            />
 
         </Box>
     );

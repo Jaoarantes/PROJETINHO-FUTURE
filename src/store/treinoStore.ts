@@ -5,6 +5,7 @@ import { carregarSessoes, salvarSessao, deletarSessao, salvarRegistro, deletarRe
 import { calcularVolumeSessao } from '../types/treino';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import { useDietaStore } from './dietaStore';
+import { detectarPRsRegistro, type MedalhaPR } from '../utils/prSystem';
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function syncDebounced(uid: string, sessao: SessaoTreino) {
   const existing = syncTimers.get(sessao.id);
@@ -88,6 +89,9 @@ interface TreinoState {
   setAutoSyncDiet: (val: boolean) => void;
   // Últimas cargas salvas por exercício (exercicio.id -> séries)
   ultimasCargas: Record<number, { peso?: number; repeticoes: number; tipo?: TipoSerie }[]>;
+  // Medalhas de PR do último treino concluído (limpo após exibição)
+  ultimosPRs: MedalhaPR[];
+  limparUltimosPRs: () => void;
 }
 
 export const useTreinoStore = create<TreinoState>()(
@@ -100,6 +104,9 @@ export const useTreinoStore = create<TreinoState>()(
       treinoAtivo: null,
       autoSyncDiet: false,
       ultimasCargas: {},
+      ultimosPRs: [],
+
+      limparUltimosPRs: () => set({ ultimosPRs: [] }),
 
       setAutoSyncDiet: (val) => {
         const { historico, uid } = get();
@@ -538,6 +545,17 @@ export const useTreinoStore = create<TreinoState>()(
         };
         registro.calorias = Math.round(calcularCaloriasTreino(registro));
 
+        // ── Detecção de PRs (compara contra histórico anterior ao treino atual) ──
+        const { medalhas: medalhasPR, xpBonus } = detectarPRsRegistro(registro, historico);
+        if (medalhasPR.length > 0) {
+          xpParaGanhar = Math.min(
+            Math.max(0, LIMITE_XP_DIARIO - xpGanhoHoje),
+            xpParaGanhar + xpBonus,
+          );
+          registro.xpEarned = xpParaGanhar;
+        }
+        // ────────────────────────────────────────────────────────────────────────
+
         if (get().autoSyncDiet) {
           registro.aplicadoNaDieta = true;
           const { adicionarGastoCalorico } = useDietaStore.getState();
@@ -547,7 +565,11 @@ export const useTreinoStore = create<TreinoState>()(
         try {
           await salvarRegistro(uid, registro);
           await salvarTreinoAtivo(uid, null);
-          set((state) => ({ historico: [registro, ...state.historico], treinoAtivo: null }));
+          set((state) => ({
+            historico: [registro, ...state.historico],
+            treinoAtivo: null,
+            ultimosPRs: medalhasPR,
+          }));
           return registro;
         } catch (err) {
           console.error('[treinoStore] Erro ao salvar registro no Supabase:', err);
