@@ -2603,140 +2603,194 @@ function EmptyState({ text }: { text: string }) {
 // ── MEDALHAS SECTION ────────────────────────────
 // ══════════════════════════════════════════════════
 
-const MEDAL_COR: Record<string, { cor: string; bg: string; border: string }> = {
-  ouro:   { cor: '#F59E0B', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)' },
-  prata:  { cor: '#94A3B8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.25)' },
-  bronze: { cor: '#CD7C48', bg: 'rgba(205,124,72,0.08)',  border: 'rgba(205,124,72,0.25)' },
+const MEDAL_META: Record<string, { cor: string; glow: string; label: string; emoji: string }> = {
+  ouro:   { cor: '#F59E0B', glow: 'rgba(245,158,11,0.35)', label: 'Recorde',  emoji: '🥇' },
+  prata:  { cor: '#94A3B8', glow: 'rgba(148,163,184,0.25)', label: '2° / 3°', emoji: '🥈' },
+  bronze: { cor: '#CD7C48', glow: 'rgba(205,124,72,0.2)',   label: 'Top 10',  emoji: '🥉' },
 };
-const MEDAL_EMOJI_MAP: Record<string, string> = { ouro: '🥇', prata: '🥈', bronze: '🥉' };
 
-function MedalRow({
-  tipo, valor, data,
-}: { tipo: string; valor: string; data: string }) {
-  const { cor, bg, border } = MEDAL_COR[tipo] ?? MEDAL_COR.bronze;
+function MedalPill({ tipo, valor, data }: { tipo: string; valor: string; data: string }) {
+  const m = MEDAL_META[tipo] ?? MEDAL_META.bronze;
   const dataFmt = new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
   return (
     <Box sx={{
-      display: 'flex', alignItems: 'center', gap: 1,
-      px: 1.2, py: 0.8, borderRadius: '6px',
-      bgcolor: bg, border: `1px solid ${border}`,
+      display: 'flex', alignItems: 'center', gap: 1.2,
+      px: 1.4, py: 1,
+      borderRadius: '10px',
+      background: `linear-gradient(135deg, ${alpha(m.cor, 0.12)} 0%, ${alpha(m.cor, 0.04)} 100%)`,
+      border: `1px solid ${alpha(m.cor, 0.28)}`,
+      boxShadow: tipo === 'ouro' ? `0 2px 12px ${m.glow}` : 'none',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
-      <Typography sx={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>{MEDAL_EMOJI_MAP[tipo]}</Typography>
-      <Typography variant="body2" fontWeight={700} sx={{ flex: 1, color: cor }}>{valor}</Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.58rem', flexShrink: 0 }}>{dataFmt}</Typography>
-    </Box>
-  );
-}
-
-function CategoriaBlock({
-  title, icon, rankings,
-}: { title: string; icon: React.ReactNode; rankings: { tipo: string; valor: string; data: string }[] }) {
-  return (
-    <Box sx={{ mb: 2 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, mb: 0.8 }}>
-        {icon}
-        <Typography variant="caption" fontWeight={700} sx={{ fontSize: '0.68rem', letterSpacing: '0.03em' }} color="text.secondary">
-          {title}
+      {/* Barra lateral colorida */}
+      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, bgcolor: m.cor, borderRadius: '10px 0 0 10px' }} />
+      <Typography sx={{ fontSize: '1.25rem', lineHeight: 1, flexShrink: 0, ml: 0.5,
+        filter: tipo === 'ouro' ? `drop-shadow(0 0 4px ${m.glow})` : 'none',
+      }}>{m.emoji}</Typography>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="caption" sx={{ color: m.cor, fontWeight: 700, fontSize: '0.6rem',
+          textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', lineHeight: 1 }}>
+          {m.label}
+        </Typography>
+        <Typography variant="body2" fontWeight={800} sx={{ lineHeight: 1.3, fontSize: '0.95rem' }}>
+          {valor}
         </Typography>
       </Box>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        {rankings.map((r, i) => (
-          <MedalRow key={i} tipo={r.tipo} valor={r.valor} data={r.data} />
-        ))}
-      </Box>
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.58rem', flexShrink: 0 }}>
+        {dataFmt}
+      </Typography>
     </Box>
   );
 }
 
-function MedalhasSection({ historico, isDark: _isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
+function MedalList({ rankings, isDark }: {
+  rankings: { tipo: string; valor: string; data: string }[];
+  isDark: boolean;
+}) {
+  const [expandido, setExpandido] = useState(false);
+  const visiveis = expandido ? rankings : rankings.slice(0, 3);
+  const temMais = rankings.length > 3;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.6 }}>
+      {visiveis.map((r, i) => <MedalPill key={i} tipo={r.tipo} valor={r.valor} data={r.data} />)}
+      {temMais && (
+        <Box
+          onClick={() => setExpandido(!expandido)}
+          sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5,
+            py: 0.7, cursor: 'pointer', borderRadius: '8px',
+            color: 'text.secondary',
+            bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+            border: `1px dashed ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+            transition: 'all 0.2s',
+            '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+          }}
+        >
+          {expandido
+            ? <><ChevronUp size={13} /><Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Ver menos</Typography></>
+            : <><ChevronDown size={13} /><Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 600 }}>Ver mais ({rankings.length - 3})</Typography></>
+          }
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function MedalhasSection({ historico, isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
   const prs = useMemo(() => computeAllTimePRs(historico), [historico]);
 
-  const totalOuro   = [...prs.registrosComOuro].length;
-  const totalPrata  = [...prs.registrosComPrata].length;
-  const totalBronze = [...prs.registrosComBronze].length;
+  // Exercícios para dropdown musculação
+  const muscNomes = useMemo(() =>
+    Array.from(prs.musculacao.values())
+      .sort((a, b) => (b.rankings[0]?.valor ?? 0) - (a.rankings[0]?.valor ?? 0))
+      .map((e) => e.nomeExercicio),
+    [prs],
+  );
+
+  // Categorias corrida para dropdown
+  const corridaNomes = useMemo(() => prs.corrida.map((c) => c.label), [prs]);
+
+  const [exercicioSel, setExercicioSel] = useState<string | null>(null);
+  const [corridaSel, setCorridaSel]     = useState<string | null>(null);
+
+  const exercicioAtual = exercicioSel && muscNomes.includes(exercicioSel) ? exercicioSel : muscNomes[0] ?? null;
+  const corridaAtual   = corridaSel && corridaNomes.includes(corridaSel) ? corridaSel : corridaNomes[0] ?? null;
+
+  const muscRankings = exercicioAtual
+    ? (prs.musculacao.get(exercicioAtual)?.rankings.map((r) => ({ tipo: r.tipo, valor: r.valorFormatado, data: r.data })) ?? [])
+    : [];
+  const corridaRankings = corridaAtual
+    ? (prs.corrida.find((c) => c.label === corridaAtual)?.rankings.map((r) => ({ tipo: r.tipo, valor: r.valorFormatado, data: r.data })) ?? [])
+    : [];
+
+  // Contadores globais (treinos únicos com cada tipo)
+  const totalOuro   = prs.registrosComOuro.size;
+  const totalPrata  = prs.registrosComPrata.size;
+  const totalBronze = prs.registrosComBronze.size;
 
   if (prs.musculacao.size === 0 && prs.corrida.length === 0) return null;
 
-  // Exercícios ordenados por maior carga (gold value)
-  const muscList = useMemo(() =>
-    Array.from(prs.musculacao.values())
-      .sort((a, b) => (b.rankings[0]?.valor ?? 0) - (a.rankings[0]?.valor ?? 0)),
-    [prs]
-  );
-
   return (
     <Box sx={{ mt: 3 }}>
-      {/* Header */}
+      {/* ── Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-        <Box sx={{
-          width: 28, height: 28, borderRadius: '7px',
-          bgcolor: alpha('#F59E0B', 0.15),
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
+        <Box sx={{ width: 28, height: 28, borderRadius: '7px', bgcolor: alpha('#F59E0B', 0.15),
+          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Trophy size={14} color="#F59E0B" />
         </Box>
-        <Typography variant="subtitle2" fontWeight={800} sx={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+        <Typography variant="subtitle2" fontWeight={800}
+          sx={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.8rem' }}>
           Medalhas
         </Typography>
         <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 0.5 }} />
       </Box>
 
-      {/* Contadores */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 2.5 }}>
+      {/* ── Contadores ── */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
         {[
           { emoji: '🥇', count: totalOuro,   label: 'Ouro',   cor: '#F59E0B' },
           { emoji: '🥈', count: totalPrata,  label: 'Prata',  cor: '#94A3B8' },
           { emoji: '🥉', count: totalBronze, label: 'Bronze', cor: '#CD7C48' },
         ].map(({ emoji, count, label, cor }) => (
           <Box key={label} sx={{
-            flex: 1, textAlign: 'center', py: 1, borderRadius: '8px',
-            bgcolor: alpha(cor, 0.08), border: `1px solid ${alpha(cor, 0.2)}`,
+            flex: 1, textAlign: 'center', py: 1.2, borderRadius: '10px',
+            background: `linear-gradient(135deg, ${alpha(cor, 0.12)} 0%, ${alpha(cor, 0.04)} 100%)`,
+            border: `1px solid ${alpha(cor, 0.22)}`,
           }}>
-            <Typography sx={{ fontSize: '1.4rem', lineHeight: 1 }}>{emoji}</Typography>
-            <Typography variant="h6" fontWeight={800} sx={{ color: cor, lineHeight: 1.2, mt: 0.3 }}>{count}</Typography>
+            <Typography sx={{ fontSize: '1.5rem', lineHeight: 1 }}>{emoji}</Typography>
+            <Typography variant="h6" fontWeight={800} sx={{ color: cor, lineHeight: 1.3, mt: 0.3, fontSize: '1.1rem' }}>{count}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>{label}</Typography>
           </Box>
         ))}
       </Box>
 
-      {/* Corrida */}
+      {/* ── Corrida ── */}
       {prs.corrida.length > 0 && (
-        <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1 }}>
-            <Footprints size={12} color={CORES.corrida} />
-            <Typography variant="caption" fontWeight={800} sx={{ color: CORES.corrida, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Corrida
-            </Typography>
-          </Box>
-          {prs.corrida.map((cat) => (
-            <CategoriaBlock
-              key={cat.key}
-              title={cat.label}
-              icon={<Footprints size={10} color={CORES.corrida} />}
-              rankings={cat.rankings.map((r) => ({ tipo: r.tipo, valor: r.valorFormatado, data: r.data }))}
-            />
-          ))}
-        </>
+        <Card sx={{ mb: 2.5, overflow: 'hidden', borderRadius: '8px' }}>
+          <CardContent sx={{ py: 1.5, px: 1.2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1.2 }}>
+              <Footprints size={13} color={CORES.corrida} />
+              <Typography variant="caption" fontWeight={800}
+                sx={{ color: CORES.corrida, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Corrida
+              </Typography>
+            </Box>
+            {/* Dropdown de categoria */}
+            <Box sx={{ position: 'relative', mb: 1.2 }}>
+              <ExercicioSelect
+                exercicios={corridaNomes}
+                selected={corridaAtual ?? ''}
+                onChange={(nome) => setCorridaSel(nome)}
+                isDark={isDark}
+              />
+            </Box>
+            <MedalList rankings={corridaRankings} isDark={isDark} />
+          </CardContent>
+        </Card>
       )}
 
-      {/* Musculação */}
-      {muscList.length > 0 && (
-        <>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1, mt: prs.corrida.length > 0 ? 1 : 0 }}>
-            <Dumbbell size={12} color={CORES.musculacao} />
-            <Typography variant="caption" fontWeight={800} sx={{ color: CORES.musculacao, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Musculação
-            </Typography>
-          </Box>
-          {muscList.map((ex) => (
-            <CategoriaBlock
-              key={ex.nomeExercicio}
-              title={ex.nomeExercicio}
-              icon={<Dumbbell size={10} color={CORES.musculacao} />}
-              rankings={ex.rankings.map((r) => ({ tipo: r.tipo, valor: r.valorFormatado, data: r.data }))}
+      {/* ── Musculação ── */}
+      {muscNomes.length > 0 && (
+        <Card sx={{ mb: 2.5, overflow: 'hidden', borderRadius: '8px' }}>
+          <CardContent sx={{ py: 1.5, px: 1.2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1.2 }}>
+              <Dumbbell size={13} color={CORES.musculacao} />
+              <Typography variant="caption" fontWeight={800}
+                sx={{ color: CORES.musculacao, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Musculação
+              </Typography>
+            </Box>
+            {/* Dropdown de exercício */}
+            <ExercicioSelect
+              exercicios={muscNomes}
+              selected={exercicioAtual ?? ''}
+              onChange={(nome) => setExercicioSel(nome)}
+              isDark={isDark}
             />
-          ))}
-        </>
+            <MedalList rankings={muscRankings} isDark={isDark} />
+          </CardContent>
+        </Card>
       )}
     </Box>
   );
