@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, IconButton, Divider, Alert, Chip, Button } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -9,6 +9,7 @@ import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import { calcularDistanciaCorrida, calcularDistanciaNatacao } from '../types/treino';
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../hooks/useConfirmDelete';
+import { computeAllTimePRs } from '../utils/prSystem';
 
 function formatarData(isoString: string): string {
   const data = new Date(isoString);
@@ -73,6 +74,7 @@ export default function Historico() {
   const historico = useTreinoStore((s) => s.historico);
   const removerRegistro = useTreinoStore((s) => s.removerRegistro);
   const deleteReg = useConfirmDelete();
+  const allTimePRs = useMemo(() => computeAllTimePRs(historico), [historico]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [limite, setLimite] = useState(7);
 
@@ -165,7 +167,25 @@ export default function Historico() {
                           {isCorrida ? <MapPin size={20} color="#FF6B2C" /> : isMusculacao ? <Dumbbell size={20} color="#AB47BC" /> : <Waves size={20} color="#42A5F5" />}
                         </Box>
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{reg.nome}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle1" fontWeight={700} sx={{ lineHeight: 1.2 }}>{reg.nome}</Typography>
+                            {allTimePRs.registrosComPR.has(reg.id) && (
+                              <Chip
+                                label="🥇 PR"
+                                size="small"
+                                sx={{
+                                  height: 18,
+                                  fontSize: '0.62rem',
+                                  fontWeight: 800,
+                                  bgcolor: alpha('#F59E0B', 0.15),
+                                  color: '#F59E0B',
+                                  border: `1px solid ${alpha('#F59E0B', 0.3)}`,
+                                  letterSpacing: '0.02em',
+                                  '& .MuiChip-label': { px: 0.8 },
+                                }}
+                              />
+                            )}
+                          </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Calendar size={12} style={{ opacity: 0.5 }} />
                             <Typography variant="caption" color="text.secondary">{formatarData(reg.concluidoEm)}</Typography>

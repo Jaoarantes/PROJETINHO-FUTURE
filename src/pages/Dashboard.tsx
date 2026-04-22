@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { useAuthContext } from '../contexts/AuthContext';
+import { computeAllTimePRs } from '../utils/prSystem';
 import {
   calcularVolumeSessao, calcularVolumeExercicio,
   calcularDistanciaCorrida, calcularDistanciaNatacao,
@@ -1741,6 +1742,9 @@ export default function Dashboard() {
 
       {/* ═══ MELHORES MARCAS (CORRIDA) ═══ */}
       <BestEffortsSection historico={historico} isDark={isDark} />
+
+      {/* ═══ MEDALHAS ═══ */}
+      <MedalhasSection historico={historico} isDark={isDark} />
     </Box>
   );
 }
@@ -2591,6 +2595,121 @@ function EmptyState({ text }: { text: string }) {
       <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.6, fontSize: '0.82rem' }}>
         {text}
       </Typography>
+    </Box>
+  );
+}
+
+// ══════════════════════════════════════════════════
+// ── MEDALHAS SECTION ────────────────────────────
+// ══════════════════════════════════════════════════
+
+function MedalCard({
+  emoji, label, valor, data, isDark,
+}: { emoji: string; label: string; valor: string; data: string; isDark: boolean }) {
+  const dataFmt = new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return (
+    <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1.2,
+      p: 1.2,
+      borderRadius: '8px',
+      bgcolor: isDark ? 'rgba(245,158,11,0.06)' : 'rgba(245,158,11,0.05)',
+      border: `1px solid ${alpha('#F59E0B', 0.2)}`,
+    }}>
+      <Typography sx={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>{emoji}</Typography>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="caption" sx={{
+          color: '#F59E0B', fontWeight: 700, fontSize: '0.6rem',
+          textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block',
+        }}>
+          {label}
+        </Typography>
+        <Typography variant="body2" fontWeight={800} noWrap sx={{ lineHeight: 1.2 }}>{valor}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>{dataFmt}</Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function MedalhasSection({ historico, isDark }: { historico: RegistroTreino[]; isDark: boolean }) {
+  const prs = useMemo(() => computeAllTimePRs(historico), [historico]);
+
+  const muscPRs = useMemo(() =>
+    Array.from(prs.musculacao.values())
+      .sort((a, b) => b.carga.valor - a.carga.valor),
+    [prs]
+  );
+
+  if (muscPRs.length === 0 && prs.corrida.length === 0) return null;
+
+  return (
+    <Box sx={{ mt: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{
+          width: 28, height: 28, borderRadius: '7px',
+          bgcolor: alpha('#F59E0B', 0.15),
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Trophy size={14} color="#F59E0B" />
+        </Box>
+        <Typography variant="subtitle2" fontWeight={800} sx={{ letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+          Medalhas
+        </Typography>
+        <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider', ml: 0.5 }} />
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+          {muscPRs.length + prs.corrida.length} recordes
+        </Typography>
+      </Box>
+
+      {/* Corrida PRs */}
+      {prs.corrida.length > 0 && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1 }}>
+            <Footprints size={12} color={CORES.corrida} />
+            <Typography variant="caption" fontWeight={700} sx={{ color: CORES.corrida, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Corrida
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mb: 2 }}>
+            {prs.corrida.map((pr) => (
+              <MedalCard
+                key={pr.key}
+                emoji="🥇"
+                label={pr.label}
+                valor={pr.valorFormatado}
+                data={pr.data}
+                isDark={isDark}
+              />
+            ))}
+          </Box>
+        </>
+      )}
+
+      {/* Musculação PRs */}
+      {muscPRs.length > 0 && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1 }}>
+            <Dumbbell size={12} color={CORES.musculacao} />
+            <Typography variant="caption" fontWeight={700} sx={{ color: CORES.musculacao, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Musculação — Carga Máxima
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+            {muscPRs.map((pr) => (
+              <MedalCard
+                key={pr.nomeExercicio}
+                emoji="🥇"
+                label={pr.nomeExercicio}
+                valor={pr.carga.valorFormatado}
+                data={pr.carga.data}
+                isDark={isDark}
+              />
+            ))}
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

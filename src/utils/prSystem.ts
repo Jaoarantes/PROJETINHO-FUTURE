@@ -283,3 +283,122 @@ export function salvarPRCache(uid: string, cache: PRCache) {
     localStorage.setItem(`${LS_KEY}_${uid}`, JSON.stringify(cache));
   } catch { /* noop */ }
 }
+
+// ── All-time PRs (para Histórico e Dashboard) ────────────────────────────────
+export interface PRAtual {
+  registroId: string;
+  valor: number;
+  valorFormatado: string;
+  data: string;
+}
+
+export interface PRCorridaCategoria extends PRAtual {
+  label: string;
+  key: string;
+}
+
+export interface AllTimePRs {
+  musculacao: Map<string, { nomeExercicio: string; carga: PRAtual }>;
+  corrida: PRCorridaCategoria[];
+  registrosComPR: Set<string>;
+}
+
+const CORRIDA_BUCKETS: { key: string; label: string; minKm: number }[] = [
+  { key: 'dist', label: 'Maior distância', minKm: 0.5 },
+  { key: 'pace_geral', label: 'Melhor pace', minKm: 1 },
+  { key: 'pace_5km', label: 'Pace 5km', minKm: 5 },
+  { key: 'pace_10km', label: 'Pace 10km', minKm: 10 },
+  { key: 'pace_meia', label: 'Meia maratona', minKm: 21.0975 },
+  { key: 'pace_maratona', label: 'Maratona', minKm: 42.195 },
+];
+
+export function computeAllTimePRs(historico: RegistroTreino[]): AllTimePRs {
+  // ── Musculação ──────────────────────────────────────────────────────────────
+  const musculacao = new Map<string, { nomeExercicio: string; carga: PRAtual }>();
+
+  for (const reg of historico) {
+    if (reg.tipo !== 'musculacao' && reg.tipo !== 'outro') continue;
+    for (const ex of reg.exercicios) {
+      const nome = ex.exercicio.nome;
+      let cargaMax = 0;
+      for (const serie of ex.series) {
+        if (!serie.concluida) continue;
+        cargaMax = Math.max(cargaMax, serie.peso ?? 0);
+      }
+      if (cargaMax === 0) continue;
+      const atual = musculacao.get(nome);
+      if (!atual || cargaMax > atual.carga.valor) {
+        musculacao.set(nome, {
+          nomeExercicio: nome,
+          carga: {
+            registroId: reg.id,
+            valor: cargaMax,
+            valorFormatado: `${cargaMax}kg`,
+            data: reg.concluidoEm,
+          },
+        });
+      }
+    }
+  }
+
+  // ── Corrida ─────────────────────────────────────────────────────────────────
+  interface CorridaBest { registroId: string; valor: number; data: string }
+  const bestDist: CorridaBest = { registroId: '', valor: 0, data: '' };
+  const bestPaces = new Map<string, CorridaBest>();
+
+  for (const reg of historico) {
+    const entry = extrairCorridaEntry(reg);
+    if (!entry) continue;
+
+    // Maior distância
+    if (entry.distanciaKm > bestDist.valor) {
+      bestDist.valor = entry.distanciaKm;
+      bestDist.registroId = reg.id;
+      bestDist.data = reg.concluidoEm;
+    }
+
+    // Melhor pace por bucket (menor = melhor)
+    for (const b of CORRIDA_BUCKETS) {
+      if (b.key === 'dist') continue;
+      if (entry.distanciaKm < b.minKm) continue;
+      const cur = bestPaces.get(b.key);
+      if (!cur || entry.pace < cur.valor) {
+        bestPaces.set(b.key, { registroId: reg.id, valor: entry.pace, data: reg.concluidoEm });
+      }
+    }
+  }
+
+  const corrida: PRCorridaCategoria[] = [];
+
+  if (bestDist.valor > 0) {
+    corrida.push({
+      key: 'dist',
+      label: 'Maior distância',
+      registroId: bestDist.registroId,
+      valor: bestDist.valor,
+      valorFormatado: `${bestDist.valor.toFixed(2)}km`,
+      data: bestDist.data,
+    });
+  }
+
+  for (const b of CORRIDA_BUCKETS) {
+    if (b.key === 'dist') continue;
+    const best = bestPaces.get(b.key);
+    if (!best) continue;
+    corrida.push({
+      key: b.key,
+      label: b.label,
+      registroId: best.registroId,
+      valor: best.valor,
+      valorFormatado: formatPaceStr(best.valor),
+      data: best.data,
+    });
+  }
+
+  // ── Set de registros que contêm algum PR ────────────────────────────────────
+  const registrosComPR = new Set<string>();
+  for (const pr of musculacao.values()) registrosComPR.add(pr.carga.registroId);
+  for (const pr of corrida) registrosComPR.add(pr.registroId);
+
+  return { musculacao, corrida, registrosComPR };
+}
