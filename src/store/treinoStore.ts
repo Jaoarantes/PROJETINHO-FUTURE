@@ -556,6 +556,7 @@ export const useTreinoStore = create<TreinoState>()(
         }
         // ────────────────────────────────────────────────────────────────────────
 
+
         if (get().autoSyncDiet) {
           registro.aplicadoNaDieta = true;
           const { adicionarGastoCalorico } = useDietaStore.getState();
