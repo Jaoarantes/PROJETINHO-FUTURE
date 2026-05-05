@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, useTheme, alpha } from '@mui/material';
 import {
   Dumbbell, Footprints, Waves, Calendar, TrendingUp,
-  Clock, Flame, Zap, Trophy, Target,
+  Zap, Trophy, Target,
 } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { useAuthContext } from '../contexts/AuthContext';
@@ -18,7 +18,6 @@ import {
   calcPace,
   calcular1RM,
   formatDateLabel,
-  formatDuracao,
   formatPace,
   gerarHeatmapData,
   getConcluidoDate,
@@ -38,9 +37,10 @@ import {
   BarChart, Bar, CartesianGrid, Cell,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
-import { EmptyState, GlowStat, HeatLegend, RecordBadge, SectionHeader, TypePill } from '../components/dashboard/DashboardPrimitives';
+import { EmptyState, HeatLegend, RecordBadge, SectionHeader } from '../components/dashboard/DashboardPrimitives';
 import HeatmapCalendar from '../components/dashboard/HeatmapCalendar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
+import DashboardSummary from '../components/dashboard/DashboardSummary';
 import ExercicioSelect from '../components/dashboard/ExercicioSelect';
 import ExerciseCard from '../components/dashboard/ExerciseCard';
 import BestEffortsSection from '../components/dashboard/BestEffortsSection';
@@ -488,56 +488,7 @@ export default function Dashboard() {
         onDataFimChange={setDataFim}
       />
 
-      {/* ═══ STAT CARDS ═══ */}
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 1,
-        mb: 1,
-        animation: 'dash-fadeUp 0.15s ease-out both',
-      }}>
-        <GlowStat
-          icon={<Zap size={16} />}
-          value={stats.total}
-          label="Treinos"
-          color={CORES.geral}
-          isDark={isDark}
-        />
-        <GlowStat
-          icon={<Flame size={16} />}
-          value={`${Math.round(stats.caloriasTotais)}`}
-          label="Kcal Queimadas"
-          color="#FF6B2C"
-          isDark={isDark}
-        />
-        <GlowStat
-          icon={<Clock size={16} />}
-          value={formatDuracao(stats.tempoTotal)}
-          label="Tempo"
-          color={CORES.tempo}
-          isDark={isDark}
-        />
-        <GlowStat
-          icon={<Target size={16} />}
-          value={stats.mediaSemanal > 0 ? `${stats.mediaSemanal.toFixed(1)}` : '-'}
-          label="Por Semana"
-          color={CORES.recorde}
-          isDark={isDark}
-        />
-      </Box>
-
-      {/* Type breakdown row */}
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: 1,
-        mb: 3,
-        animation: 'dash-fadeUp 0.15s ease-out both',
-      }}>
-        <TypePill icon={<Dumbbell size={14} />} count={stats.musculacao} color={CORES.musculacao} isDark={isDark} />
-        <TypePill icon={<Footprints size={14} />} count={stats.corrida} color={CORES.corrida} isDark={isDark} />
-        <TypePill icon={<Waves size={14} />} count={stats.natacao} color={CORES.natacao} isDark={isDark} />
-      </Box>
+      <DashboardSummary stats={stats} isDark={isDark} />
 
       {/* ═══ HEATMAP ═══ */}
       <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
