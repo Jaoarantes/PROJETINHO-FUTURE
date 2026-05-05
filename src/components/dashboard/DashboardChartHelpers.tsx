@@ -2,6 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
 import { CORES, tooltipStyle } from './dashboardUtils';
 
+export type ChartPayloadEntry<TPayload = Record<string, unknown>> = {
+  value?: unknown;
+  name?: string;
+  color?: string;
+  dataKey?: string | number;
+  payload: TPayload;
+};
+
 export function LazyChart({ height, children }: { height: number; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -31,16 +39,22 @@ export function InlineTooltip({
 }: {
   active?: boolean;
   payload?: unknown[];
-  renderContent: (payload: unknown[]) => ReactNode;
+  renderContent: (payload: ChartPayloadEntry[]) => ReactNode;
 }) {
   if (!active || !payload?.length) return null;
-  return <div style={{ pointerEvents: 'none' }}>{renderContent(payload)}</div>;
+  return <div style={{ pointerEvents: 'none' }}>{renderContent(payload as ChartPayloadEntry[])}</div>;
 }
 
-export function FreqTooltip(props: any) {
+type FreqTooltipProps = {
+  active?: boolean;
+  payload?: ChartPayloadEntry[];
+  label?: string;
+};
+
+export function FreqTooltip(props: FreqTooltipProps) {
   const { active, payload, label: weekLabel } = props;
   if (!active || !payload?.length) return null;
-  const total = payload.reduce((sum: number, entry: any) => sum + (Number(entry.value) || 0), 0);
+  const total = payload.reduce((sum, entry) => sum + (Number(entry.value) || 0), 0);
   return (
     <Box sx={{
       ...tooltipStyle,
@@ -51,14 +65,14 @@ export function FreqTooltip(props: any) {
       <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mb: 0.8, fontWeight: 600 }}>
         Semana {weekLabel}
       </Typography>
-      {payload.map((entry: any, index: number) => {
+      {payload.map((entry, index) => {
         if (!entry.value) return null;
         const lbl = entry.name === 'musculacao' ? 'Musculação' : entry.name === 'corrida' ? 'Corrida' : 'Natação';
         return (
           <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.4 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: entry.color, boxShadow: `0 0 4px ${entry.color}` }} />
             <Typography sx={{ color: '#fff', fontSize: '0.75rem', flex: 1 }}>{lbl}</Typography>
-            <Typography sx={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>{entry.value}</Typography>
+            <Typography sx={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>{Number(entry.value)}</Typography>
           </Box>
         );
       })}

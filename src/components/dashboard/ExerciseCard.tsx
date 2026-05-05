@@ -12,6 +12,12 @@ import {
 } from 'recharts';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { CORES, tooltipProps, tooltipStyle } from './dashboardUtils';
+import type { ExerciseEvolution, ExerciseEvolutionPoint } from './useDashboardStats';
+
+type ChartExercisePoint = ExerciseEvolutionPoint & {
+  treino: string;
+  treinoFull: string;
+};
 
 export default function ExerciseCard({
   ex,
@@ -19,7 +25,7 @@ export default function ExerciseCard({
   isDark,
   inline,
 }: {
-  ex: any;
+  ex: ExerciseEvolution;
   idx: number;
   isDark: boolean;
   inline?: boolean;
@@ -31,17 +37,17 @@ export default function ExerciseCard({
   const ultimo = dados[total - 1];
   const penultimo = total >= 2 ? dados[total - 2] : null;
 
-  const bestPeso = Math.max(...dados.map((d: any) => d.pesoMax));
-  const bestVolume = Math.max(...dados.map((d: any) => d.volume));
-  const best1RM = Math.max(...dados.map((d: any) => d.umRM));
-  const bestPesoDate = dados.find((d: any) => d.pesoMax === bestPeso)?.label || '';
-  const best1RMDate = dados.find((d: any) => d.umRM === best1RM)?.label || '';
+  const bestPeso = Math.max(...dados.map((d) => d.pesoMax));
+  const bestVolume = Math.max(...dados.map((d) => d.volume));
+  const best1RM = Math.max(...dados.map((d) => d.umRM));
+  const bestPesoDate = dados.find((d) => d.pesoMax === bestPeso)?.label || '';
+  const best1RMDate = dados.find((d) => d.umRM === best1RM)?.label || '';
 
   const chartKey = metrica === 'peso' ? 'pesoMax' : metrica === 'volume' ? 'volume' : 'umRM';
   const chartUnit = 'kg';
   const chartColor = metrica === 'peso' ? CORES.musculacao : metrica === 'volume' ? CORES.corrida : CORES.recorde;
 
-  const dadosComTreino = dados.map((d: any, i: number) => ({
+  const dadosComTreino: ChartExercisePoint[] = dados.map((d, i) => ({
     ...d,
     treino: `T${i + 1}`,
     treinoFull: `Treino ${i + 1}`,
@@ -49,12 +55,12 @@ export default function ExerciseCard({
 
   const last3 = dados.slice(-3);
   const prev3 = dados.slice(-6, -3);
-  const avgPesoLast = last3.reduce((s: number, d: any) => s + d.pesoMax, 0) / last3.length;
-  const avgVolLast = last3.reduce((s: number, d: any) => s + d.volume, 0) / last3.length;
+  const avgPesoLast = last3.reduce((s, d) => s + d.pesoMax, 0) / last3.length;
+  const avgVolLast = last3.reduce((s, d) => s + d.volume, 0) / last3.length;
   let dica = '';
   if (prev3.length >= 3) {
-    const avgPesoPrev = prev3.reduce((s: number, d: any) => s + d.pesoMax, 0) / prev3.length;
-    const avgVolPrev = prev3.reduce((s: number, d: any) => s + d.volume, 0) / prev3.length;
+    const avgPesoPrev = prev3.reduce((s, d) => s + d.pesoMax, 0) / prev3.length;
+    const avgVolPrev = prev3.reduce((s, d) => s + d.volume, 0) / prev3.length;
     const pesoDiff = ((avgPesoLast - avgPesoPrev) / avgPesoPrev) * 100;
     const volDiff = ((avgVolLast - avgVolPrev) / avgVolPrev) * 100;
 
@@ -207,9 +213,9 @@ export default function ExerciseCard({
             />
             <Tooltip
               {...tooltipProps}
-              content={<InlineTooltip renderContent={(payload: any) => {
+              content={<InlineTooltip renderContent={(payload) => {
                 if (!payload || !payload.length) return null;
-                const d = payload[0].payload;
+                const d = payload[0].payload as ChartExercisePoint;
                 return (
                   <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
                     <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.68rem', fontWeight: 600, mb: 0.5 }}>
@@ -244,7 +250,7 @@ export default function ExerciseCard({
         </ResponsiveContainer></LazyChart>
       ) : (
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', py: 1 }}>
-          {dados.map((d: any, i: number) => (
+          {dados.map((d, i) => (
             <Box key={i} sx={{ textAlign: 'center' }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>{d.label}</Typography>
               <Typography variant="body2" fontWeight={600}>{d.pesoMax}kg x {d.repsMax} reps</Typography>

@@ -5,7 +5,7 @@ import { TrendingUp, Trophy, Waves, Zap } from 'lucide-react';
 import { CORES, formatPace, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, RecordBadge, SectionHeader } from './DashboardPrimitives';
-import type { DashboardStats } from './useDashboardStats';
+import type { DashboardStats, DistanceDataPoint } from './useDashboardStats';
 
 type NatacaoSectionProps = {
   stats: DashboardStats;
@@ -108,9 +108,9 @@ export default function NatacaoSection({
                     <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={42} unit="m" axisLine={false} tickLine={false} />
                     <Tooltip
                       {...tooltipProps}
-                      content={<InlineTooltip renderContent={(payload: any) => {
+                      content={<InlineTooltip renderContent={(payload) => {
                         if (!payload || !payload.length) return null;
-                        const d = payload[0].payload;
+                        const d = payload[0].payload as DistanceDataPoint;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
                             <Typography sx={{ color: CORES.natacao, fontSize: '1.1rem', fontWeight: 700 }}>
@@ -157,9 +157,9 @@ export default function NatacaoSection({
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={30} reversed domain={['dataMin - 0.3', 'dataMax + 0.3']} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const d = payload[0].payload as { label: string; pace: number };
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
                               <Typography sx={{ color: CORES.natacao, fontSize: '1.1rem', fontWeight: 700 }}>

@@ -21,7 +21,14 @@ import { Dumbbell, Target, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { CORES, getMuscleColor, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, HeatLegend, RecordBadge, SectionHeader } from './DashboardPrimitives';
-import type { DashboardStats, RadarVolumeDataPoint, ExerciseEvolution } from './useDashboardStats';
+import type {
+  CargaEvolucaoPoint,
+  DashboardStats,
+  ExerciseEvolution,
+  MuscleWeekDataPoint,
+  RadarVolumeDataPoint,
+  VolumeDataPoint,
+} from './useDashboardStats';
 import ExercicioSelect from './ExercicioSelect';
 import ExerciseCard from './ExerciseCard';
 
@@ -146,9 +153,9 @@ export default function MusculacaoSection({
                       />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const d = payload[0].payload as RadarVolumeDataPoint;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
                               <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700 }}>
@@ -182,9 +189,9 @@ export default function MusculacaoSection({
                       <YAxis dataKey="grupo" type="category" width={70} tick={{ fontSize: 10, fontWeight: 600, fill: isDark ? '#aaa' : '#666' }} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const d = payload[0].payload as RadarVolumeDataPoint;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
                               <Typography sx={{ color: CORES.musculacao, fontSize: '1rem', fontWeight: 700 }}>{d.volume.toLocaleString('pt-BR')} kg</Typography>
@@ -225,19 +232,19 @@ export default function MusculacaoSection({
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={28} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const total = payload.reduce((sum: number, e: any) => sum + (Number(e.value) || 0), 0);
+                          const total = payload.reduce((sum, e) => sum + (Number(e.value) || 0), 0);
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 150 }}>
                               <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', mb: 0.5, fontWeight: 600 }}>
-                                Semana {payload[0]?.payload?.label}
+                                Semana {(payload[0]?.payload as MuscleWeekDataPoint | undefined)?.label}
                               </Typography>
-                              {payload.filter((e: any) => e.value > 0).map((e: any, i: number) => (
+                              {payload.filter((e) => Number(e.value) > 0).map((e, i) => (
                                 <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 0.3 }}>
                                   <Box sx={{ width: 8, height: 8, borderRadius: 0, bgcolor: e.color }} />
-                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', flex: 1 }}>{e.dataKey}</Typography>
-                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', fontWeight: 700 }}>{e.value} séries</Typography>
+                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', flex: 1 }}>{String(e.dataKey)}</Typography>
+                                  <Typography sx={{ color: '#fff', fontSize: '0.72rem', fontWeight: 700 }}>{Number(e.value)} séries</Typography>
                                 </Box>
                               ))}
                               <Box sx={{ mt: 0.5, pt: 0.5, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between' }}>
@@ -284,9 +291,9 @@ export default function MusculacaoSection({
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={38} axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const d = payload[0].payload as VolumeDataPoint;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
                               <Typography sx={{ color: CORES.musculacao, fontSize: '1.1rem', fontWeight: 700 }}>
@@ -356,9 +363,9 @@ export default function MusculacaoSection({
                           <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={36} unit="kg" axisLine={false} tickLine={false} />
                           <Tooltip
                             {...tooltipProps}
-                            content={<InlineTooltip renderContent={(payload: any) => {
+                            content={<InlineTooltip renderContent={(payload) => {
                               if (!payload || !payload.length) return null;
-                              const d = payload[0].payload;
+                              const d = payload[0].payload as CargaEvolucaoPoint;
                               return (
                                 <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
                                   <Typography sx={{ color: CORES.recorde, fontSize: '1.1rem', fontWeight: 700 }}>

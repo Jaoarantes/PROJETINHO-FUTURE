@@ -66,7 +66,7 @@ export default function DashboardActivitySection({
                     />
                     <Tooltip
                       {...tooltipProps}
-                      content={<InlineTooltip renderContent={(payload: any) => <FreqTooltip active={true} payload={payload} />} />}
+                      content={<InlineTooltip renderContent={(payload) => <FreqTooltip active={true} payload={payload} />} />}
                     />
                     <Bar dataKey="musculacao" stackId="a" fill={CORES.musculacao} name="musculacao" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
                     <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />

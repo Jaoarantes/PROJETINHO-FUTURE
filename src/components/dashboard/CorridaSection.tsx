@@ -5,7 +5,7 @@ import { Footprints, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { CORES, formatPace, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, RecordBadge, SectionHeader } from './DashboardPrimitives';
-import type { DashboardStats, PaceDataPoint } from './useDashboardStats';
+import type { DashboardStats, DistanceDataPoint, PaceDataPoint } from './useDashboardStats';
 
 type CorridaSectionProps = {
   stats: DashboardStats;
@@ -108,9 +108,9 @@ export default function CorridaSection({
                     <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={34} reversed domain={['dataMin - 0.5', 'dataMax + 0.5']} axisLine={false} tickLine={false} />
                     <Tooltip
                       {...tooltipProps}
-                      content={<InlineTooltip renderContent={(payload: any) => {
+                      content={<InlineTooltip renderContent={(payload) => {
                         if (!payload || !payload.length) return null;
-                        const d = payload[0].payload;
+                        const d = payload[0].payload as PaceDataPoint;
                         return (
                           <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 120 }}>
                             <Typography sx={{ color: CORES.corrida, fontSize: '1.1rem', fontWeight: 700 }}>
@@ -159,9 +159,9 @@ export default function CorridaSection({
                       <YAxis tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }} width={33} unit="km" axisLine={false} tickLine={false} />
                       <Tooltip
                         {...tooltipProps}
-                        content={<InlineTooltip renderContent={(payload: any) => {
+                        content={<InlineTooltip renderContent={(payload) => {
                           if (!payload || !payload.length) return null;
-                          const d = payload[0].payload;
+                          const d = payload[0].payload as DistanceDataPoint;
                           return (
                             <Box sx={{ ...tooltipStyle, p: 1.5, minWidth: 130 }}>
                               <Typography sx={{ color: CORES.corrida, fontSize: '1.1rem', fontWeight: 700 }}>
