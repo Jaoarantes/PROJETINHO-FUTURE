@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, useTheme, alpha } from '@mui/material';
 import {
-  Dumbbell, Footprints, Waves, Calendar, TrendingUp,
+  Dumbbell, Footprints, Waves, TrendingUp,
   Zap, Trophy, Target,
 } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
@@ -31,16 +31,16 @@ import {
   tooltipStyle,
   type PeriodoKey,
 } from '../components/dashboard/dashboardUtils';
-import { FreqTooltip, InlineTooltip, LazyChart } from '../components/dashboard/DashboardChartHelpers';
+import { InlineTooltip, LazyChart } from '../components/dashboard/DashboardChartHelpers';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
   BarChart, Bar, CartesianGrid, Cell,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
 import { EmptyState, HeatLegend, RecordBadge, SectionHeader } from '../components/dashboard/DashboardPrimitives';
-import HeatmapCalendar from '../components/dashboard/HeatmapCalendar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardSummary from '../components/dashboard/DashboardSummary';
+import DashboardActivitySection from '../components/dashboard/DashboardActivitySection';
 import ExercicioSelect from '../components/dashboard/ExercicioSelect';
 import ExerciseCard from '../components/dashboard/ExerciseCard';
 import BestEffortsSection from '../components/dashboard/BestEffortsSection';
@@ -490,66 +490,13 @@ export default function Dashboard() {
 
       <DashboardSummary stats={stats} isDark={isDark} />
 
-      {/* ═══ HEATMAP ═══ */}
-      <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
-        <SectionHeader
-          icon={<Calendar size={15} />}
-          title="Atividade"
-          badge={periodo === 'tudo' ? 'Histórico completo' : `${heatmapConfig.semanas} semanas`}
-          isDark={isDark}
-        />
-        <Card sx={{ mb: 1, overflow: 'hidden', borderRadius: '8px' }}>
-          <CardContent sx={{ py: 2, px: 1.5 }}>
-            <HeatmapCalendar data={heatmap} totalSemanas={heatmapConfig.semanas} isDark={isDark} />
-          </CardContent>
-        </Card>
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, justifyContent: 'center' }}>
-          <HeatLegend color={CORES.musculacao} label="Musculação" />
-          <HeatLegend color={CORES.corrida} label="Corrida" />
-          <HeatLegend color={CORES.natacao} label="Natação" />
-        </Box>
-      </Box>
-
-      {/* ═══ FREQUENCIA SEMANAL ═══ */}
-      <Box sx={{ animation: 'dash-fadeUp 0.15s ease-out both' }}>
-        <SectionHeader icon={<TrendingUp size={15} />} title="Frequência Semanal" isDark={isDark} />
-        <Card sx={{ mb: 3, overflow: 'hidden', position: 'relative', borderRadius: '8px' }}>
-          <CardContent sx={{ py: 2, px: 0.5 }}>
-            {stats.frequenciaFormatada.some((d) => d.musculacao + d.corrida + d.natacao > 0) ? (
-              <Box sx={{ position: 'relative' }}>
-                <LazyChart height={200}><ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={stats.frequenciaFormatada} barCategoryGap="20%">
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'} vertical={false} />
-                    <XAxis
-                      dataKey="labelVisible"
-                      tick={{ fontSize: 9, fill: isDark ? '#777' : '#999' }}
-                      interval={0}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fontSize: 9, fill: isDark ? '#555' : '#bbb' }}
-                      width={22}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      {...tooltipProps}
-                      content={<InlineTooltip renderContent={(payload: any) => <FreqTooltip active={true} payload={payload} />} />}
-                    />
-                    <Bar dataKey="musculacao" stackId="a" fill={CORES.musculacao} name="musculacao" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                    <Bar dataKey="corrida" stackId="a" fill={CORES.corrida} name="corrida" radius={[0, 0, 0, 0]} stroke="none" activeBar={{ stroke: 'none' }} />
-                    <Bar dataKey="natacao" stackId="a" fill={CORES.natacao} radius={[0, 0, 0, 0]} name="natacao" stroke="none" activeBar={{ stroke: 'none' }} />
-                  </BarChart>
-                </ResponsiveContainer></LazyChart>
-              </Box>
-            ) : (
-              <EmptyState text="Nenhum treino concluído neste período" />
-            )}
-          </CardContent>
-        </Card>
-      </Box>
+      <DashboardActivitySection
+        heatmap={heatmap}
+        heatmapWeeks={heatmapConfig.semanas}
+        showFullHistory={periodo === 'tudo'}
+        frequenciaFormatada={stats.frequenciaFormatada}
+        isDark={isDark}
+      />
 
       {/* ═══ MUSCULACAO ═══ */}
       {stats.musculacao > 0 && (
