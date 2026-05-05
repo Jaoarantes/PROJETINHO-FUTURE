@@ -546,8 +546,8 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [menuTarget, setMenuTarget] = useState<{ sessaoId: string; exId: string; serieId: string } | null>(null);
     const [activeExId, setActiveExId] = useState<string | null>(null);
-    const deleteExercicio = useConfirmDelete();
-    const deleteSerie = useConfirmDelete();
+    const deleteExercicio = useConfirmDelete<{ sessaoId: string; exId: string }>();
+    const deleteSerie = useConfirmDelete<{ sessaoId: string; exId: string; serieId: string }>();
 
     const sensors = useSensors(
         useSensor(PointerSensor, {

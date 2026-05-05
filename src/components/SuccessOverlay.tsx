@@ -52,22 +52,24 @@ export default function SuccessOverlay({
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (!open) return;
 
-    // Show overlay immediately
-    setVisible(true);
-    // Trigger animation on next frame
-    requestAnimationFrame(() => {
+    const showTimer = setTimeout(() => {
+      setVisible(true);
       requestAnimationFrame(() => {
-        setAnimating(true);
+        requestAnimationFrame(() => {
+          setAnimating(true);
+        });
       });
-    });
+    }, 0);
 
-    // Schedule hide + callback
     timerRef.current = setTimeout(() => {
       setAnimating(false);
       setTimeout(() => {
@@ -77,6 +79,7 @@ export default function SuccessOverlay({
     }, duration);
 
     return () => {
+      clearTimeout(showTimer);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [open, duration]);

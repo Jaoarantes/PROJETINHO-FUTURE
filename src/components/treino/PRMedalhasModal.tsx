@@ -56,13 +56,17 @@ function ConfettiParticle({ delay, color, x }: { delay: number; color: string; x
 }
 
 const CONFETTI_COLORS = ['#FF6B2C', '#F59E0B', '#10B981', '#6366F1', '#EC4899', '#F59E0B'];
+const pseudoRandom = (seed: number) => {
+  const value = Math.sin(seed) * 10000;
+  return value - Math.floor(value);
+};
 
 function GoldAnimation() {
   const particles = Array.from({ length: 30 }, (_, i) => ({
     id: i,
-    delay: Math.random() * 1.2,
+    delay: pseudoRandom(i + 1) * 1.2,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    x: Math.random() * 100,
+    x: pseudoRandom(i + 101) * 100,
   }));
 
   return (
@@ -152,10 +156,12 @@ export default function PRMedalhasModal({ medalhas, open, onClose }: PRMedalhasM
 
   useEffect(() => {
     if (!open) {
-      setVisible(false);
-      setHeaderIn(false);
-      closedRef.current = false;
-      return;
+      const closeTimer = setTimeout(() => {
+        setVisible(false);
+        setHeaderIn(false);
+        closedRef.current = false;
+      }, 0);
+      return () => clearTimeout(closeTimer);
     }
     closedRef.current = false;
     // Abre com pequeno delay para o portal montar primeiro

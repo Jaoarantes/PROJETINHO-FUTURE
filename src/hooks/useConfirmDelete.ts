@@ -1,26 +1,26 @@
 import { useState, useCallback, useRef } from 'react';
 
-interface UseConfirmDeleteReturn {
+interface UseConfirmDeleteReturn<TPayload> {
   open: boolean;
   loading: boolean;
   /** Call to open the confirmation dialog. Pass a payload to identify what to delete. */
-  requestDelete: (payload?: any) => void;
+  requestDelete: (payload?: TPayload) => void;
   /** The payload passed to requestDelete (e.g. an id). */
-  payload: any;
+  payload: TPayload;
   /** Call after user confirms — runs the action then shows 3s loading. */
   confirmDelete: (action: () => Promise<void> | void) => void;
   /** Close the dialog without deleting. */
   cancel: () => void;
 }
 
-export function useConfirmDelete(): UseConfirmDeleteReturn {
+export function useConfirmDelete<TPayload = string>(): UseConfirmDeleteReturn<TPayload> {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [payload, setPayload] = useState<any>(null);
+  const [payload, setPayload] = useState<TPayload | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const requestDelete = useCallback((p?: any) => {
-    setPayload(p);
+  const requestDelete = useCallback((p?: TPayload) => {
+    setPayload(p ?? null);
     setOpen(true);
   }, []);
 
@@ -46,5 +46,5 @@ export function useConfirmDelete(): UseConfirmDeleteReturn {
     }, 3000);
   }, []);
 
-  return { open, loading, requestDelete, payload, confirmDelete, cancel };
+  return { open, loading, requestDelete, payload: payload as TPayload, confirmDelete, cancel };
 }

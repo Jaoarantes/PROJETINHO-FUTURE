@@ -25,7 +25,10 @@ export default function ActiveWorkoutBar() {
   // Use ref + direct DOM update for the timer to avoid re-rendering the whole component every second
   const timerRef = useRef<HTMLSpanElement>(null);
   const treinoAtivoRef = useRef(treinoAtivo);
-  treinoAtivoRef.current = treinoAtivo;
+
+  useEffect(() => {
+    treinoAtivoRef.current = treinoAtivo;
+  }, [treinoAtivo]);
 
   const sessao = useMemo(
     () => treinoAtivo ? sessoes.find((s) => s.id === treinoAtivo.sessaoId) : null,
