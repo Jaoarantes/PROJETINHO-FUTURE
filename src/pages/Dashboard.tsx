@@ -69,6 +69,7 @@ export default function Dashboard() {
   const [showDistCorrida, setShowDistCorrida] = useState(false);
   const [showPaceNatacao, setShowPaceNatacao] = useState(false);
   const [showDistNatacao, setShowDistNatacao] = useState(false);
+  const [dashboardNow] = useState(() => Date.now());
 
   useEffect(() => {
     if (user?.id) {
@@ -114,7 +115,7 @@ export default function Dashboard() {
       if (datas.length === 0) dias = 30;
       else {
         const prim = new Date(Math.min(...datas));
-        const dif = Date.now() - prim.getTime();
+        const dif = dashboardNow - prim.getTime();
         dias = Math.ceil(dif / (24 * 60 * 60 * 1000)) + 1;
       }
     } else if (config.key === 'custom') {
@@ -127,7 +128,7 @@ export default function Dashboard() {
     if (!dias || isNaN(dias) || !isFinite(dias) || dias < 0) dias = 30;
     const totalSemanas = Math.ceil(dias / 7);
     return { dias: totalSemanas * 7, semanas: totalSemanas };
-  }, [periodo, dataInicio, dataFim, historico]);
+  }, [periodo, dataInicio, dataFim, historico, dashboardNow]);
 
   const heatmap = useMemo(() => gerarHeatmapData(historico, heatmapConfig.dias), [historico, heatmapConfig.dias]);
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, type SyntheticEvent } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -266,7 +266,9 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
                       src={imgUrl}
                       alt={selecionado.nome}
                       sx={{ width: '100%', height: 180, objectFit: 'contain' }}
-                      onError={(e: any) => { e.target.style.display = 'none'; }}
+                      onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   </Box>
                 ) : null;

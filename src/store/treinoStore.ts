@@ -7,6 +7,17 @@ import { calcularCaloriasTreino } from '../utils/calorieCalculator';
 import { useDietaStore } from './dietaStore';
 import { detectarPRsRegistro, type MedalhaPR } from '../utils/prSystem';
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+type CoordenadaTreino = { latitude: number; longitude: number; timestamp: number };
+type TreinoAtivo = {
+  sessaoId: string;
+  iniciadoEm: number;
+  pausadoEm: number | null;
+  tempoPausadoTotal: number;
+  distanceKm?: number;
+  coordinates?: CoordenadaTreino[];
+};
+
 function syncDebounced(uid: string, sessao: SessaoTreino) {
   const existing = syncTimers.get(sessao.id);
   if (existing) clearTimeout(existing);
@@ -20,7 +31,7 @@ function syncDebounced(uid: string, sessao: SessaoTreino) {
 }
 
 let activeWorkoutTimer: ReturnType<typeof setTimeout> | null = null;
-function syncTreinoAtivoDebounced(uid: string, dados: any | null) {
+function syncTreinoAtivoDebounced(uid: string, dados: TreinoAtivo | null) {
   if (activeWorkoutTimer) clearTimeout(activeWorkoutTimer);
   activeWorkoutTimer = setTimeout(() => {
     salvarTreinoAtivo(uid, dados).catch(console.error);
@@ -39,14 +50,7 @@ interface TreinoState {
   sessoes: SessaoTreino[];
   historico: RegistroTreino[];
   carregando: boolean;
-  treinoAtivo: {
-    sessaoId: string;
-    iniciadoEm: number;
-    pausadoEm: number | null;
-    tempoPausadoTotal: number;
-    distanceKm?: number;
-    coordinates?: { latitude: number; longitude: number; timestamp: number }[];
-  } | null;
+  treinoAtivo: TreinoAtivo | null;
 
   setUid: (uid: string | null) => void;
   carregar: (uid: string) => Promise<void>;
@@ -227,7 +231,6 @@ export const useTreinoStore = create<TreinoState>()(
         if (uid) {
           salvarSessao(uid, nova)
             .catch(() => {});
-        } else {
         }
         return nova.id;
       },

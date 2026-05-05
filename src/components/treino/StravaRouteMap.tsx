@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Box } from '@mui/material';
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
 import { LatLngBounds } from 'leaflet';
@@ -7,7 +7,7 @@ import { decodePolyline } from '../../utils/polylineDecoder';
 
 function FitBounds({ bounds }: { bounds: LatLngBounds }) {
   const map = useMap();
-  useMemo(() => {
+  useEffect(() => {
     map.fitBounds(bounds, { padding: [30, 30] });
   }, [map, bounds]);
   return null;
@@ -20,10 +20,9 @@ interface Props {
 
 export default function StravaRouteMap({ polyline, height = 200 }: Props) {
   const positions = useMemo(() => decodePolyline(polyline), [polyline]);
-
-  if (positions.length < 2) return null;
-
   const bounds = useMemo(() => {
+    if (positions.length < 2) return null;
+
     const lats = positions.map((p) => p[0]);
     const lngs = positions.map((p) => p[1]);
     return new LatLngBounds(
@@ -31,6 +30,8 @@ export default function StravaRouteMap({ polyline, height = 200 }: Props) {
       [Math.max(...lats), Math.max(...lngs)]
     );
   }, [positions]);
+
+  if (!bounds) return null;
 
   return (
     <Box sx={{ mt: 1.5, borderRadius: 2, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
