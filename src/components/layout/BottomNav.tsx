@@ -12,21 +12,25 @@ export default function BottomNav() {
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
   const { user } = useAuthContext();
+  const userId = user?.id;
   const [unread, setUnread] = useState(0);
 
   const fetchUnread = useCallback(async () => {
-    if (!user?.id) return;
+    if (!userId) return;
     try {
-      const count = await contarNotificacoesNaoLidas(user.id);
+      const count = await contarNotificacoesNaoLidas(userId);
       setUnread(count);
     } catch { /* ignore */ }
-  }, [user?.id]);
+  }, [userId]);
 
   // Poll every 30s + on mount + on route change
   useEffect(() => {
-    fetchUnread();
+    const initialTimer = setTimeout(fetchUnread, 0);
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [fetchUnread, location.pathname]);
 
   const currentTab = useMemo(() => {

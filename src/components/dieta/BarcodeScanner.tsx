@@ -120,8 +120,11 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
     if (!open) {
       activeRef.current = false;
       pararScanner();
-      setStatus('scanning');
-      setErro('');
+      const resetTimer = setTimeout(() => {
+        setStatus('scanning');
+        setErro('');
+      }, 0);
+      return () => clearTimeout(resetTimer);
     }
   }, [open]);
 

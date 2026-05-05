@@ -31,9 +31,12 @@ export default function ExercicioDetalhe({ exercicio, open, onClose, onSeleciona
   const deleteCustom = useConfirmDelete();
 
   useEffect(() => {
-    setImgLoaded(false);
-    setImgError(false);
-    setActiveImg(0);
+    const resetTimer = setTimeout(() => {
+      setImgLoaded(false);
+      setImgError(false);
+      setActiveImg(0);
+    }, 0);
+    return () => clearTimeout(resetTimer);
   }, [exercicio?.id]);
 
   if (!exercicio) return null;

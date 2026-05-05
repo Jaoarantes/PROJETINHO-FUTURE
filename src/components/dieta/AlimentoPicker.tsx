@@ -121,8 +121,8 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   // Debounced online search
   useEffect(() => {
     if (aba !== 1 || !busca.trim()) {
-      setResultadosOnline([]);
-      return;
+      const resetTimer = setTimeout(() => setResultadosOnline([]), 0);
+      return () => clearTimeout(resetTimer);
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
