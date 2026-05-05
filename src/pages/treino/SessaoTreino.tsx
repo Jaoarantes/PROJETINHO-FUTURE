@@ -37,21 +37,13 @@ import PRMedalhasModal from '../../components/treino/PRMedalhasModal';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { formatPace } from '../../utils/geoUtils';
 import { uploadFeedPhoto, compressImage } from '../../services/feedService';
-import { calcularVolumeSessao } from '../../types/treino';
 import type { TipoCorridaTreino, EstiloNatacao, TipoSerie, RegistroTreino } from '../../types/treino';
+import { formatTimer, montarPostTreinoCompartilhado } from './sessaoTreinoUtils';
 import {
     TIPO_SESSAO_LABELS, TIPO_CORRIDA_LABELS, ESTILO_NATACAO_LABELS,
     TIPO_SERIE_LABELS, TIPO_SERIE_CORES,
     calcularDistanciaNatacao, calcularDuracaoNatacao,
 } from '../../types/treino';
-
-function formatTimer(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
 
 export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
@@ -188,29 +180,7 @@ export default function SessaoTreino() {
                 fotoUrls.push(url);
             }
 
-            const gruposMusculares = [...new Set(shareRegistro.exercicios.map((e) => e.exercicio.grupoMuscular))];
-            await criarPost(user.id, {
-                id: crypto.randomUUID(),
-                registroId: shareRegistro.id,
-                tipoTreino: shareRegistro.tipo,
-                nomeTreino: shareRegistro.nome,
-                duracaoSegundos: shareRegistro.duracaoTotalSegundos || null,
-                resumo: {
-                    exerciciosCount: shareRegistro.exercicios.length,
-                    volumeTotal: calcularVolumeSessao(shareRegistro.exercicios),
-                    distanciaKm: shareRegistro.corrida?.etapas?.reduce((s, e) => s + (e.distanciaKm ?? 0), 0),
-                    duracaoMin: shareRegistro.duracaoTotalSegundos ? Math.round(shareRegistro.duracaoTotalSegundos / 60) : undefined,
-                    gruposMusculares,
-                    exercicios: shareRegistro.exercicios.map((e) => ({
-                        nome: e.exercicio.nome,
-                        sets: e.series.length,
-                        exercicioId: e.exercicio.id,
-                        series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
-                    })),
-                },
-                texto: shareTexto.trim() || null,
-                fotoUrls,
-            });
+            await criarPost(user.id, montarPostTreinoCompartilhado(shareRegistro, shareTexto, fotoUrls));
             setShareOpen(false);
             goToFeed();
         } catch (err) {
