@@ -5,9 +5,10 @@ import { Footprints, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { CORES, formatPace, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, RecordBadge, SectionHeader } from './DashboardPrimitives';
+import type { DashboardStats, PaceDataPoint } from './useDashboardStats';
 
 type CorridaSectionProps = {
-  stats: any;
+  stats: DashboardStats;
   isDark: boolean;
   showPaceCorrida: boolean;
   setShowPaceCorrida: Dispatch<SetStateAction<boolean>>;
@@ -35,7 +36,7 @@ export default function CorridaSection({
                 <RecordBadge
                   icon={<Zap size={14} />}
                   label="Melhor Pace"
-                  value={`${formatPace(Math.min(...stats.paceData.map((d: any) => d.pace)))} /km`}
+                  value={`${formatPace(Math.min(...stats.paceData.map((d: PaceDataPoint) => d.pace)))} /km`}
                   color={CORES.corrida}
                   isDark={isDark}
                   onClick={() => setShowPaceCorrida(v => !v)}

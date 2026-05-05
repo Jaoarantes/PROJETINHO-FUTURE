@@ -4,6 +4,11 @@ import {
   calcularDistanciaNatacao,
   calcularVolumeExercicio,
   calcularVolumeSessao,
+  type EtapaCorrida,
+  type EtapaNatacao,
+  type ExercicioTreino,
+  type RegistroTreino,
+  type SerieConfig,
 } from '../../types/treino';
 import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
 import {
@@ -18,8 +23,108 @@ import {
   type PeriodoKey,
 } from './dashboardUtils';
 
-export default function useDashboardStats(historicoFiltrado: any[], periodo: PeriodoKey) {
-  return useMemo(() => {
+export type VolumeDataPoint = {
+  label: string;
+  volume: number;
+} & Record<string, string | number>;
+
+export type RadarVolumeDataPoint = {
+  grupo: string;
+  volume: number;
+};
+
+export type ExerciseEvolutionPoint = {
+  label: string;
+  dataISO: string;
+  pesoMax: number;
+  repsMax: number;
+  volume: number;
+  series: number;
+  umRM: number;
+};
+
+export type ExerciseEvolution = {
+  nome: string;
+  dados: ExerciseEvolutionPoint[];
+};
+
+export type CargaMaxItem = {
+  nome: string;
+  cargaMax: number;
+  data: string;
+};
+
+export type CargaEvolucaoPoint = {
+  label: string;
+  cargaMax: number;
+};
+
+export type PaceDataPoint = {
+  label: string;
+  pace: number;
+  distancia: number;
+};
+
+export type DistanceDataPoint = {
+  label: string;
+  distancia: number;
+};
+
+export type FrequencyDataPoint = {
+  labelVisible: string;
+  musculacao: number;
+  corrida: number;
+  natacao: number;
+};
+
+export type MuscleDataPoint = {
+  name: string;
+  value: number;
+};
+
+export type MuscleWeekDataPoint = {
+  label: string;
+} & Record<string, string | number>;
+
+export type DashboardStats = {
+  total: number;
+  musculacao: number;
+  corrida: number;
+  natacao: number;
+  tempoTotal: number;
+  caloriasTotais: number;
+  volumeData: VolumeDataPoint[];
+  volumeMuscleGroups: string[];
+  radarVolumeData: RadarVolumeDataPoint[];
+  exercicioEvolucaoFull: ExerciseEvolution[];
+  paceData: PaceDataPoint[];
+  corridaDistData: DistanceDataPoint[];
+  natacaoData: DistanceDataPoint[];
+  natacaoPaceData: Array<Omit<PaceDataPoint, 'distancia'>>;
+  frequenciaFormatada: FrequencyDataPoint[];
+  melhorVolume: number;
+  melhorVolumeInfo: { nome: string; data: string };
+  maiorDistCorrida: number;
+  maiorDistCorridaInfo: { nome: string; data: string };
+  melhorPaceCorridaInfo: { nome: string; data: string; distancia: number };
+  maiorDistNatacao: number;
+  maiorDistNatacaoInfo: { nome: string; data: string };
+  melhorPaceNatacaoInfo: { nome: string; data: string; distancia: number };
+  cargaMaxData: CargaMaxItem[];
+  cargaEvolucaoPorExercicio: Record<string, CargaEvolucaoPoint[]>;
+  cargaExercicioNomes: string[];
+  ultimoExercicioFeito: string;
+  temMaisExercicios: boolean;
+  streak: number;
+  mediaSemanal: number;
+  muscleData: MuscleDataPoint[];
+  topMuscle: string;
+  muscleWeekData: MuscleWeekDataPoint[];
+  muscleWeekGroups: string[];
+};
+
+export default function useDashboardStats(historicoFiltrado: RegistroTreino[], periodo: PeriodoKey) {
+  return useMemo<DashboardStats>(() => {
     const total = historicoFiltrado.length;
     const musculacao = historicoFiltrado.filter((r) => r.tipo === 'musculacao');
     const corrida = historicoFiltrado.filter((r) => r.tipo === 'corrida');
@@ -33,15 +138,15 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
     const volumeData = [...musculacao]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
       .map((r) => {
-        const entry: Record<string, any> = {
+        const entry: VolumeDataPoint = {
           label: formatDateLabel(getConcluidoDate(r.concluidoEm)),
           volume: calcularVolumeSessao(r.exercicios),
         };
         // Calcular volume por grupo muscular
-        r.exercicios.forEach((ex: any) => {
+        r.exercicios.forEach((ex: ExercicioTreino) => {
           const grupo = ex.exercicio.grupoMuscular || 'Outros';
           allMuscleGroups.add(grupo);
-          entry[grupo] = (entry[grupo] || 0) + calcularVolumeExercicio(ex.series);
+          entry[grupo] = Number(entry[grupo] || 0) + calcularVolumeExercicio(ex.series);
         });
         return entry;
       });
@@ -51,7 +156,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
     const volumePorGrupoTotal: Record<string, number> = {};
     volumeData.forEach(d => {
       volumeMuscleGroups.forEach(grupo => {
-        volumePorGrupoTotal[grupo] = (volumePorGrupoTotal[grupo] || 0) + (d[grupo] || 0);
+        volumePorGrupoTotal[grupo] = (volumePorGrupoTotal[grupo] || 0) + Number(d[grupo] || 0);
       });
     });
     const radarVolumeData = volumeMuscleGroups
@@ -59,17 +164,17 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
       .filter(d => d.volume > 0)
       .sort((a, b) => b.volume - a.volume);
 
-    const exercicioMap = new Map<string, { nome: string; dados: any[] }>();
+    const exercicioMap = new Map<string, ExerciseEvolution>();
     [...musculacao]
       .sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm))
       .forEach((r) => {
-        r.exercicios.forEach((ex: any) => {
+        r.exercicios.forEach((ex: ExercicioTreino) => {
           const nome = ex.exercicio.nome;
           if (!exercicioMap.has(nome)) exercicioMap.set(nome, { nome, dados: [] });
-          const pesoMax = Math.max(...ex.series.map((s: any) => (s as any).peso ?? 0), 0);
-          const repsMax = Math.max(...ex.series.map((s: any) => (s as any).repeticoes ?? 0), 0);
+          const pesoMax = Math.max(...ex.series.map((s: SerieConfig) => s.peso ?? 0), 0);
+          const repsMax = Math.max(...ex.series.map((s: SerieConfig) => s.repeticoes ?? 0), 0);
           const vol = calcularVolumeExercicio(ex.series);
-          const umRMs = ex.series.map((s: any) => calcular1RM((s as any).peso ?? 0, (s as any).repeticoes ?? 0));
+          const umRMs = ex.series.map((s: SerieConfig) => calcular1RM(s.peso ?? 0, s.repeticoes ?? 0));
           const melhor1RM = Math.max(...umRMs, 0);
 
           exercicioMap.get(nome)!.dados.push({
@@ -92,9 +197,9 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
     let ultimoExercicioFeito = '';
     const musculacaoOrdenada = [...musculacao].sort((a, b) => a.concluidoEm.localeCompare(b.concluidoEm));
     musculacaoOrdenada.forEach(r => {
-      r.exercicios.forEach((ex: any) => {
+      r.exercicios.forEach((ex: ExercicioTreino) => {
         const nome = ex.exercicio.nome;
-        const pesoMax = Math.max(...ex.series.map((s: any) => (s as any).peso ?? 0), 0);
+        const pesoMax = Math.max(...ex.series.map((s: SerieConfig) => s.peso ?? 0), 0);
         if (pesoMax <= 0) return;
         if (!cargaMaxPorExercicio[nome] || pesoMax > cargaMaxPorExercicio[nome].cargaMax) {
           cargaMaxPorExercicio[nome] = { nome, cargaMax: pesoMax, data: r.concluidoEm };
@@ -117,7 +222,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
       .map((r) => {
         if (!r.corrida?.etapas) return null;
         const dist = calcularDistanciaCorrida(r.corrida.etapas);
-        const durMin = r.corrida.etapas.reduce((a: number, e: any) => a + (e.duracaoMin ?? 0), 0);
+        const durMin = r.corrida.etapas.reduce((a: number, e: EtapaCorrida) => a + (e.duracaoMin ?? 0), 0);
         const pace = calcPace(dist, durMin);
         if (!pace || pace > 20) return null;
         return {
@@ -153,7 +258,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
       .map((r) => {
         if (!r.natacao?.etapas) return null;
         const distM = calcularDistanciaNatacao(r.natacao.etapas);
-        const durMin = r.natacao.etapas.reduce((a: number, e: any) => a + (e.duracaoMin ?? 0), 0);
+        const durMin = r.natacao.etapas.reduce((a: number, e: EtapaNatacao) => a + (e.duracaoMin ?? 0), 0);
         if (!distM || distM <= 0 || !durMin) return null;
         const pace100m = (durMin / distM) * 100;
         if (pace100m > 20) return null;
@@ -224,7 +329,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
         maiorDistCorrida = dist;
         maiorDistCorridaInfo = { nome: r.nome || 'Corrida', data: r.concluidoEm };
       }
-      const durMin = r.corrida.etapas.reduce((a: number, e: any) => a + (e.duracaoMin ?? 0), 0);
+      const durMin = r.corrida.etapas.reduce((a: number, e: EtapaCorrida) => a + (e.duracaoMin ?? 0), 0);
       const pace = calcPace(dist, durMin);
       if (pace && pace < melhorPaceCorrida && pace <= 20) {
         melhorPaceCorrida = pace;
@@ -243,7 +348,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
         maiorDistNatacao = dist;
         maiorDistNatacaoInfo = { nome: r.nome || 'Natação', data: r.concluidoEm };
       }
-      const durMin = r.natacao.etapas.reduce((a: number, e: any) => a + (e.duracaoMin ?? 0), 0);
+      const durMin = r.natacao.etapas.reduce((a: number, e: EtapaNatacao) => a + (e.duracaoMin ?? 0), 0);
       if (dist > 0 && durMin > 0) {
         const pace100m = (durMin / dist) * 100;
         if (pace100m < melhorPaceNatacao && pace100m <= 20) {
@@ -276,7 +381,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
     // Muscle distribution data
     const muscleCounts: Record<string, number> = {};
     musculacao.forEach(reg => {
-      reg.exercicios?.forEach((ex: any) => {
+      reg.exercicios?.forEach((ex: ExercicioTreino) => {
         if (!ex.exercicio || !ex.series) return;
         const grupo = ex.exercicio.grupoMuscular || 'Outros';
         muscleCounts[grupo] = (muscleCounts[grupo] || 0) + ex.series.length;
@@ -295,7 +400,7 @@ export default function useDashboardStats(historicoFiltrado: any[], periodo: Per
       const weekKey = toLocalDateStr(sw);
       if (!muscleWeekMap.has(weekKey)) muscleWeekMap.set(weekKey, {});
       const weekEntry = muscleWeekMap.get(weekKey)!;
-      reg.exercicios?.forEach((ex: any) => {
+      reg.exercicios?.forEach((ex: ExercicioTreino) => {
         if (!ex.exercicio || !ex.series) return;
         const grupo = ex.exercicio.grupoMuscular || 'Outros';
         allMuscleGroupsWeek.add(grupo);

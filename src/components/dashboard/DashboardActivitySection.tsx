@@ -5,6 +5,7 @@ import { CORES, tooltipProps } from './dashboardUtils';
 import { FreqTooltip, InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, HeatLegend, SectionHeader } from './DashboardPrimitives';
 import HeatmapCalendar from './HeatmapCalendar';
+import type { FrequencyDataPoint } from './useDashboardStats';
 
 export default function DashboardActivitySection({
   heatmap,
@@ -16,12 +17,7 @@ export default function DashboardActivitySection({
   heatmap: Parameters<typeof HeatmapCalendar>[0]['data'];
   heatmapWeeks: number;
   showFullHistory: boolean;
-  frequenciaFormatada: Array<{
-    labelVisible: string;
-    musculacao: number;
-    corrida: number;
-    natacao: number;
-  }>;
+  frequenciaFormatada: FrequencyDataPoint[];
   isDark: boolean;
 }) {
   return (

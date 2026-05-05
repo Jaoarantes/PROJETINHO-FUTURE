@@ -21,11 +21,12 @@ import { Dumbbell, Target, TrendingUp, Trophy, Zap } from 'lucide-react';
 import { CORES, getMuscleColor, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, HeatLegend, RecordBadge, SectionHeader } from './DashboardPrimitives';
+import type { DashboardStats, RadarVolumeDataPoint, ExerciseEvolution } from './useDashboardStats';
 import ExercicioSelect from './ExercicioSelect';
 import ExerciseCard from './ExerciseCard';
 
 type MusculacaoSectionProps = {
-  stats: any;
+  stats: DashboardStats;
   isDark: boolean;
   showVolumeMax: boolean;
   setShowVolumeMax: Dispatch<SetStateAction<boolean>>;
@@ -193,7 +194,7 @@ export default function MusculacaoSection({
                         }} />}
                       />
                       <Bar dataKey="volume" radius={[0, 4, 4, 0]} stroke="none" activeBar={{ stroke: 'none' }}>
-                        {stats.radarVolumeData.map((_: any, index: number) => (
+                        {stats.radarVolumeData.map((_: RadarVolumeDataPoint, index: number) => (
                           <Cell key={`rv-${index}`} fill={index === 0 ? CORES.musculacao : alpha(CORES.musculacao, 0.4)} />
                         ))}
                       </Bar>
@@ -319,7 +320,7 @@ export default function MusculacaoSection({
               {stats.cargaMaxData.length >= 1 ? (() => {
                 const exercicioSelecionado = filtroCargaExercicio || stats.ultimoExercicioFeito;
                 const evolucaoData = stats.cargaEvolucaoPorExercicio[exercicioSelecionado] || [];
-                const cargaMaxDoExercicio = stats.cargaMaxData.find((d: any) => d.nome === exercicioSelecionado)?.cargaMax || 0;
+                const cargaMaxDoExercicio = stats.cargaMaxData.find((d) => d.nome === exercicioSelecionado)?.cargaMax || 0;
                 return (
                   <>
                     {/* Dropdown selector */}
@@ -397,13 +398,13 @@ export default function MusculacaoSection({
 
           {/* Evolucao por exercicio */}
           {stats.exercicioEvolucaoFull.length > 0 && (() => {
-            const evolNomes = stats.exercicioEvolucaoFull.map((e: any) => e.nome);
+            const evolNomes = stats.exercicioEvolucaoFull.map((e: ExerciseEvolution) => e.nome);
             const evolSelecionado = filtroEvolucaoExercicio && evolNomes.includes(filtroEvolucaoExercicio)
               ? filtroEvolucaoExercicio
               : stats.ultimoExercicioFeito && evolNomes.includes(stats.ultimoExercicioFeito)
                 ? stats.ultimoExercicioFeito
                 : evolNomes[0];
-            const exData = stats.exercicioEvolucaoFull.find((e: any) => e.nome === evolSelecionado);
+            const exData = stats.exercicioEvolucaoFull.find((e) => e.nome === evolSelecionado);
             return (
               <>
                 <SectionHeader icon={<TrendingUp size={15} />} title="Evolução por Exercício" isDark={isDark} />

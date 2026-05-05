@@ -5,9 +5,10 @@ import { TrendingUp, Trophy, Waves, Zap } from 'lucide-react';
 import { CORES, formatPace, tooltipProps, tooltipStyle } from './dashboardUtils';
 import { InlineTooltip, LazyChart } from './DashboardChartHelpers';
 import { EmptyState, RecordBadge, SectionHeader } from './DashboardPrimitives';
+import type { DashboardStats } from './useDashboardStats';
 
 type NatacaoSectionProps = {
-  stats: any;
+  stats: DashboardStats;
   isDark: boolean;
   showPaceNatacao: boolean;
   setShowPaceNatacao: Dispatch<SetStateAction<boolean>>;
@@ -45,7 +46,7 @@ export default function NatacaoSection({
                 <RecordBadge
                   icon={<Zap size={14} />}
                   label="Melhor Pace"
-                  value={`${formatPace(Math.min(...stats.natacaoPaceData.map((d: any) => d.pace)))} /100m`}
+                  value={`${formatPace(Math.min(...stats.natacaoPaceData.map((d) => d.pace)))} /100m`}
                   color={CORES.tempo}
                   isDark={isDark}
                   onClick={() => setShowPaceNatacao(v => !v)}
