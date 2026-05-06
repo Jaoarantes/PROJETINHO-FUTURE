@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useMemo, useEffect, useRef } from 'react';
 import {
   Dialog,
   Box,
@@ -26,8 +26,9 @@ import { buscarAlimentos } from '../../services/openFoodFacts';
 import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaService';
 import { useDietaStore } from '../../store/dietaStore';
 import { useAuthContext } from '../../contexts/AuthContext';
-import BarcodeScanner from './BarcodeScanner';
 import type { Alimento, TipoRefeicao } from '../../types/dieta';
+
+const BarcodeScanner = lazy(() => import('./BarcodeScanner'));
 
 interface Props {
   open: boolean;
@@ -519,13 +520,16 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
         </Box>
       </Dialog>
 
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onAlimentoEncontrado={handleBarcodeResult}
-        onCadastrarManualmente={handleCadastrarManualmente}
-      />
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            open={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onAlimentoEncontrado={handleBarcodeResult}
+            onCadastrarManualmente={handleCadastrarManualmente}
+          />
+        </Suspense>
+      )}
 
       {/* Form de cadastro manual */}
       <Dialog

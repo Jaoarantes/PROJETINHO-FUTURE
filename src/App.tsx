@@ -1,16 +1,14 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { CircularProgress, Box } from '@mui/material';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import AppShell from './components/layout/AppShell';
-import PrivateRoute from './components/layout/PrivateRoute';
-import AuthCallback from './pages/auth/AuthCallback';
-import Login from './pages/auth/Login';
 import UpdatePrompt from './components/UpdatePrompt';
 import { supabase } from './supabase';
 
 // Lazy load das páginas pesadas
+const PrivateAppShell = lazy(() => import('./components/layout/PrivateAppShell'));
+const AuthCallback = lazy(() => import('./pages/auth/AuthCallback'));
+const Login = lazy(() => import('./pages/auth/Login'));
 const Registro = lazy(() => import('./pages/auth/Registro'));
 const EsqueceuSenha = lazy(() => import('./pages/auth/EsqueceuSenha'));
 const RedefinirSenha = lazy(() => import('./pages/auth/RedefinirSenha'));
@@ -34,9 +32,29 @@ const NotificacoesConfig = lazy(() => import('./pages/NotificacoesConfig'));
 
 function Loading() {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-      <CircularProgress size={28} />
-    </Box>
+    <div
+      style={{
+        alignItems: 'center',
+        display: 'flex',
+        justifyContent: 'center',
+        minHeight: '60vh',
+      }}
+    >
+      <style>
+        {'@keyframes valere-spin { to { transform: rotate(360deg); } }'}
+      </style>
+      <div
+        aria-label="Carregando"
+        style={{
+          animation: 'valere-spin 0.8s linear infinite',
+          border: '3px solid rgba(255, 107, 44, 0.2)',
+          borderRadius: '50%',
+          borderTopColor: '#FF6B2C',
+          height: 28,
+          width: 28,
+        }}
+      />
+    </div>
   );
 }
 
@@ -92,13 +110,7 @@ export default function App() {
           <Route path="/esqueceu-senha" element={<EsqueceuSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
-          <Route
-            element={
-              <PrivateRoute>
-                <AppShell />
-              </PrivateRoute>
-            }
-          >
+          <Route element={<PrivateAppShell />}>
             <Route path="/treino" element={<TreinoTab />} />
             <Route path="/treino/:id" element={<SessaoTreino />} />
             <Route path="/dieta" element={<DietaTab />} />
