@@ -70,7 +70,7 @@ export default function DietaTab() {
   const atualizarPerfil = useDietaStore((s) => s.atualizarPerfil);
   const carregando = useDietaStore((s) => s.carregando);
   const uid = useDietaStore((s) => s.uid);
-  const diario = useMemo(() => getDiarioAtual(), [dataSelecionada, diarios]);
+  const diario = getDiarioAtual();
   const totais = useMemo(() => calcularMacrosDia(diario.refeicoes), [diario.refeicoes]);
 
   const corProteina = '#16A34A';
@@ -458,7 +458,7 @@ function SummaryItem({ label, value, highlight, warn }: { label: string; value: 
 
 /* ── Refeição Card ─────────────────────────── */
 function RefeicaoCard({
-  refeicao, expandido, onToggle, onAdicionar, onQuickAdd, onRemoverItem, onRemoverRefeicao, metas: _metas,
+  refeicao, expandido, onToggle, onAdicionar, onQuickAdd, onRemoverItem, onRemoverRefeicao,
 }: {
   refeicao: Refeicao;
   expandido: boolean;
@@ -467,7 +467,7 @@ function RefeicaoCard({
   onQuickAdd: () => void;
   onRemoverItem: (id: string) => void;
   onRemoverRefeicao: () => void;
-  metas: MetasDieta;
+  metas?: MetasDieta;
 }) {
   const macros = calcularMacrosRefeicao(refeicao);
   const deleteItem = useConfirmDelete();
