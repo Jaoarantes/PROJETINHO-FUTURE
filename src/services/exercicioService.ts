@@ -1,6 +1,21 @@
 import { supabase } from '../supabase';
 import type { Exercicio } from '../types/treino';
 
+interface ExercicioCustomRow {
+  id: number;
+  nome: string;
+  grupo_muscular: string;
+  musculos_secundarios: string | undefined;
+  descricao: string | undefined;
+  equipamento: string | undefined;
+  gif_url: string | undefined;
+  is_custom: boolean;
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export async function carregarExerciciosCustom(uid: string): Promise<Exercicio[]> {
   try {
     const { data, error } = await supabase
@@ -13,7 +28,7 @@ export async function carregarExerciciosCustom(uid: string): Promise<Exercicio[]
       throw error;
     }
 
-    return (data || []).map((row: any) => ({
+    return ((data || []) as ExercicioCustomRow[]).map((row) => ({
       id: row.id,
       nome: row.nome,
       grupoMuscular: row.grupo_muscular,
@@ -23,8 +38,8 @@ export async function carregarExerciciosCustom(uid: string): Promise<Exercicio[]
       gifUrl: row.gif_url,
       isCustom: row.is_custom,
     }));
-  } catch (err: any) {
-    console.error('[exercicioService] Exceção no carregarExerciciosCustom:', err.message);
+  } catch (err: unknown) {
+    console.error('[exercicioService] Exceção no carregarExerciciosCustom:', errorMessage(err));
     return [];
   }
 }

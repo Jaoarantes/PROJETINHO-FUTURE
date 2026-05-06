@@ -14,6 +14,16 @@ export interface UserProfile {
 const profileCache = new Map<string, { profile: UserProfile; ts: number }>();
 const PROFILE_CACHE_TTL = 60_000; // 60 segundos
 
+interface ProfileRow {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  photo_url: string | null;
+  email: string | null;
+  is_private: boolean | null;
+  updated_at: string;
+}
+
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const cached = profileCache.get(uid);
   if (cached && Date.now() - cached.ts < PROFILE_CACHE_TTL) {
@@ -31,15 +41,16 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     return null;
   }
   if (!data) return null;
+  const row = data as ProfileRow;
 
   const profile: UserProfile = {
-    uid: data.id,
-    displayName: data.display_name,
-    username: data.username || null,
-    photoURL: data.photo_url,
-    email: data.email,
-    isPrivate: data.is_private || false,
-    updatedAt: data.updated_at,
+    uid: row.id,
+    displayName: row.display_name,
+    username: row.username || null,
+    photoURL: row.photo_url,
+    email: row.email,
+    isPrivate: row.is_private || false,
+    updatedAt: row.updated_at,
   };
   profileCache.set(uid, { profile, ts: Date.now() });
   return profile;
@@ -113,7 +124,7 @@ export async function searchUsers(query: string, currentUserId: string): Promise
     .neq('id', currentUserId)
     .limit(20);
   if (error || !data) return [];
-  return data.map((p: any) => ({
+  return (data as ProfileRow[]).map((p) => ({
     id: p.id,
     displayName: p.display_name,
     username: p.username || null,

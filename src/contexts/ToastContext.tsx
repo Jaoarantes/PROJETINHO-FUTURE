@@ -11,11 +11,11 @@ interface ToastOptions {
   duration?: number;
 }
 
-interface ToastContextValue {
+export interface ToastContextValue {
   showToast: (options: ToastOptions) => void;
 }
 
-const ToastContext = createContext<ToastContextValue | null>(null);
+export const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function useToast() {
   const ctx = useContext(ToastContext);

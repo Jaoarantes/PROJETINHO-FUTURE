@@ -1,11 +1,32 @@
 import { create } from 'zustand';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { FeedPost } from '../types/feed';
+import type { FeedPost, WorkoutSummary } from '../types/feed';
 import * as feedService from '../services/feedService';
 import { supabase } from '../supabase';
 
 // Lock para evitar cliques rápidos duplicados no like
 const likeLocks = new Set<string>();
+
+interface FeedPostRealtimeRow {
+  id: string;
+  user_id: string;
+  registro_id: string | null;
+  tipo_treino: string | null;
+  nome_treino: string | null;
+  duracao_segundos: number | null;
+  resumo: WorkoutSummary | null;
+  texto: string | null;
+  foto_urls: string[] | null;
+  likes_count: number | null;
+  comments_count: number | null;
+  created_at: string;
+}
+
+interface ProfileRealtimeRow {
+  id: string;
+  display_name: string | null;
+  photo_url: string | null;
+}
 
 interface FeedState {
   posts: FeedPost[];
@@ -22,7 +43,7 @@ interface FeedState {
     tipoTreino?: string | null;
     nomeTreino?: string | null;
     duracaoSegundos?: number | null;
-    resumo?: any;
+    resumo?: WorkoutSummary | null;
     texto?: string | null;
     fotoUrls?: string[];
   }) => Promise<void>;
@@ -158,7 +179,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'feed_posts' },
         (payload) => {
-          const row = payload.new as any;
+          const row = payload.new as FeedPostRealtimeRow;
           set((state) => ({
             posts: state.posts.map((p) =>
               p.id === row.id
@@ -178,7 +199,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'feed_posts' },
         async (payload) => {
-          const row = payload.new as any;
+          const row = payload.new as FeedPostRealtimeRow;
           // Ignorar posts do próprio usuário (já adicionados via criarPost)
           if (row.user_id === uid) return;
 
@@ -218,7 +239,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'feed_posts' },
         (payload) => {
-          const oldRow = payload.old as any;
+          const oldRow = payload.old as Pick<FeedPostRealtimeRow, 'id'>;
           set((state) => ({
             posts: state.posts.filter((p) => p.id !== oldRow.id),
           }));
@@ -229,7 +250,7 @@ export const useFeedStore = create<FeedState>()((set, get) => ({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload) => {
-          const row = payload.new as any;
+          const row = payload.new as ProfileRealtimeRow;
           get().atualizarPerfilAutor(row.id, row.display_name, row.photo_url);
         },
       )

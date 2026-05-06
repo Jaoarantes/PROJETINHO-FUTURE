@@ -42,7 +42,7 @@ export default function AppShell() {
       useExercicioCustomStore.getState().limpar();
       useDietaStore.getState().limpar();
     }
-  }, [user?.id]);
+  }, [user]);
 
   useAchievementDetector(user?.id, socialStats);
 

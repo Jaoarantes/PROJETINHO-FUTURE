@@ -119,8 +119,6 @@ export default function PerfilUsuario() {
     }
   }, [userId, uid]);
 
-  if (!userId || !uid) return null;
-
   const isOwner = uid === userId;
 
   const levelInfo = useMemo(() => calcularLevelInfo(totalXP), [totalXP]);
@@ -129,6 +127,8 @@ export default function PerfilUsuario() {
   const isFollowing = followStatus === 'accepted';
   const isPending = followStatus === 'pending';
   const canSeeContent = isOwner || !isPrivate || isFollowing;
+
+  if (!userId || !uid) return null;
 
   const handleFollow = async () => {
     if (followLoading) return;

@@ -4,7 +4,10 @@ import { useExercicioCustomStore } from '../store/exercicioCustomStore';
 
 export function useExerciciosCustom() {
   const { user } = useAuthContext();
-  const { carregar, limpar, exerciciosCustom, carregando } = useExercicioCustomStore();
+  const carregar = useExercicioCustomStore((s) => s.carregar);
+  const limpar = useExercicioCustomStore((s) => s.limpar);
+  const exerciciosCustom = useExercicioCustomStore((s) => s.exerciciosCustom);
+  const carregando = useExercicioCustomStore((s) => s.carregando);
 
   useEffect(() => {
     if (user) {
@@ -12,7 +15,7 @@ export function useExerciciosCustom() {
     } else {
       limpar();
     }
-  }, [user?.id]);
+  }, [carregar, limpar, user]);
 
   return { exerciciosCustom, carregando };
 }

@@ -49,7 +49,7 @@ export default function FeedTab() {
       }
     }
     return () => pararRealtime();
-  }, [uid, hasUsername]);
+  }, [carregarFeed, hasUsername, iniciarRealtime, pararRealtime, posts.length, uid]);
 
   // Contar notificações não lidas (poll a cada 15s)
   useEffect(() => {

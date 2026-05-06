@@ -11,7 +11,7 @@ import { useTreinoStore } from '../../store/treinoStore';
 import { useFeedStore } from '../../store/feedStore';
 import SuccessOverlay from '../../components/SuccessOverlay';
 import { calcularVolumeSessao } from '../../types/treino';
-import type { RegistroTreino, SessaoTreino } from '../../types/treino';
+import type { ExercicioTreino, RegistroTreino, SerieConfig, SessaoTreino } from '../../types/treino';
 import type { WorkoutSummary } from '../../types/feed';
 import { uploadFeedPhoto, compressImage } from '../../services/feedService';
 import PhotoUploader from '../../components/feed/PhotoUploader';
@@ -47,7 +47,7 @@ function buildSummary(reg: RegistroTreino): WorkoutSummary {
     nome: e.exercicio.nome,
     sets: e.series.length,
     exercicioId: e.exercicio.id,
-    series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
+    series: e.series.map((s: SerieConfig) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
   }));
   return {
     exerciciosCount: reg.exercicios.length,
@@ -66,7 +66,7 @@ function buildSummaryFromSessao(sessao: SessaoTreino): WorkoutSummary {
     nome: e.exercicio.nome,
     sets: e.series.length,
     exercicioId: e.exercicio.id,
-    series: e.series.map((s: any) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
+    series: e.series.map((s: SerieConfig) => ({ reps: s.repeticoes ?? 0, peso: s.peso, tipo: s.tipo || 'normal' })),
   }));
   return {
     exerciciosCount: sessao.exercicios.length,
@@ -151,7 +151,7 @@ export default function CriarPost() {
 
       setSuccessOpen(true);
       setTimeout(() => navigate('/feed'), 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao criar post:', err);
       setError('Erro ao publicar. Tente novamente.');
     } finally {
@@ -265,7 +265,7 @@ export default function CriarPost() {
             {(() => {
               const exercCount = selectedItem.exercicios?.length || 0;
               const volume = calcularVolumeSessao(selectedItem.exercicios || []);
-              const grupos = [...new Set((selectedItem.exercicios || []).map((e: any) => e.exercicio.grupoMuscular))];
+              const grupos = [...new Set((selectedItem.exercicios || []).map((e: ExercicioTreino) => e.exercicio.grupoMuscular))];
               if (exercCount === 0 && volume === 0) return null;
               return (
                 <Box sx={{ px: 2, pb: 1.5 }}>

@@ -12,6 +12,21 @@ export interface SharedWorkout {
   createdAt: string;
 }
 
+interface SharedWorkoutRow {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  sessao_data: SessaoTreino;
+  status: SharedWorkout['status'];
+  created_at: string;
+}
+
+interface ShareProfileRow {
+  id: string;
+  display_name: string | null;
+  photo_url: string | null;
+}
+
 /** Compartilhar treino com um seguidor */
 export async function compartilharTreino(
   fromUserId: string,
@@ -46,23 +61,25 @@ export async function carregarTreinoCompartilhado(shareId: string): Promise<Shar
     .maybeSingle();
 
   if (error || !data) return null;
+  const share = data as SharedWorkoutRow;
 
   // Buscar perfil do remetente
   const { data: profile } = await supabase
     .from('profiles')
     .select('display_name, photo_url')
-    .eq('id', data.from_user_id)
+    .eq('id', share.from_user_id)
     .maybeSingle();
+  const fromProfile = profile as Omit<ShareProfileRow, 'id'> | null;
 
   return {
-    id: data.id,
-    fromUserId: data.from_user_id,
-    fromUserName: profile?.display_name || null,
-    fromUserPhoto: profile?.photo_url || null,
-    toUserId: data.to_user_id,
-    sessaoData: data.sessao_data as SessaoTreino,
-    status: data.status,
-    createdAt: data.created_at,
+    id: share.id,
+    fromUserId: share.from_user_id,
+    fromUserName: fromProfile?.display_name || null,
+    fromUserPhoto: fromProfile?.photo_url || null,
+    toUserId: share.to_user_id,
+    sessaoData: share.sessao_data,
+    status: share.status,
+    createdAt: share.created_at,
   };
 }
 
@@ -77,17 +94,18 @@ export async function listarTreinosPendentes(userId: string): Promise<SharedWork
 
   if (error || !data) return [];
 
-  const fromIds = [...new Set(data.map((d: any) => d.from_user_id))];
+  const shares = data as SharedWorkoutRow[];
+  const fromIds = [...new Set(shares.map((d) => d.from_user_id))];
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', fromIds);
 
   const profileMap = new Map(
-    (profiles || []).map((p: any) => [p.id, { name: p.display_name, photo: p.photo_url }])
+    ((profiles || []) as ShareProfileRow[]).map((p) => [p.id, { name: p.display_name, photo: p.photo_url }])
   );
 
-  return data.map((row: any) => {
+  return shares.map((row) => {
     const p = profileMap.get(row.from_user_id);
     return {
       id: row.id,
@@ -95,7 +113,7 @@ export async function listarTreinosPendentes(userId: string): Promise<SharedWork
       fromUserName: p?.name || null,
       fromUserPhoto: p?.photo || null,
       toUserId: row.to_user_id,
-      sessaoData: row.sessao_data as SessaoTreino,
+      sessaoData: row.sessao_data,
       status: row.status,
       createdAt: row.created_at,
     };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../supabase';
 import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userService';
@@ -10,50 +10,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const profileLoaded = useRef<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-      let u = session?.user ?? null;
-
-      // Fallback para iOS/PWA: se getSession falhou, tenta getUser (força refresh do token)
-      if (!u) {
-        try {
-          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
-          if (refreshedUser) u = refreshedUser;
-        } catch { /* sem sessão válida */ }
-      }
-
-      setUser(u);
-      if (u) {
-        loadProfile(u);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      const u = session?.user ?? null;
-      setUser(u);
-
-      if (u && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-        loadProfile(u);
-      } else if (!u) {
-        setProfile(null);
-        profileLoaded.current = null;
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  async function loadProfile(u: User) {
+  const loadProfile = useCallback(async (u: User) => {
     if (profileLoaded.current === u.id) return;
     profileLoaded.current = u.id;
 
@@ -129,7 +86,50 @@ export function useAuth() {
       }
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      let u = session?.user ?? null;
+
+      // Fallback para iOS/PWA: se getSession falhou, tenta getUser (força refresh do token)
+      if (!u) {
+        try {
+          const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+          if (refreshedUser) u = refreshedUser;
+        } catch { /* sem sessão válida */ }
+      }
+
+      setUser(u);
+      if (u) {
+        loadProfile(u);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      const u = session?.user ?? null;
+      setUser(u);
+
+      if (u && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+        loadProfile(u);
+      } else if (!u) {
+        setProfile(null);
+        profileLoaded.current = null;
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadProfile]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });

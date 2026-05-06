@@ -2,9 +2,15 @@ import { useEffect, useState } from 'react';
 import { Box, Typography, IconButton, Drawer, Chip } from '@mui/material';
 import { X, Play, Square, RotateCcw } from 'lucide-react';
 
+type WindowWithWebkitAudio = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
 function playBeep() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioCtor = window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
+    if (!AudioCtor) return;
+    const ctx = new AudioCtor();
     const beeps = [
       { freq: 880, start: 0, dur: 0.15 },
       { freq: 880, start: 0.25, dur: 0.15 },
@@ -65,11 +71,13 @@ export default function TimerDescanso({ open, onClose }: Props) {
   // Reseta quando fecha
   useEffect(() => {
     if (!open) {
-      setAtivo(false);
-      setConcluido(false);
-      setRestante(duracao);
+      queueMicrotask(() => {
+        setAtivo(false);
+        setConcluido(false);
+        setRestante(duracao);
+      });
     }
-  }, [open]);
+  }, [open, duracao]);
 
   const iniciar = (d?: number) => {
     const dur = d ?? duracao;

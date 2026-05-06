@@ -18,18 +18,21 @@ export default function StravaCallback() {
         const erro = searchParams.get('error');
 
         if (erro) {
-            setStatus('error');
-            setErrorMsg('Acesso negado no Strava.');
+            queueMicrotask(() => {
+                setStatus('error');
+                setErrorMsg('Acesso negado no Strava.');
+            });
             return;
         }
 
         if (!code || !user) {
-            setStatus('error');
-            setErrorMsg('Código de autorização inválido ou usuário não autenticado.');
+            queueMicrotask(() => {
+                setStatus('error');
+                setErrorMsg('Código de autorização inválido ou usuário não autenticado.');
+            });
             return;
         }
 
-        // Processar autenticação
         authenticateStrava(code)
             .then(async (data) => {
                 if (!data.access_token) {
@@ -42,7 +45,6 @@ export default function StravaCallback() {
                     athleteId: data.athlete?.id,
                 });
                 setStatus('success');
-                // Redireciona de volta após 2 segundos
                 setTimeout(() => {
                     navigate('/perfil');
                 }, 2000);
@@ -73,7 +75,7 @@ export default function StravaCallback() {
                         Conectado com sucesso!
                     </Typography>
                     <Typography color="text.secondary">
-                        Suas atividades serão sincronizadas magicamente 🤩
+                        Suas atividades serão sincronizadas automaticamente.
                     </Typography>
                 </Box>
             )}

@@ -106,8 +106,8 @@ async function watchPositionNative(
             },
         );
         return watchId;
-    } catch (err: any) {
-        errorCallback(err?.message || 'Erro ao iniciar GPS nativo');
+    } catch (err: unknown) {
+        errorCallback(err instanceof Error ? err.message : 'Erro ao iniciar GPS nativo');
         return '';
     }
 }
@@ -172,19 +172,21 @@ export function useGPSTracker(): GPSTrackingResult {
     // Restaurar estado do store (ex: reload)
     useEffect(() => {
         if (treinoAtivo) {
-            setDistanceKm(treinoAtivo.distanceKm || 0);
-            distanceRef.current = treinoAtivo.distanceKm || 0;
-            setCoordinates(treinoAtivo.coordinates || []);
-            coordsRef.current = treinoAtivo.coordinates || [];
-            setIsActive(true);
-            setIsPaused(!!treinoAtivo.pausadoEm);
-            isPausedRef.current = !!treinoAtivo.pausadoEm;
+            queueMicrotask(() => {
+                setDistanceKm(treinoAtivo.distanceKm || 0);
+                distanceRef.current = treinoAtivo.distanceKm || 0;
+                setCoordinates(treinoAtivo.coordinates || []);
+                coordsRef.current = treinoAtivo.coordinates || [];
+                setIsActive(true);
+                setIsPaused(!!treinoAtivo.pausadoEm);
+                isPausedRef.current = !!treinoAtivo.pausadoEm;
 
-            if (treinoAtivo.coordinates && treinoAtivo.coordinates.length > 0) {
-                lastCoord.current = treinoAtivo.coordinates[treinoAtivo.coordinates.length - 1];
-            }
+                if (treinoAtivo.coordinates && treinoAtivo.coordinates.length > 0) {
+                    lastCoord.current = treinoAtivo.coordinates[treinoAtivo.coordinates.length - 1];
+                }
+            });
         }
-    }, [treinoAtivo?.sessaoId]);
+    }, [treinoAtivo]);
 
     // Persistir GPS no store
     useEffect(() => {

@@ -18,7 +18,7 @@ import { useConfirmDelete } from '../hooks/useConfirmDelete';
 import type { RegistroPeso } from '../services/dietaService';
 import { STRAVA_AUTH_URL, getAllStravaActivities, getStravaActivityDetail, refreshStravaToken } from '../services/stravaApi';
 import type { StravaAuthData, StravaActivity } from '../types/strava';
-import { calcularVolumeSessao } from '../types/treino';
+import { calcularVolumeSessao, type RegistroTreino } from '../types/treino';
 import { supabase } from '../supabase';
 
 import { uploadProfilePicture, removeProfilePicture } from '../services/userService';
@@ -132,7 +132,7 @@ export default function Perfil() {
           .select('id')
           .eq('user_id', user.id)
           .in('id', stravaIds.slice(i, i + 500));
-        (chunk || []).forEach((r: any) => idsJaImportados.add(r.id));
+        ((chunk || []) as { id: string }[]).forEach((r) => idsJaImportados.add(r.id));
       }
 
       // Filtrar apenas não-importadas ainda
@@ -160,9 +160,10 @@ export default function Perfil() {
         setStravaTab(0);
         setStravaModalOpen(true);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Strava sync error:', err);
-      if (err?.message?.includes('token') || err?.message?.includes('Token') || err?.message?.includes('atualizar')) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('token') || message.includes('Token') || message.includes('atualizar')) {
         // Token refresh failed - need to re-authenticate
         setStravaAuth(null);
         setSnackMsg('Sessão do Strava expirada. Conecte novamente.');
@@ -216,7 +217,7 @@ export default function Perfil() {
       if (!detail.map?.summary_polyline && t.map?.summary_polyline) {
         detail = {
           ...detail,
-          map: { ...detail.map, summary_polyline: t.map.summary_polyline } as any,
+          map: { ...detail.map, summary_polyline: t.map.summary_polyline } as NonNullable<StravaActivity['map']>,
         };
       }
 
@@ -246,7 +247,7 @@ export default function Perfil() {
         else if (detail.moving_time >= 1800) xpParaGanhar += 25;
       }
 
-      const registro: any = {
+      const registro: RegistroTreino = {
         id: `strava_${t.id}`,
         sessaoId: `strava_source`,
         nome: detail.name,
@@ -309,9 +310,10 @@ export default function Perfil() {
       if (isRun || (!isSwim && !isMusculacao && tipoFallback === 'corrida')) {
         const etapaTipo = t.type === 'Ride' ? 'bicicleta' : t.type === 'Walk' || t.type === 'Hike' ? 'caminhada' : 'corrida';
         registro.corrida = {
+          id: `strava_corrida_${t.id}`,
           etapas: [{
             id: t.id.toString(),
-            tipo: etapaTipo,
+            tipo: etapaTipo as NonNullable<RegistroTreino['corrida']>['etapas'][number]['tipo'],
             distanciaKm: Number((detail.distance / 1000).toFixed(2)),
             duracaoMin: Math.round(detail.moving_time / 60),
             duracaoSegundos: detail.moving_time,
@@ -319,6 +321,7 @@ export default function Perfil() {
         };
       } else if (isSwim) {
         registro.natacao = {
+          id: `strava_natacao_${t.id}`,
           etapas: [{
             id: t.id.toString(),
             estilo: 'livre',

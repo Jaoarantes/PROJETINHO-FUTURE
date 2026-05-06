@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, IconButton, CircularProgress } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
@@ -17,19 +17,19 @@ export default function PostDetalhe() {
   const editarPost = useFeedStore((s) => s.editarPost);
   const atualizarContadorComentarios = useFeedStore((s) => s.atualizarContadorComentarios);
   const carregarFeed = useFeedStore((s) => s.carregarFeed);
-  const [loading, setLoading] = useState(false);
+  const loadRequestedFor = useRef<string | null>(null);
 
   const uid = user?.id;
   const post = posts.find((p) => p.id === postId);
 
   useEffect(() => {
-    if (!post && uid && !loading) {
-      setLoading(true);
-      carregarFeed(uid, true).finally(() => setLoading(false));
+    if (!post && uid && loadRequestedFor.current !== uid) {
+      loadRequestedFor.current = uid;
+      carregarFeed(uid, true).catch(console.error);
     }
-  }, [post, uid]);
+  }, [carregarFeed, post, uid]);
 
-  if (loading || !post) {
+  if (!post) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', pt: 10 }}>
         <CircularProgress size={28} />

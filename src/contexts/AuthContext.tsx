@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { User } from '@supabase/supabase-js';
 import type { UserProfile } from '../services/userService';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
@@ -15,7 +15,7 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -34,3 +34,4 @@ export function useAuthContext() {
   }
   return context;
 }
+

@@ -6,7 +6,7 @@ import { Clock, Calendar, MapPin, Gauge, Dumbbell, Waves, Trash2, Info, Navigati
 import { useTreinoStore } from '../store/treinoStore';
 import { formatPace } from '../utils/geoUtils';
 import { calcularCaloriasTreino } from '../utils/calorieCalculator';
-import { calcularDistanciaCorrida, calcularDistanciaNatacao } from '../types/treino';
+import { calcularDistanciaCorrida, calcularDistanciaNatacao, type RegistroTreino } from '../types/treino';
 import ConfirmDeleteDialog from '../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../hooks/useConfirmDelete';
 import { computeAllTimePRs } from '../utils/prSystem';
@@ -38,9 +38,9 @@ function formatarDataGrupo(isoString: string): string {
   }).format(data);
 }
 
-function agruparPorData(registros: { concluidoEm: string;[key: string]: any }[]) {
-  const grupos: { data: string; label: string; registros: any[] }[] = [];
-  const mapa = new Map<string, any[]>();
+function agruparPorData(registros: RegistroTreino[]) {
+  const grupos: { data: string; label: string; registros: RegistroTreino[] }[] = [];
+  const mapa = new Map<string, RegistroTreino[]>();
   const ordemChaves: string[] = [];
 
   for (const reg of registros) {

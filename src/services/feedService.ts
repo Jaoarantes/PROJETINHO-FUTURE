@@ -1,7 +1,92 @@
 import { supabase } from '../supabase';
-import type { FeedPost, FeedComment, FeedNotification } from '../types/feed';
+import type { FeedPost, FeedComment, FeedNotification, WorkoutSummary } from '../types/feed';
 
 const PAGE_SIZE = 5;
+
+interface ProfileRow {
+  id: string;
+  display_name: string | null;
+  photo_url: string | null;
+}
+
+interface FeedPostRow {
+  id: string;
+  user_id: string;
+  registro_id: string | null;
+  tipo_treino: string | null;
+  nome_treino: string | null;
+  duracao_segundos: number | null;
+  resumo: WorkoutSummary | null;
+  texto: string | null;
+  foto_urls: string[] | null;
+  likes_count: number | null;
+  comments_count: number | null;
+  created_at: string;
+}
+
+interface FeedLikeRow {
+  post_id: string;
+}
+
+interface FeedCommentRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  texto: string;
+  created_at: string;
+  parent_id: string | null;
+}
+
+interface FeedNotificationRow {
+  id: string;
+  user_id: string;
+  actor_id: string;
+  tipo: FeedNotification['tipo'];
+  post_id: string | null;
+  texto: string | null;
+  lida: boolean | null;
+  created_at: string;
+}
+
+interface FollowIdRow {
+  follower_id?: string;
+  following_id?: string;
+}
+
+interface FollowStatusRow {
+  status: FollowStatus;
+}
+
+interface SocialPostRow {
+  id: string;
+  foto_urls: string[] | null;
+}
+
+function mapProfiles(profiles: ProfileRow[] | null | undefined) {
+  return new Map(
+    (profiles || []).map((p) => [p.id, { name: p.display_name, photo: p.photo_url }]),
+  );
+}
+
+function mapPost(row: FeedPostRow, author: { name: string | null; photo: string | null } | undefined, likedByMe: boolean): FeedPost {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    registroId: row.registro_id,
+    tipoTreino: row.tipo_treino,
+    nomeTreino: row.nome_treino,
+    duracaoSegundos: row.duracao_segundos,
+    resumo: row.resumo,
+    texto: row.texto,
+    fotoUrls: row.foto_urls || [],
+    likesCount: row.likes_count || 0,
+    commentsCount: row.comments_count || 0,
+    createdAt: row.created_at,
+    authorName: author?.name || null,
+    authorPhoto: author?.photo || null,
+    likedByMe,
+  };
+}
 
 export async function carregarFeed(uid: string, page: number): Promise<FeedPost[]> {
   const from = page * PAGE_SIZE;
@@ -17,46 +102,26 @@ export async function carregarFeed(uid: string, page: number): Promise<FeedPost[
   if (!posts || posts.length === 0) return [];
 
   // Buscar perfis dos autores
-  const userIds = [...new Set(posts.map((p: any) => p.user_id))];
+  const typedPosts = posts as FeedPostRow[];
+  const userIds = [...new Set(typedPosts.map((p) => p.user_id))];
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', userIds);
 
-  const profileMap = new Map(
-    (profiles || []).map((p: any) => [p.id, { name: p.display_name, photo: p.photo_url }])
-  );
+  const profileMap = mapProfiles(profiles as ProfileRow[] | null);
 
   // Verificar quais o usuário curtiu
-  const postIds = posts.map((p: any) => p.id);
+  const postIds = typedPosts.map((p) => p.id);
   const { data: myLikes } = await supabase
     .from('feed_likes')
     .select('post_id')
     .eq('user_id', uid)
     .in('post_id', postIds);
 
-  const likedSet = new Set((myLikes || []).map((l: any) => l.post_id));
+  const likedSet = new Set(((myLikes || []) as FeedLikeRow[]).map((l) => l.post_id));
 
-  return posts.map((row: any) => {
-    const author = profileMap.get(row.user_id);
-    return {
-      id: row.id,
-      userId: row.user_id,
-      registroId: row.registro_id,
-      tipoTreino: row.tipo_treino,
-      nomeTreino: row.nome_treino,
-      duracaoSegundos: row.duracao_segundos,
-      resumo: row.resumo,
-      texto: row.texto,
-      fotoUrls: row.foto_urls || [],
-      likesCount: row.likes_count || 0,
-      commentsCount: row.comments_count || 0,
-      createdAt: row.created_at,
-      authorName: author?.name || null,
-      authorPhoto: author?.photo || null,
-      likedByMe: likedSet.has(row.id),
-    };
-  });
+  return typedPosts.map((row) => mapPost(row, profileMap.get(row.user_id), likedSet.has(row.id)));
 }
 
 export async function criarPost(uid: string, post: {
@@ -65,7 +130,7 @@ export async function criarPost(uid: string, post: {
   tipoTreino?: string | null;
   nomeTreino?: string | null;
   duracaoSegundos?: number | null;
-  resumo?: any;
+  resumo?: WorkoutSummary | null;
   texto?: string | null;
   fotoUrls?: string[];
 }): Promise<void> {
@@ -164,17 +229,16 @@ export async function carregarComentarios(postId: string): Promise<FeedComment[]
   if (error) throw error;
   if (!comments || comments.length === 0) return [];
 
-  const userIds = [...new Set(comments.map((c: any) => c.user_id))];
+  const typedComments = comments as FeedCommentRow[];
+  const userIds = [...new Set(typedComments.map((c) => c.user_id))];
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', userIds);
 
-  const profileMap = new Map(
-    (profiles || []).map((p: any) => [p.id, { name: p.display_name, photo: p.photo_url }])
-  );
+  const profileMap = mapProfiles(profiles as ProfileRow[] | null);
 
-  return comments.map((row: any) => {
+  return typedComments.map((row) => {
     const author = profileMap.get(row.user_id);
     return {
       id: row.id,
@@ -278,17 +342,16 @@ export async function carregarNotificacoes(uid: string): Promise<FeedNotificatio
   if (error) throw error;
   if (!data || data.length === 0) return [];
 
-  const actorIds = [...new Set(data.map((n: any) => n.actor_id))];
+  const typedNotifications = data as FeedNotificationRow[];
+  const actorIds = [...new Set(typedNotifications.map((n) => n.actor_id))];
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', actorIds);
 
-  const profileMap = new Map(
-    (profiles || []).map((p: any) => [p.id, { name: p.display_name, photo: p.photo_url }])
-  );
+  const profileMap = mapProfiles(profiles as ProfileRow[] | null);
 
-  return data.map((row: any) => {
+  return typedNotifications.map((row) => {
     const actor = profileMap.get(row.actor_id);
     return {
       id: row.id,
@@ -349,40 +412,26 @@ export async function carregarMeusPosts(uid: string): Promise<FeedPost[]> {
 
   if (error) throw error;
   if (!posts || posts.length === 0) return [];
+  const typedPosts = posts as FeedPostRow[];
 
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .eq('id', uid);
 
-  const author = profiles?.[0];
+  const authorProfile = (profiles as ProfileRow[] | null | undefined)?.[0];
+  const author = authorProfile ? { name: authorProfile.display_name, photo: authorProfile.photo_url } : undefined;
 
-  const postIds = posts.map((p: any) => p.id);
+  const postIds = typedPosts.map((p) => p.id);
   const { data: myLikes } = await supabase
     .from('feed_likes')
     .select('post_id')
     .eq('user_id', uid)
     .in('post_id', postIds);
 
-  const likedSet = new Set((myLikes || []).map((l: any) => l.post_id));
+  const likedSet = new Set(((myLikes || []) as FeedLikeRow[]).map((l) => l.post_id));
 
-  return posts.map((row: any) => ({
-    id: row.id,
-    userId: row.user_id,
-    registroId: row.registro_id,
-    tipoTreino: row.tipo_treino,
-    nomeTreino: row.nome_treino,
-    duracaoSegundos: row.duracao_segundos,
-    resumo: row.resumo,
-    texto: row.texto,
-    fotoUrls: row.foto_urls || [],
-    likesCount: row.likes_count || 0,
-    commentsCount: row.comments_count || 0,
-    createdAt: row.created_at,
-    authorName: author?.display_name || null,
-    authorPhoto: author?.photo_url || null,
-    likedByMe: likedSet.has(row.id),
-  }));
+  return typedPosts.map((row) => mapPost(row, author, likedSet.has(row.id)));
 }
 
 export async function uploadFeedPhoto(uid: string, file: File): Promise<string> {
@@ -419,10 +468,10 @@ export async function carregarSocialStats(uid: string): Promise<SocialStats> {
     supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', uid).eq('status', 'accepted'),
   ]);
 
-  const posts = postsRes.data || [];
-  const postIds = posts.map((p: any) => p.id);
+  const posts = (postsRes.data || []) as SocialPostRow[];
+  const postIds = posts.map((p) => p.id);
   const totalPosts = posts.length;
-  const postsComFoto = posts.filter((p: any) => p.foto_urls && p.foto_urls.length > 0).length;
+  const postsComFoto = posts.filter((p) => p.foto_urls && p.foto_urls.length > 0).length;
 
   let totalChamasRecebidas = 0;
   let totalComentariosRecebidos = 0;
@@ -471,7 +520,7 @@ export async function checkFollowStatus(followerId: string, followingId: string)
     .eq('follower_id', followerId)
     .eq('following_id', followingId)
     .maybeSingle();
-  const status: FollowStatus = (error || !data) ? null : ((data.status as FollowStatus) || 'accepted');
+  const status: FollowStatus = (error || !data) ? null : (((data as FollowStatusRow).status) || 'accepted');
   followStatusCache.set(key, { status, ts: Date.now() });
   return status;
 }
@@ -490,7 +539,7 @@ export async function toggleFollow(followerId: string, followingId: string, isPr
     .eq('follower_id', followerId)
     .eq('following_id', followingId)
     .maybeSingle();
-  const status: FollowStatus = existingFollow ? (existingFollow.status as FollowStatus) || 'accepted' : null;
+  const status: FollowStatus = existingFollow ? ((existingFollow as FollowStatusRow).status) || 'accepted' : null;
   if (status) {
     // Already following or pending → unfollow / cancel request
     await supabase
@@ -569,14 +618,14 @@ export async function listPendingRequests(userId: string): Promise<FollowUser[]>
     .eq('status', 'pending');
   if (error || !data || data.length === 0) return [];
 
-  const ids = data.map((row: any) => row.follower_id);
+  const ids = (data as FollowIdRow[]).map((row) => row.follower_id).filter((id): id is string => Boolean(id));
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', ids);
   if (!profiles) return [];
 
-  return profiles.map((p: any) => ({
+  return (profiles as ProfileRow[]).map((p) => ({
     id: p.id,
     displayName: p.display_name,
     photoURL: p.photo_url,
@@ -617,14 +666,14 @@ export async function listFollowers(userId: string): Promise<FollowUser[]> {
     .eq('status', 'accepted');
   if (error || !data || data.length === 0) return [];
 
-  const ids = data.map((row: any) => row.follower_id);
+  const ids = (data as FollowIdRow[]).map((row) => row.follower_id).filter((id): id is string => Boolean(id));
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', ids);
   if (!profiles) return [];
 
-  return profiles.map((p: any) => ({
+  return (profiles as ProfileRow[]).map((p) => ({
     id: p.id,
     displayName: p.display_name,
     photoURL: p.photo_url,
@@ -639,14 +688,14 @@ export async function listFollowing(userId: string): Promise<FollowUser[]> {
     .eq('status', 'accepted');
   if (error || !data || data.length === 0) return [];
 
-  const ids = data.map((row: any) => row.following_id);
+  const ids = (data as FollowIdRow[]).map((row) => row.following_id).filter((id): id is string => Boolean(id));
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, display_name, photo_url')
     .in('id', ids);
   if (!profiles) return [];
 
-  return profiles.map((p: any) => ({
+  return (profiles as ProfileRow[]).map((p) => ({
     id: p.id,
     displayName: p.display_name,
     photoURL: p.photo_url,

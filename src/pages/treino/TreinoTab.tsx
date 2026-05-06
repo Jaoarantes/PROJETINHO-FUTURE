@@ -14,7 +14,7 @@ import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import ShareWorkoutModal from '../../components/treino/ShareWorkoutModal';
-import type { TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
+import type { EtapaCorrida, TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
 import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
 import type { TipoSerie } from '../../types/treino';
@@ -660,7 +660,7 @@ export default function TreinoTab() {
                                   {/* Stats Rack similar to Historico.tsx */}
                                   <Box sx={{ display: 'flex', gap: 3, mb: 1 }}>
                                     {(() => {
-                                      const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: any) => acc + (et.distanciaKm || 0), 0);
+                                      const distTotal = (reg.corrida?.etapas || []).reduce((acc: number, et: EtapaCorrida) => acc + (et.distanciaKm || 0), 0);
                                       const paceMedio = (distTotal > 0 && reg.duracaoTotalSegundos)
                                         ? (reg.duracaoTotalSegundos / 60) / distTotal
                                         : 0;

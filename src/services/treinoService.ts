@@ -1,7 +1,53 @@
 import { supabase } from '../supabase';
-import type { SessaoTreino, RegistroTreino } from '../types/treino';
+import type { ExercicioTreino, RegistroTreino, SessaoTreino, TipoSessao, TreinoCorrida, TreinoNatacao } from '../types/treino';
 
-export async function carregarTreinoAtivo(uid: string): Promise<any | null> {
+interface GPSCoordinate {
+  latitude: number;
+  longitude: number;
+  timestamp: number;
+}
+
+export interface TreinoAtivoData {
+  sessaoId: string;
+  iniciadoEm: number;
+  pausadoEm: number | null;
+  tempoPausadoTotal: number;
+  distanceKm?: number;
+  coordinates?: GPSCoordinate[];
+}
+
+interface TreinoAtivoRow {
+  sessao_id: string;
+  iniciado_em: number;
+  pausado_em: number | null;
+  tempo_pausado_total: number | null;
+  distance_km: number | null;
+  coordinates: GPSCoordinate[] | null;
+}
+
+interface SessaoRow {
+  id: string;
+  nome: string;
+  tipo: TipoSessao;
+  dia_semana: string | null;
+  exercicios: ExercicioTreino[] | null;
+  corrida: TreinoCorrida | null;
+  natacao: TreinoNatacao | null;
+  criado_em: string;
+  posicao: number | null;
+}
+
+interface HistoricoRow extends SessaoRow {
+  sessao_id: string;
+  concluido_em: string;
+  duracao_total_segundos: number | null;
+  calorias: number | null;
+  aplicado_na_dieta: boolean | null;
+  xp_earned: number | null;
+  strava_data: RegistroTreino['stravaData'] | null;
+}
+
+export async function carregarTreinoAtivo(uid: string): Promise<TreinoAtivoData | null> {
   try {
     const { data, error } = await supabase
       .from('treino_ativo')
@@ -10,21 +56,22 @@ export async function carregarTreinoAtivo(uid: string): Promise<any | null> {
       .maybeSingle();
 
     if (error || !data) return null;
+    const row = data as TreinoAtivoRow;
 
     return {
-      sessaoId: data.sessao_id,
-      iniciadoEm: data.iniciado_em,
-      pausadoEm: data.pausado_em,
-      tempoPausadoTotal: data.tempo_pausado_total,
-      distanceKm: data.distance_km,
-      coordinates: data.coordinates,
+      sessaoId: row.sessao_id,
+      iniciadoEm: row.iniciado_em,
+      pausadoEm: row.pausado_em,
+      tempoPausadoTotal: row.tempo_pausado_total ?? 0,
+      distanceKm: row.distance_km ?? 0,
+      coordinates: row.coordinates ?? [],
     };
   } catch {
     return null;
   }
 }
 
-export async function salvarTreinoAtivo(uid: string, dados: any | null): Promise<void> {
+export async function salvarTreinoAtivo(uid: string, dados: TreinoAtivoData | null): Promise<void> {
   if (dados === null) {
     await supabase.from('treino_ativo').delete().eq('user_id', uid);
   } else {
@@ -53,16 +100,16 @@ export async function carregarSessoes(uid: string): Promise<SessaoTreino[]> {
 
     if (error) throw error;
 
-    return (data || []).map((row: any) => ({
+    return ((data || []) as SessaoRow[]).map((row) => ({
       id: row.id,
       nome: row.nome,
       tipo: row.tipo,
-      diaSemana: row.dia_semana,
+      diaSemana: row.dia_semana || undefined,
       exercicios: row.exercicios || [],
-      corrida: row.corrida,
-      natacao: row.natacao,
+      corrida: row.corrida || undefined,
+      natacao: row.natacao || undefined,
       criadoEm: row.criado_em,
-      posicao: row.posicao,
+      posicao: row.posicao ?? undefined,
     }));
   } catch (err) {
     console.error('[treinoService] Erro ao carregar sessões:', err);
@@ -103,20 +150,20 @@ export async function carregarHistorico(uid: string): Promise<RegistroTreino[]> 
 
     if (error) throw error;
 
-    return (data || []).map((row: any) => ({
+    return ((data || []) as HistoricoRow[]).map((row) => ({
       id: row.id,
       sessaoId: row.sessao_id,
       nome: row.nome,
       tipo: row.tipo,
       exercicios: row.exercicios || [],
-      corrida: row.corrida,
-      natacao: row.natacao,
+      corrida: row.corrida || undefined,
+      natacao: row.natacao || undefined,
       concluidoEm: row.concluido_em,
-      duracaoTotalSegundos: row.duracao_total_segundos,
-      calorias: row.calorias,
-      aplicadoNaDieta: row.aplicado_na_dieta,
-      xpEarned: row.xp_earned,
-      stravaData: row.strava_data,
+      duracaoTotalSegundos: row.duracao_total_segundos ?? undefined,
+      calorias: row.calorias ?? undefined,
+      aplicadoNaDieta: row.aplicado_na_dieta ?? undefined,
+      xpEarned: row.xp_earned ?? undefined,
+      stravaData: row.strava_data || undefined,
     }));
   } catch (err) {
     console.error('[treinoService] Erro ao carregar histórico:', err);

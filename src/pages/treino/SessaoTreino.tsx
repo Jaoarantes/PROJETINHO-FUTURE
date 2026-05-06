@@ -581,11 +581,11 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
 
     const handleDeleteExercicio = useCallback((payload: { sessaoId: string; exId: string }) => {
         deleteExercicio.requestDelete(payload);
-    }, [deleteExercicio.requestDelete]);
+    }, [deleteExercicio]);
 
     const handleDeleteSerie = useCallback((payload: { sessaoId: string; exId: string; serieId: string }) => {
         deleteSerie.requestDelete(payload);
-    }, [deleteSerie.requestDelete]);
+    }, [deleteSerie]);
 
     const handleTipoSelect = (tipo: TipoSerie) => {
         if (menuTarget) {
@@ -762,6 +762,8 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
     const { adicionarEtapaCorrida, removerEtapaCorrida, atualizarEtapaCorrida, pausarTreino, retomarTreino, cancelarTreino, treinoAtivo } = store;
     const etapas = corrida?.etapas ?? [];
     const tracker = useGPSTracker();
+    const trackerIsActive = tracker.isActive;
+    const startTracking = tracker.startTracking;
     const deleteEtapa = useConfirmDelete();
     const [confirmAction, setConfirmAction] = useState<null | 'pausar' | 'retomar' | 'concluir' | 'cancelar'>(null);
 
@@ -783,10 +785,10 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
 
     // Ativar GPS automaticamente se a sessão for iniciada e for corrida
     useEffect(() => {
-        if (isAtivo && !tracker.isActive) {
-            tracker.startTracking();
+        if (isAtivo && !trackerIsActive) {
+            startTracking();
         }
-    }, [isAtivo]);
+    }, [isAtivo, startTracking, trackerIsActive]);
 
     // SE ESTIVER ATIVO: Novo Visual (Dashboard GPS)
     if (isAtivo) {

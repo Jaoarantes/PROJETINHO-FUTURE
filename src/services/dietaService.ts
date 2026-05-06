@@ -1,5 +1,68 @@
 import { supabase } from '../supabase';
-import type { Alimento, DiarioDieta, MetasDieta, PerfilCorporal } from '../types/dieta';
+import type { Alimento, DiarioDieta, MetasDieta, PerfilCorporal, Refeicao } from '../types/dieta';
+
+interface DiarioDietaRow {
+  id: string;
+  data: string;
+  refeicoes: Refeicao[] | null;
+  agua_ml: number | null;
+  meta_calorias: number | null;
+  meta_proteinas: number | null;
+  meta_carboidratos: number | null;
+  meta_gorduras: number | null;
+}
+
+interface DietaMetasRow {
+  calorias: number;
+  proteinas: number;
+  carboidratos: number;
+  gorduras: number;
+  agua: number;
+}
+
+interface PerfilCorporalRow {
+  sexo: PerfilCorporal['sexo'];
+  idade: number;
+  peso: number;
+  altura: number;
+  gordura_corporal: number | undefined;
+  nivel_atividade: PerfilCorporal['nivelAtividade'];
+  faz_musculacao: boolean;
+  musculacao_dias: number;
+  musculacao_duracao: number;
+  musculacao_intensidade: PerfilCorporal['musculacaoIntensidade'];
+  faz_cardio: boolean;
+  cardio_dias: number;
+  cardio_duracao: number;
+  cardio_intensidade: PerfilCorporal['cardioIntensidade'];
+  objetivo: PerfilCorporal['objetivo'];
+  meta_semanal: number;
+  proteina_g_kg: number;
+  gordura_g_kg: number;
+}
+
+interface AlimentoCustomRow {
+  id: string;
+  nome: string;
+  marca: string | undefined;
+  porcao: number;
+  unidade: string;
+  calorias: number;
+  proteinas: number;
+  carboidratos: number;
+  gorduras: number;
+  is_custom: boolean;
+}
+
+interface RegistroPesoRow {
+  id: string;
+  data: string;
+  peso: number;
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export async function carregarDiarios(uid: string): Promise<DiarioDieta[]> {
   try {
@@ -14,18 +77,18 @@ export async function carregarDiarios(uid: string): Promise<DiarioDieta[]> {
     }
 
 
-    return (data || []).map((row: any) => ({
+    return ((data || []) as DiarioDietaRow[]).map((row) => ({
       id: row.id,
       data: row.data,
       refeicoes: row.refeicoes || [],
-      aguaML: row.agua_ml,
-      metaCalorias: row.meta_calorias,
-      metaProteinas: row.meta_proteinas,
-      metaCarboidratos: row.meta_carboidratos,
-      metaGorduras: row.meta_gorduras,
+      aguaML: row.agua_ml ?? 0,
+      metaCalorias: row.meta_calorias ?? 0,
+      metaProteinas: row.meta_proteinas ?? 0,
+      metaCarboidratos: row.meta_carboidratos ?? 0,
+      metaGorduras: row.meta_gorduras ?? 0,
     }));
-  } catch (err: any) {
-    console.error('[dietaService] Exceção no carregarDiarios:', err.message);
+  } catch (err: unknown) {
+    console.error('[dietaService] Exceção no carregarDiarios:', errorMessage(err));
     return [];
   }
 }
@@ -74,16 +137,17 @@ export async function carregarMetas(uid: string): Promise<MetasDieta | null> {
     }
 
     if (!data) return null;
+    const row = data as DietaMetasRow;
 
     return {
-      calorias: data.calorias,
-      proteinas: data.proteinas,
-      carboidratos: data.carboidratos,
-      gorduras: data.gorduras,
-      agua: data.agua,
+      calorias: row.calorias,
+      proteinas: row.proteinas,
+      carboidratos: row.carboidratos,
+      gorduras: row.gorduras,
+      agua: row.agua,
     };
-  } catch (err: any) {
-    console.error('[dietaService] Exceção no carregarMetas:', err.message);
+  } catch (err: unknown) {
+    console.error('[dietaService] Exceção no carregarMetas:', errorMessage(err));
     return null;
   }
 }
@@ -119,29 +183,30 @@ export async function carregarPerfil(uid: string): Promise<PerfilCorporal | null
     }
 
     if (!data) return null;
+    const row = data as PerfilCorporalRow;
 
     return {
-      sexo: data.sexo,
-      idade: data.idade,
-      peso: data.peso,
-      altura: data.altura,
-      gorduraCorporal: data.gordura_corporal,
-      nivelAtividade: data.nivel_atividade,
-      fazMusculacao: data.faz_musculacao,
-      musculacaoDias: data.musculacao_dias,
-      musculacaoDuracao: data.musculacao_duracao,
-      musculacaoIntensidade: data.musculacao_intensidade,
-      fazCardio: data.faz_cardio,
-      cardioDias: data.cardio_dias,
-      cardioDuracao: data.cardio_duracao,
-      cardioIntensidade: data.cardio_intensidade,
-      objetivo: data.objetivo,
-      metaSemanal: data.meta_semanal,
-      proteinaGKg: data.proteina_g_kg,
-      gorduraGKg: data.gordura_g_kg,
+      sexo: row.sexo,
+      idade: row.idade,
+      peso: row.peso,
+      altura: row.altura,
+      gorduraCorporal: row.gordura_corporal,
+      nivelAtividade: row.nivel_atividade,
+      fazMusculacao: row.faz_musculacao,
+      musculacaoDias: row.musculacao_dias,
+      musculacaoDuracao: row.musculacao_duracao,
+      musculacaoIntensidade: row.musculacao_intensidade,
+      fazCardio: row.faz_cardio,
+      cardioDias: row.cardio_dias,
+      cardioDuracao: row.cardio_duracao,
+      cardioIntensidade: row.cardio_intensidade,
+      objetivo: row.objetivo,
+      metaSemanal: row.meta_semanal,
+      proteinaGKg: row.proteina_g_kg,
+      gorduraGKg: row.gordura_g_kg,
     };
-  } catch (err: any) {
-    console.error('[dietaService] Exceção no carregarPerfil:', err.message);
+  } catch (err: unknown) {
+    console.error('[dietaService] Exceção no carregarPerfil:', errorMessage(err));
     return null;
   }
 }
@@ -185,7 +250,7 @@ export async function carregarAlimentosCustom(uid: string): Promise<Alimento[]> 
 
   if (error) throw error;
 
-  return (data || []).map((row) => ({
+  return ((data || []) as AlimentoCustomRow[]).map((row) => ({
     id: row.id,
     nome: row.nome,
     marca: row.marca,
@@ -245,7 +310,7 @@ export async function carregarPesoHistorico(uid: string): Promise<RegistroPeso[]
 
   if (error) throw error;
 
-  return (data || []).map((row) => ({
+  return ((data || []) as RegistroPesoRow[]).map((row) => ({
     id: row.id,
     data: row.data,
     peso: row.peso,
