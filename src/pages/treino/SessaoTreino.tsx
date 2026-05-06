@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, IconButton, Button, Card, CardContent,
@@ -6,34 +6,13 @@ import {
     CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send, GripVertical, ArrowUpDown } from 'lucide-react';
-import {
-    DndContext,
-    DragOverlay,
-    closestCenter,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-    type DragStartEvent,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    verticalListSortingStrategy,
-    useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send, ArrowUpDown } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useFeedStore } from '../../store/feedStore';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useSuccessOverlayStore } from '../../store/successOverlayStore';
-import ExercicioPicker from '../../components/treino/ExercicioPicker';
-import PhotoUploader from '../../components/feed/PhotoUploader';
-import PRMedalhasModal from '../../components/treino/PRMedalhasModal';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { formatPace } from '../../utils/geoUtils';
 import { uploadFeedPhoto, compressImage } from '../../services/feedService';
@@ -44,6 +23,11 @@ import {
     TIPO_SERIE_LABELS, TIPO_SERIE_CORES,
     calcularDistanciaNatacao, calcularDuracaoNatacao,
 } from '../../types/treino';
+
+const ExercicioPicker = lazy(() => import('../../components/treino/ExercicioPicker'));
+const PhotoUploader = lazy(() => import('../../components/feed/PhotoUploader'));
+const PRMedalhasModal = lazy(() => import('../../components/treino/PRMedalhasModal'));
+const ReorderableExerciseList = lazy(() => import('../../components/treino/ReorderableExerciseList'));
 
 export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
@@ -369,11 +353,15 @@ export default function SessaoTreino() {
 
                     {/* Photos */}
                     <Box sx={{ mb: 2.5 }}>
-                        <PhotoUploader
-                            photos={sharePhotos}
-                            onAdd={(f) => setSharePhotos((prev) => [...prev, ...f].slice(0, 3))}
-                            onRemove={(i) => setSharePhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                        />
+                        {shareOpen && (
+                            <Suspense fallback={null}>
+                                <PhotoUploader
+                                    photos={sharePhotos}
+                                    onAdd={(f) => setSharePhotos((prev) => [...prev, ...f].slice(0, 3))}
+                                    onRemove={(i) => setSharePhotos((prev) => prev.filter((_, idx) => idx !== i))}
+                                />
+                            </Suspense>
+                        )}
                     </Box>
 
                     {/* Buttons */}
@@ -401,42 +389,17 @@ export default function SessaoTreino() {
             </Dialog>
 
             {/* Modal de medalhas de PR */}
-            <PRMedalhasModal
-                open={prModalOpen}
-                medalhas={ultimosPRs}
-                onClose={handlePRModalClose}
-            />
+            {prModalOpen && (
+                <Suspense fallback={null}>
+                    <PRMedalhasModal
+                        open={prModalOpen}
+                        medalhas={ultimosPRs}
+                        onClose={handlePRModalClose}
+                    />
+                </Suspense>
+            )}
 
         </Box>
-    );
-}
-
-/* ── Sortable Exercise Card ────────── */
-function SortableExerciseCard({ exTreino, children }: {
-    exTreino: { id: string };
-    children: (dragHandleProps: Record<string, unknown>) => React.ReactNode;
-}) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        setActivatorNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: exTreino.id });
-
-    const style: React.CSSProperties = {
-        transform: CSS.Translate.toString(transform),
-        transition,
-        opacity: isDragging ? 0 : 1,
-        position: 'relative' as const,
-    };
-
-    return (
-        <Card ref={setNodeRef} style={style}>
-            {children({ ref: setActivatorNodeRef, ...attributes, ...listeners })}
-        </Card>
     );
 }
 
@@ -545,34 +508,8 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
     const atualizarSerie = useTreinoStore((s) => s.atualizarSerie);
     const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
     const [menuTarget, setMenuTarget] = useState<{ sessaoId: string; exId: string; serieId: string } | null>(null);
-    const [activeExId, setActiveExId] = useState<string | null>(null);
     const deleteExercicio = useConfirmDelete<{ sessaoId: string; exId: string }>();
     const deleteSerie = useConfirmDelete<{ sessaoId: string; exId: string; serieId: string }>();
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: { delay: 200, tolerance: 5 },
-        })
-    );
-
-    const exercicioIds = useMemo(() => sessao.exercicios.map(ex => ex.id), [sessao.exercicios]);
-    const activeExTreino = useMemo(() => sessao.exercicios.find(ex => ex.id === activeExId), [sessao.exercicios, activeExId]);
-
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveExId(event.active.id as string);
-    };
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        setActiveExId(null);
-        if (over && active.id !== over.id) {
-            const oldIndex = sessao.exercicios.findIndex(ex => ex.id === active.id);
-            const newIndex = sessao.exercicios.findIndex(ex => ex.id === over.id);
-            if (oldIndex !== -1 && newIndex !== -1) {
-                reordenarExercicios(sessao.id, arrayMove(sessao.exercicios, oldIndex, newIndex));
-            }
-        }
-    };
 
     const handleSerieClick = useCallback((e: React.MouseEvent<HTMLElement>, sessaoId: string, exId: string, serieId: string) => {
         setMenuAnchor(e.currentTarget);
@@ -614,65 +551,12 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
 
             {reordenando ? (
                 /* ── Modo Reordenar (leve, só nomes) ── */
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    modifiers={[restrictToVerticalAxis]}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext items={exercicioIds} strategy={verticalListSortingStrategy}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-                            {sessao.exercicios.map((exTreino, idx) => (
-                                <SortableExerciseCard key={exTreino.id} exTreino={exTreino}>
-                                    {(dragHandleProps) => {
-                                        const { ref: handleRef, ...handleListeners } = dragHandleProps as { ref?: React.Ref<HTMLElement>;[key: string]: unknown };
-                                        return (
-                                            <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                                    <Box
-                                                        ref={handleRef}
-                                                        {...handleListeners}
-                                                        sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            cursor: 'grab',
-                                                            touchAction: 'none',
-                                                            '&:active': { cursor: 'grabbing' },
-                                                            opacity: 0.4,
-                                                        }}
-                                                    >
-                                                        <GripVertical size={20} />
-                                                    </Box>
-                                                    <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
-                                                        {idx + 1}. {exTreino.exercicio.nome}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {exTreino.series.length} séries
-                                                    </Typography>
-                                                </Box>
-                                            </CardContent>
-                                        );
-                                    }}
-                                </SortableExerciseCard>
-                            ))}
-                        </Box>
-                    </SortableContext>
-                    <DragOverlay dropAnimation={null}>
-                        {activeExTreino ? (
-                            <Card sx={{ boxShadow: '0 8px 30px rgba(0,0,0,0.25)', transform: 'scale(1.03)' }}>
-                                <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <GripVertical size={20} style={{ opacity: 0.5 }} />
-                                        <Typography variant="body2" fontWeight={600}>
-                                            {activeExTreino.exercicio.nome}
-                                        </Typography>
-                                    </Box>
-                                </CardContent>
-                            </Card>
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
+                <Suspense fallback={<Box sx={{ minHeight: 140, mb: 2 }} />}>
+                    <ReorderableExerciseList
+                        exercicios={sessao.exercicios}
+                        onReorder={(exercicios) => reordenarExercicios(sessao.id, exercicios)}
+                    />
+                </Suspense>
             ) : sessao.exercicios.length === 0 ? (
                 <Box sx={{ textAlign: 'center', mt: 6, mb: 4, p: 4, borderRadius: 1.5, border: 1, borderStyle: 'dashed', borderColor: 'divider' }}>
                     <Typography color="text.secondary" sx={{ mb: 0.5 }} fontWeight={500}>Nenhum exercício adicionado</Typography>
@@ -722,7 +606,11 @@ function MusculacaoView({ sessao, store, pickerOpen, setPickerOpen, reordenando 
                 </Box>
             )}
 
-            <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
+            {pickerOpen && (
+                <Suspense fallback={null}>
+                    <ExercicioPicker open={pickerOpen} onClose={() => setPickerOpen(false)} sessaoId={sessao.id} />
+                </Suspense>
+            )}
 
             <ConfirmDeleteDialog
                 open={deleteExercicio.open}
