@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { lazy, Suspense, useState, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Typography, useTheme } from '@mui/material';
 import { Zap } from 'lucide-react';
@@ -17,12 +17,69 @@ import {
 import useDashboardStats from '../components/dashboard/useDashboardStats';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardSummary from '../components/dashboard/DashboardSummary';
-import DashboardActivitySection from '../components/dashboard/DashboardActivitySection';
-import MusculacaoSection from '../components/dashboard/MusculacaoSection';
-import CorridaSection from '../components/dashboard/CorridaSection';
-import NatacaoSection from '../components/dashboard/NatacaoSection';
 import BestEffortsSection from '../components/dashboard/BestEffortsSection';
 import MedalhasSection from '../components/dashboard/MedalhasSection';
+
+const DashboardActivitySection = lazy(() => import('../components/dashboard/DashboardActivitySection'));
+const MusculacaoSection = lazy(() => import('../components/dashboard/MusculacaoSection'));
+const CorridaSection = lazy(() => import('../components/dashboard/CorridaSection'));
+const NatacaoSection = lazy(() => import('../components/dashboard/NatacaoSection'));
+
+function DashboardSectionFallback({ height = 220 }: { height?: number }) {
+  return (
+    <Box
+      sx={{
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: '8px',
+        minHeight: height,
+        mb: 3,
+        opacity: 0.35,
+      }}
+    />
+  );
+}
+
+function DeferredDashboardSection({
+  children,
+  fallbackHeight,
+}: {
+  children: ReactNode;
+  fallbackHeight: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || shouldRender) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '350px 0px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  return (
+    <Box ref={ref}>
+      {shouldRender ? (
+        <Suspense fallback={<DashboardSectionFallback height={fallbackHeight} />}>
+          {children}
+        </Suspense>
+      ) : (
+        <DashboardSectionFallback height={fallbackHeight} />
+      )}
+    </Box>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -169,44 +226,52 @@ export default function Dashboard() {
 
       <DashboardSummary stats={stats} isDark={isDark} />
 
-      <DashboardActivitySection
-        heatmap={heatmap}
-        heatmapWeeks={heatmapConfig.semanas}
-        showFullHistory={periodo === 'tudo'}
-        frequenciaFormatada={stats.frequenciaFormatada}
-        isDark={isDark}
-      />
+      <DeferredDashboardSection fallbackHeight={330}>
+        <DashboardActivitySection
+          heatmap={heatmap}
+          heatmapWeeks={heatmapConfig.semanas}
+          showFullHistory={periodo === 'tudo'}
+          frequenciaFormatada={stats.frequenciaFormatada}
+          isDark={isDark}
+        />
+      </DeferredDashboardSection>
 
-      <MusculacaoSection
-        stats={stats}
-        isDark={isDark}
-        showVolumeMax={showVolumeMax}
-        setShowVolumeMax={setShowVolumeMax}
-        showCargaMax={showCargaMax}
-        setShowCargaMax={setShowCargaMax}
-        filtroCargaExercicio={filtroCargaExercicio}
-        setFiltroCargaExercicio={setFiltroCargaExercicio}
-        filtroEvolucaoExercicio={filtroEvolucaoExercicio}
-        setFiltroEvolucaoExercicio={setFiltroEvolucaoExercicio}
-      />
+      <DeferredDashboardSection fallbackHeight={520}>
+        <MusculacaoSection
+          stats={stats}
+          isDark={isDark}
+          showVolumeMax={showVolumeMax}
+          setShowVolumeMax={setShowVolumeMax}
+          showCargaMax={showCargaMax}
+          setShowCargaMax={setShowCargaMax}
+          filtroCargaExercicio={filtroCargaExercicio}
+          setFiltroCargaExercicio={setFiltroCargaExercicio}
+          filtroEvolucaoExercicio={filtroEvolucaoExercicio}
+          setFiltroEvolucaoExercicio={setFiltroEvolucaoExercicio}
+        />
+      </DeferredDashboardSection>
 
-      <CorridaSection
-        stats={stats}
-        isDark={isDark}
-        showPaceCorrida={showPaceCorrida}
-        setShowPaceCorrida={setShowPaceCorrida}
-        showDistCorrida={showDistCorrida}
-        setShowDistCorrida={setShowDistCorrida}
-      />
+      <DeferredDashboardSection fallbackHeight={300}>
+        <CorridaSection
+          stats={stats}
+          isDark={isDark}
+          showPaceCorrida={showPaceCorrida}
+          setShowPaceCorrida={setShowPaceCorrida}
+          showDistCorrida={showDistCorrida}
+          setShowDistCorrida={setShowDistCorrida}
+        />
+      </DeferredDashboardSection>
 
-      <NatacaoSection
-        stats={stats}
-        isDark={isDark}
-        showPaceNatacao={showPaceNatacao}
-        setShowPaceNatacao={setShowPaceNatacao}
-        showDistNatacao={showDistNatacao}
-        setShowDistNatacao={setShowDistNatacao}
-      />
+      <DeferredDashboardSection fallbackHeight={300}>
+        <NatacaoSection
+          stats={stats}
+          isDark={isDark}
+          showPaceNatacao={showPaceNatacao}
+          setShowPaceNatacao={setShowPaceNatacao}
+          showDistNatacao={showDistNatacao}
+          setShowDistNatacao={setShowDistNatacao}
+        />
+      </DeferredDashboardSection>
 
       {/* ═══ MELHORES MARCAS (CORRIDA) ═══ */}
       <BestEffortsSection historico={historico} isDark={isDark} />
