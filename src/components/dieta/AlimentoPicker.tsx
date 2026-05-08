@@ -16,6 +16,8 @@ import {
   Button,
   useMediaQuery,
   useTheme,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { X, Search, Plus, Minus, ScanBarcode, Trash2, Clock } from 'lucide-react';
@@ -68,6 +70,14 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   const { user } = useAuthContext();
 
   const [alimentosCustom, setAlimentosCustom] = useState<Alimento[]>([]);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [feedbackSeverity, setFeedbackSeverity] = useState<'success' | 'error'>('success');
+  const [salvandoManual, setSalvandoManual] = useState(false);
+
+  const showFeedback = (message: string, severity: 'success' | 'error' = 'success') => {
+    setFeedbackSeverity(severity);
+    setFeedbackMsg(message);
+  };
 
   // Derive recent foods from diary history (unique by id, most recent first)
   const alimentosRecentes = useMemo(() => {
@@ -89,7 +99,12 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
 
   useEffect(() => {
     if (open && user?.id) {
-      carregarAlimentosCustom(user.id).then(setAlimentosCustom).catch(console.error);
+      carregarAlimentosCustom(user.id)
+        .then(setAlimentosCustom)
+        .catch((err) => {
+          console.error('Erro ao carregar alimentos personalizados:', err);
+          showFeedback('Erro ao carregar seus alimentos personalizados.', 'error');
+        });
     }
   }, [open, user?.id]);
 
@@ -128,9 +143,16 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setBuscandoOnline(true);
-      const results = await buscarAlimentos(busca);
-      setResultadosOnline(results);
-      setBuscandoOnline(false);
+      try {
+        const results = await buscarAlimentos(busca);
+        setResultadosOnline(results);
+      } catch (err) {
+        console.error('Erro ao buscar alimentos online:', err);
+        setResultadosOnline([]);
+        showFeedback('Erro na busca online. Tente novamente.', 'error');
+      } finally {
+        setBuscandoOnline(false);
+      }
     }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -163,6 +185,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   const handleAdicionar = () => {
     if (!selecionado) return;
     adicionarItem(tipoRefeicao, { alimento: selecionado, quantidade });
+    showFeedback(`${selecionado.nome} adicionado.`);
     setSelecionado(null);
     setQuantidade(1);
   };
@@ -186,6 +209,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
   };
 
   const handleSalvarManual = async () => {
+    if (!formNome.trim() || salvandoManual) return;
     const alimento: Alimento = {
       id: `manual_${formCodigo || Date.now()}`,
       nome: formNome.trim(),
@@ -198,20 +222,35 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
       gorduras: parseFloat(formGord) || 0,
       isCustom: true,
     };
-    if (user?.id) {
-      await salvarAlimentoCustom(user.id, alimento).catch(console.error);
+    setSalvandoManual(true);
+    try {
+      if (user?.id) {
+        await salvarAlimentoCustom(user.id, alimento);
+      }
       setAlimentosCustom((prev) => [...prev.filter((a) => a.id !== alimento.id), alimento].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setFormOpen(false);
+      setSelecionado(alimento);
+      setQuantidade(1);
+      showFeedback('Alimento personalizado salvo.');
+    } catch (err) {
+      console.error('Erro ao salvar alimento personalizado:', err);
+      showFeedback('Erro ao salvar alimento personalizado. Tente novamente.', 'error');
+    } finally {
+      setSalvandoManual(false);
     }
-    setFormOpen(false);
-    setSelecionado(alimento);
-    setQuantidade(1);
   };
 
   const handleDeletarCustom = async (id: string) => {
     if (!user?.id) return;
-    await deletarAlimentoCustom(user.id, id).catch(console.error);
-    setAlimentosCustom((prev) => prev.filter((a) => a.id !== id));
-    if (selecionado?.id === id) setSelecionado(null);
+    try {
+      await deletarAlimentoCustom(user.id, id);
+      setAlimentosCustom((prev) => prev.filter((a) => a.id !== id));
+      if (selecionado?.id === id) setSelecionado(null);
+      showFeedback('Alimento personalizado excluído.');
+    } catch (err) {
+      console.error('Erro ao excluir alimento personalizado:', err);
+      showFeedback('Erro ao excluir alimento personalizado. Tente novamente.', 'error');
+    }
   };
 
   const handleClose = () => {
@@ -417,6 +456,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
                       onClick={(e) => {
                         e.stopPropagation();
                         adicionarItem(tipoRefeicao, { alimento, quantidade: 1 });
+                        showFeedback(`${alimento.nome} adicionado.`);
                       }}
                       sx={{ opacity: 0.5, ml: 0.5, bgcolor: alpha('#FF6B2C', 0.08), '&:active': { bgcolor: alpha('#FF6B2C', 0.15) } }}
                     >
@@ -594,10 +634,11 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
             <Button
               variant="contained"
               fullWidth
-              disabled={!formNome.trim()}
+              disabled={!formNome.trim() || salvandoManual}
               onClick={handleSalvarManual}
+              startIcon={salvandoManual ? <CircularProgress size={16} color="inherit" /> : undefined}
             >
-              Adicionar
+              {salvandoManual ? 'Salvando...' : 'Adicionar'}
             </Button>
           </Box>
         </Box>
@@ -611,6 +652,22 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
         onClose={deleteCustomFood.cancel}
         onConfirm={() => deleteCustomFood.confirmDelete(async () => { await handleDeletarCustom(deleteCustomFood.payload); })}
       />
+
+      <Snackbar
+        open={!!feedbackMsg}
+        autoHideDuration={feedbackSeverity === 'error' ? 6000 : 3000}
+        onClose={() => setFeedbackMsg('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setFeedbackMsg('')}
+          severity={feedbackSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {feedbackMsg}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
