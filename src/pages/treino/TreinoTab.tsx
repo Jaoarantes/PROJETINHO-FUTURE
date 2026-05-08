@@ -4,7 +4,7 @@ import {
   Box, Typography, Card, CardActionArea, CardContent,
   IconButton, Fab, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
-  CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
+  CircularProgress, Tabs, Tab, Collapse, Divider, Drawer, Snackbar, Alert,
 } from '@mui/material';
 import { Trash2, Dumbbell, Pencil, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, Flame, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
@@ -90,6 +90,8 @@ export default function TreinoTab() {
   const [editRegOpen, setEditRegOpen] = useState(false);
   const [editRegData, setEditRegData] = useState<RegistroTreino | null>(null);
   const [editRegSaving, setEditRegSaving] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [feedbackSeverity, setFeedbackSeverity] = useState<'success' | 'error'>('success');
   const atualizarRegistro = useTreinoStore((s) => s.atualizarRegistro);
   const deleteSessao = useConfirmDelete();
   const deleteRegistro = useConfirmDelete();
@@ -106,8 +108,12 @@ export default function TreinoTab() {
       await atualizarRegistro(editRegData);
       setEditRegOpen(false);
       setEditRegData(null);
+      setFeedbackSeverity('success');
+      setFeedbackMsg('Registro atualizado com sucesso.');
     } catch (err) {
       console.error('Erro ao atualizar registro:', err);
+      setFeedbackSeverity('error');
+      setFeedbackMsg('Erro ao salvar alterações. Verifique sua conexão e tente novamente.');
     } finally {
       setEditRegSaving(false);
     }
@@ -755,6 +761,22 @@ export default function TreinoTab() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={!!feedbackMsg}
+        autoHideDuration={feedbackSeverity === 'error' ? 6000 : 3000}
+        onClose={() => setFeedbackMsg('')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setFeedbackMsg('')}
+          severity={feedbackSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {feedbackMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
