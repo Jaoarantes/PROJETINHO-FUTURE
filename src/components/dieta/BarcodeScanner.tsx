@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Alert,
   Button,
+  TextField,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -30,6 +31,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
   const processandoRef = useRef(false);
   const [status, setStatus] = useState<'scanning' | 'loading' | 'error' | 'not-found'>('scanning');
   const [erro, setErro] = useState('');
+  const [codigoManual, setCodigoManual] = useState('');
   const codigoNaoEncontradoRef = useRef('');
 
   const pararScanner = async () => {
@@ -86,6 +88,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
               onClose();
             } else {
               codigoNaoEncontradoRef.current = decodedText;
+              setCodigoManual(decodedText);
               setStatus('not-found');
               setErro(`Produto não encontrado para o código: ${decodedText}`);
             }
@@ -109,6 +112,43 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
     iniciarScanner();
   };
 
+  const handleBuscarManual = async () => {
+    const codigo = codigoManual.trim();
+    if (!codigo || processandoRef.current) return;
+
+    processandoRef.current = true;
+    activeRef.current = true;
+    setStatus('loading');
+    setErro('');
+
+    try {
+      await pararScanner();
+      const alimento = await buscarPorCodigoBarras(codigo);
+      if (alimento) {
+        onAlimentoEncontrado(alimento);
+        onClose();
+        return;
+      }
+
+      codigoNaoEncontradoRef.current = codigo;
+      setStatus('not-found');
+      setErro(`Produto não encontrado para o código: ${codigo}`);
+    } catch {
+      setStatus('error');
+      setErro('Erro ao buscar produto. Tente novamente.');
+    } finally {
+      processandoRef.current = false;
+    }
+  };
+
+  const handleCadastrarManual = async () => {
+    const codigo = codigoManual.trim() || codigoNaoEncontradoRef.current;
+    activeRef.current = false;
+    await pararScanner();
+    onClose();
+    onCadastrarManualmente?.(codigo);
+  };
+
   const handleClose = () => {
     activeRef.current = false;
     pararScanner();
@@ -123,6 +163,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
       const resetTimer = setTimeout(() => {
         setStatus('scanning');
         setErro('');
+        setCodigoManual('');
       }, 0);
       return () => clearTimeout(resetTimer);
     }
@@ -183,20 +224,33 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
               <Alert severity={status === 'not-found' ? 'warning' : 'error'}>
                 {erro}
               </Alert>
+              <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Código de barras"
+                  value={codigoManual}
+                  onChange={(e) => setCodigoManual(e.target.value.replace(/\D/g, ''))}
+                  slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={handleBuscarManual}
+                  disabled={!codigoManual.trim()}
+                  sx={{ minWidth: 88 }}
+                >
+                  Buscar
+                </Button>
+              </Box>
               <Button fullWidth variant="outlined" sx={{ mt: 1.5 }} onClick={reiniciarScanner}>
                 Tentar novamente
               </Button>
-              {status === 'not-found' && onCadastrarManualmente && (
+              {onCadastrarManualmente && (
                 <Button
                   fullWidth
                   variant="contained"
                   sx={{ mt: 1 }}
-                  onClick={() => {
-                    activeRef.current = false;
-                    pararScanner();
-                    onClose();
-                    onCadastrarManualmente(codigoNaoEncontradoRef.current);
-                  }}
+                  onClick={handleCadastrarManual}
                 >
                   Cadastrar manualmente
                 </Button>
