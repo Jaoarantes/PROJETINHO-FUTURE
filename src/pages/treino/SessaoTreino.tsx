@@ -683,21 +683,27 @@ function CorridaView({ sessaoId, corrida, store, isAtivo, onConcluir, salvando }
         cancelar: { title: 'Parar treino?', desc: 'O treino será descartado e o progresso perdido.' },
     };
 
-    const executeConfirmedAction = () => {
+    const executeConfirmedAction = async () => {
         const action = confirmAction;
         setConfirmAction(null);
         if (action === 'pausar') { pausarTreino(); tracker.pauseTracking(); }
         else if (action === 'retomar') { retomarTreino(); tracker.resumeTracking(); }
-        else if (action === 'concluir') { tracker.stopTracking(); onConcluir(tracker.distanceKm); }
-        else if (action === 'cancelar') { cancelarTreino(); }
+        else if (action === 'concluir') {
+            await tracker.stopTracking();
+            onConcluir(tracker.distanceKm);
+        }
+        else if (action === 'cancelar') {
+            await tracker.resetTracking();
+            cancelarTreino();
+        }
     };
 
     // Ativar GPS automaticamente se a sessão for iniciada e for corrida
     useEffect(() => {
-        if (isAtivo && !trackerIsActive) {
+        if (isAtivo && !trackerIsActive && !treinoAtivo?.pausadoEm) {
             startTracking();
         }
-    }, [isAtivo, startTracking, trackerIsActive]);
+    }, [isAtivo, startTracking, trackerIsActive, treinoAtivo?.pausadoEm]);
 
     // SE ESTIVER ATIVO: Novo Visual (Dashboard GPS)
     if (isAtivo) {
