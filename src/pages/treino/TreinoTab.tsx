@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import { lazy, Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Card, CardActionArea, CardContent,
@@ -6,9 +6,9 @@ import {
   DialogActions, TextField, Button, Chip, Menu, MenuItem,
   CircularProgress, Tabs, Tab, Collapse, Divider, Drawer,
 } from '@mui/material';
-import { Trash2, Dumbbell, Pencil, MoreVertical, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, Flame, Play, GripVertical, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { Trash2, Dumbbell, Pencil, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, Flame, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
+const ReorderableWorkoutList = lazy(() => import('../../components/treino/ReorderableWorkoutList'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
@@ -26,27 +26,8 @@ import {
   diasSemana,
   formatarPace,
   formatarSegundos,
-  getSessaoSubtitle,
   ordenarTreinos,
 } from './treinoTabUtils';
-import {
-  DndContext,
-  DragOverlay,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
 
 const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
   musculacao: Dumbbell,
@@ -54,145 +35,6 @@ const TIPO_ICONS: Record<TipoSessao, typeof Dumbbell> = {
   natacao: Waves,
   outro: CircleEllipsis,
 };
-
-interface SortableTreinoCardProps {
-  sessao: SessaoTreino;
-  index: number;
-  tipo: TipoSessao;
-  isAtivo: boolean;
-  onNavigate: (id: string) => void;
-  onMenuOpen: (e: React.MouseEvent<HTMLElement>, id: string) => void;
-  onIniciar: (id: string) => void;
-  isOverlay?: boolean;
-  isDragging?: boolean;
-}
-
-const overlayStyle = {
-  opacity: 1,
-  cursor: 'grabbing',
-  zIndex: 2000,
-  transform: 'scale(1.02)',
-  boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-};
-
-const SortableTreinoCard = memo(function SortableTreinoCard({ sessao, index, tipo, isAtivo, onNavigate, onMenuOpen, onIniciar, isOverlay, isDragging: propIsDragging }: SortableTreinoCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging: dndIsDragging,
-  } = useSortable({ id: sessao.id, disabled: isOverlay });
-
-  const isDragging = propIsDragging || dndIsDragging;
-
-  const style = isOverlay ? overlayStyle : {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    zIndex: isDragging ? 0 : 1,
-    position: 'relative' as const,
-  };
-
-  const Icon = TIPO_ICONS[tipo];
-
-  return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      sx={{
-        ...(isAtivo && { borderColor: 'primary.main', borderWidth: 2, borderStyle: 'solid' }),
-        ...(isDragging && !isOverlay && { visibility: 'hidden' }),
-        ...(isOverlay && { boxShadow: '0 8px 30px rgba(0,0,0,0.2)', transform: 'scale(1.02)' }),
-        transition: 'all 0.2s ease',
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        {/* Drag Handle */}
-        <Box
-          {...attributes}
-          {...listeners}
-          sx={{
-            p: 1.5,
-            pl: 1,
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'grab',
-            touchAction: 'none',
-            '&:active': { cursor: 'grabbing' },
-            opacity: 0.3,
-            '&:hover': { opacity: 0.7 },
-          }}
-        >
-          <GripVertical size={20} />
-        </Box>
-
-        <CardActionArea onClick={() => onNavigate(sessao.id)} sx={{ flex: 1 }}>
-          <CardContent sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 1, pl: 0 }}>
-            <Box sx={{
-              width: 40, height: 40, borderRadius: '10px',
-              background: TIPO_CORES[tipo],
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              mr: 1.5, flexShrink: 0,
-            }}>
-              {tipo === 'musculacao' ? (
-                <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: '#fff' }}>
-                  {String.fromCharCode(65 + index)}
-                </Typography>
-              ) : (
-                <Icon size={20} color="#fff" />
-              )}
-            </Box>
-
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ wordBreak: 'break-word' }}>{sessao.nome}</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                  {getSessaoSubtitle(sessao)}
-                </Typography>
-                {sessao.diaSemana && (
-                  <>
-                    <Typography variant="caption" color="text.secondary">·</Typography>
-                    <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: '0.7rem' }}>
-                      {sessao.diaSemana}
-                    </Typography>
-                  </>
-                )}
-              </Box>
-            </Box>
-
-          </CardContent>
-        </CardActionArea>
-        <IconButton size="small" onClick={(e) => { e.stopPropagation(); onMenuOpen(e, sessao.id); }} sx={{ ml: 0.5, flexShrink: 0, alignSelf: 'center', mr: 0.5 }}>
-          <MoreVertical size={16} />
-        </IconButton>
-      </Box>
-
-      {/* Começar treino button */}
-      {!isAtivo && (
-        <Button
-          fullWidth
-          size="small"
-          startIcon={<Play size={16} />}
-          onClick={(e) => { e.stopPropagation(); onIniciar(sessao.id); }}
-          sx={{
-            borderTop: 1,
-            borderColor: 'divider',
-            borderRadius: 0,
-            py: 0.8,
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            color: 'primary.main',
-            textTransform: 'none',
-          }}
-        >
-          Começar treino
-        </Button>
-      )}
-    </Card>
-  );
-});
 
 export default function TreinoTab() {
   const navigate = useNavigate();
@@ -245,7 +87,6 @@ export default function TreinoTab() {
   const [shareSessao, setShareSessao] = useState<SessaoTreino | null>(null);
   const [expandedReg, setExpandedReg] = useState<string | null>(null);
   const [historicoLimit, setHistoricoLimit] = useState(7);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [editRegOpen, setEditRegOpen] = useState(false);
   const [editRegData, setEditRegData] = useState<RegistroTreino | null>(null);
   const [editRegSaving, setEditRegSaving] = useState(false);
@@ -298,53 +139,6 @@ export default function TreinoTab() {
       outro: ordenarTreinos(grupos.outro),
     };
   }, [sessoes]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null); // Clear activeId when drag ends
-
-    if (over && active.id !== over.id) {
-      const activeSessao = sessoes.find(s => s.id === active.id);
-      if (!activeSessao) return;
-
-      const tipo = activeSessao.tipo || 'musculacao';
-      const currentList = sessoesAgrupadas[tipo];
-
-      const oldIndex = currentList.findIndex((s) => s.id === active.id);
-      const newIndex = currentList.findIndex((s) => s.id === over.id);
-
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      const newList = arrayMove(currentList, oldIndex, newIndex);
-
-      // Mapear de volta para o array global
-      const updatedSessoes = sessoes.map((s) => {
-        const isTargetType = (s.tipo === tipo || (!s.tipo && tipo === 'musculacao'));
-        if (isTargetType) {
-          const idx = newList.findIndex((item) => item.id === s.id);
-          return { ...s, posicao: idx };
-        }
-        return s;
-      });
-
-      reordenarSessoes(updatedSessoes);
-    }
-  };
-
-  const activeSessao = useMemo(() => sessoes.find(s => s.id === activeId), [sessoes, activeId]); // Added activeSessao memoization
 
   const handleCriar = () => {
     if (!nome.trim()) return;
@@ -441,68 +235,17 @@ export default function TreinoTab() {
               );
             }
             return (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {(Object.entries(sessoesAgrupadas) as [TipoSessao, SessaoTreino[]][])
-                    .filter(([, list]) => list.length > 0)
-                    .map(([tipo, list]) => {
-                      const Icon = TIPO_ICONS[tipo];
-                      return (
-                        <Box key={tipo}>
-                          {/* Título da seção (modalidade) */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                            <Icon size={18} />
-                            <Typography variant="subtitle1" fontWeight={700} sx={{ textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
-                              {tipo === 'outro' ? 'Outros' : TIPO_SESSAO_LABELS[tipo]}
-                            </Typography>
-                            <Chip label={list.length} size="small" sx={{ height: 20, fontSize: '0.7rem', minWidth: 24 }} />
-                          </Box>
-
-                          {/* Cards */}
-                          <SortableContext
-                            items={list.map((s) => s.id)}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                              {list.map((sessao, index) => (
-                                <SortableTreinoCard
-                                  key={sessao.id}
-                                  sessao={sessao}
-                                  index={index}
-                                  tipo={tipo}
-                                  isAtivo={treinoAtivo?.sessaoId === sessao.id}
-                                  onNavigate={handleNavigate}
-                                  onMenuOpen={handleMenuOpen}
-                                  onIniciar={iniciarTreino}
-                                />
-                              ))}
-                            </Box>
-                          </SortableContext>
-                        </Box>
-                      );
-                    })}
-                </Box>
-                <DragOverlay>
-                  {activeSessao ? (
-                    <SortableTreinoCard
-                      sessao={activeSessao}
-                      index={0}
-                      tipo={activeSessao.tipo || 'musculacao'}
-                      isAtivo={treinoAtivo?.sessaoId === activeSessao.id}
-                      onNavigate={() => { }}
-                      onMenuOpen={() => { }}
-                      onIniciar={() => { }}
-                      isOverlay
-                    />
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+              <Suspense fallback={<Box sx={{ minHeight: 180 }} />}>
+                <ReorderableWorkoutList
+                  sessoes={sessoes}
+                  sessoesAgrupadas={sessoesAgrupadas}
+                  treinoAtivoId={treinoAtivo?.sessaoId}
+                  onNavigate={handleNavigate}
+                  onMenuOpen={handleMenuOpen}
+                  onIniciar={iniciarTreino}
+                  onReorder={reordenarSessoes}
+                />
+              </Suspense>
             );
           })()}
         </>
