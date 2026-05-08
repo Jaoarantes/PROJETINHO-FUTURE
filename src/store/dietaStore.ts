@@ -70,6 +70,7 @@ interface DietaState {
   adicionarAgua: (ml: number) => void;
   adicionarRefeicao: (tipo: TipoRefeicao) => void;
   removerRefeicao: (tipo: TipoRefeicao) => void;
+  substituirRefeicoes: (refeicoes: Refeicao[]) => void;
   adicionarGastoCalorico: (dataStr: string, caloriasGasto: number) => void;
 
   atualizarMetas: (metas: MetasDieta) => void;
@@ -246,6 +247,29 @@ export const useDietaStore = create<DietaState>()((set, get) => ({
         };
       }),
     }));
+
+    const { uid, diarios } = get();
+    const diario = diarios.find((d) => d.id === dataSelecionada);
+    if (uid && diario) salvarDiario(uid, diario).catch(console.error);
+  },
+
+  substituirRefeicoes: (refeicoes) => {
+    const { dataSelecionada, metas } = get();
+
+    set((state) => {
+      const diario = state.diarios.find((d) => d.id === dataSelecionada) ?? criarDiarioVazio(dataSelecionada, metas);
+      const diarioAtualizado: DiarioDieta = {
+        ...diario,
+        refeicoes: refeicoes.map((r) => ({
+          ...r,
+          itens: r.itens.map((item) => ({ ...item })),
+        })),
+      };
+      const diarios = state.diarios.some((d) => d.id === dataSelecionada)
+        ? state.diarios.map((d) => (d.id === dataSelecionada ? diarioAtualizado : d))
+        : [...state.diarios, diarioAtualizado];
+      return { diarios };
+    });
 
     const { uid, diarios } = get();
     const diario = diarios.find((d) => d.id === dataSelecionada);

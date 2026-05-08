@@ -66,6 +66,7 @@ export default function DietaTab() {
   const adicionarAgua = useDietaStore((s) => s.adicionarAgua);
   const adicionarRefeicao = useDietaStore((s) => s.adicionarRefeicao);
   const removerRefeicao = useDietaStore((s) => s.removerRefeicao);
+  const substituirRefeicoes = useDietaStore((s) => s.substituirRefeicoes);
   const perfil = useDietaStore((s) => s.perfil);
   const atualizarPerfil = useDietaStore((s) => s.atualizarPerfil);
   const carregando = useDietaStore((s) => s.carregando);
@@ -123,43 +124,32 @@ export default function DietaTab() {
     const diarioAnterior = diarios.find((d) => d.id === dataAnterior);
     if (!diarioAnterior) return;
 
-    // Salvar snapshot para desfazer
-    setSnapshotAntesDeCopiar(diario.refeicoes.map((r) => ({ ...r, itens: [...r.itens] })));
+    const snapshot = diario.refeicoes.map((r) => ({ ...r, itens: r.itens.map((item) => ({ ...item })) }));
+    const refeicoesCopiadas = snapshot.map((r) => ({ ...r, itens: r.itens.map((item) => ({ ...item })) }));
 
     for (const ref of diarioAnterior.refeicoes) {
-      if (!diario.refeicoes.some((r) => r.tipo === ref.tipo)) {
-        adicionarRefeicao(ref.tipo);
+      let destino = refeicoesCopiadas.find((r) => r.tipo === ref.tipo);
+      if (!destino) {
+        destino = { tipo: ref.tipo, itens: [] };
+        refeicoesCopiadas.push(destino);
       }
       for (const item of ref.itens) {
-        adicionarItem(ref.tipo, { alimento: item.alimento, quantidade: item.quantidade });
+        destino.itens.push({
+          ...item,
+          id: crypto.randomUUID(),
+          alimento: { ...item.alimento },
+        });
       }
     }
+
+    setSnapshotAntesDeCopiar(snapshot);
+    substituirRefeicoes(refeicoesCopiadas);
     setSnackMsg('Refeições copiadas! Toque em DESFAZER para reverter.');
   };
 
   const desfazerCopia = () => {
     if (!snapshotAntesDeCopiar) return;
-    // Remover todas as refeições atuais e restaurar o snapshot
-    for (const ref of diario.refeicoes) {
-      for (const item of ref.itens) {
-        removerItem(ref.tipo, item.id);
-      }
-    }
-    // Remover refeições extras que foram criadas
-    for (const ref of diario.refeicoes) {
-      if (!snapshotAntesDeCopiar.some((r) => r.tipo === ref.tipo)) {
-        removerRefeicao(ref.tipo);
-      }
-    }
-    // Re-adicionar itens do snapshot
-    for (const ref of snapshotAntesDeCopiar) {
-      if (!diario.refeicoes.some((r) => r.tipo === ref.tipo)) {
-        adicionarRefeicao(ref.tipo);
-      }
-      for (const item of ref.itens) {
-        adicionarItem(ref.tipo, { alimento: item.alimento, quantidade: item.quantidade });
-      }
-    }
+    substituirRefeicoes(snapshotAntesDeCopiar);
     setSnapshotAntesDeCopiar(null);
     setSnackMsg('Cópia desfeita!');
   };
