@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Typography, IconButton, CircularProgress } from '@mui/material';
-import { ArrowLeft } from 'lucide-react';
+import { Box, Typography, IconButton, CircularProgress, Button } from '@mui/material';
+import { ArrowLeft, Rss } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useFeedStore } from '../../store/feedStore';
 import FeedPostCard from '../../components/feed/FeedPostCard';
@@ -12,24 +12,28 @@ export default function PostDetalhe() {
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
   const posts = useFeedStore((s) => s.posts);
+  const loading = useFeedStore((s) => s.loading);
   const toggleLike = useFeedStore((s) => s.toggleLike);
   const deletarPost = useFeedStore((s) => s.deletarPost);
   const editarPost = useFeedStore((s) => s.editarPost);
   const atualizarContadorComentarios = useFeedStore((s) => s.atualizarContadorComentarios);
   const carregarFeed = useFeedStore((s) => s.carregarFeed);
-  const loadRequestedFor = useRef<string | null>(null);
+  const [loadRequestedFor, setLoadRequestedFor] = useState<string | null>(null);
 
   const uid = user?.id;
   const post = posts.find((p) => p.id === postId);
 
   useEffect(() => {
-    if (!post && uid && loadRequestedFor.current !== uid) {
-      loadRequestedFor.current = uid;
-      carregarFeed(uid, true).catch(console.error);
+    if (!post && uid && loadRequestedFor !== uid) {
+      carregarFeed(uid, true)
+        .catch(console.error)
+        .finally(() => setLoadRequestedFor(uid));
     }
-  }, [carregarFeed, post, uid]);
+  }, [carregarFeed, loadRequestedFor, post, uid]);
 
-  if (!post) {
+  if (!uid) return null;
+
+  if (!post && (loading || loadRequestedFor !== uid)) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', pt: 10 }}>
         <CircularProgress size={28} />
@@ -37,7 +41,47 @@ export default function PostDetalhe() {
     );
   }
 
-  if (!uid) return null;
+  if (!post) {
+    return (
+      <Box sx={{ pt: 1, pb: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, px: 0.5 }}>
+          <IconButton onClick={() => navigate('/feed')} sx={{ mr: 1, ml: -1 }}>
+            <ArrowLeft size={22} />
+          </IconButton>
+          <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.2rem' }}>
+            Post
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: 8,
+            px: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <Typography variant="h6" fontWeight={800}>
+            Post não encontrado
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 320 }}>
+            Ele pode ter sido removido ou ainda não apareceu no seu feed.
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Rss size={16} />}
+            onClick={() => navigate('/feed')}
+            sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+          >
+            Voltar ao feed
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ pt: 1, pb: 4, mx: -2.5 }}>
