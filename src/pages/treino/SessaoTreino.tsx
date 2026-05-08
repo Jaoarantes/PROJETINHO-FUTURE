@@ -108,6 +108,19 @@ export default function SessaoTreino() {
         setTimeout(() => navigate('/feed', { replace: true }), 400);
     };
 
+    const resetShareDraft = () => {
+        setShareRegistro(null);
+        setShareTexto('');
+        setSharePhotos([]);
+    };
+
+    const abrirCompartilhamento = (registro: RegistroTreino) => {
+        setShareTexto('');
+        setSharePhotos([]);
+        setShareRegistro(registro);
+        setShareOpen(true);
+    };
+
     const handleConcluir = async (gpsDistancia?: number) => {
         if (!sessao) return;
         setSalvando(true);
@@ -121,8 +134,7 @@ export default function SessaoTreino() {
                     setPendingRegistro(registro);
                     setPrModalOpen(true);
                 } else {
-                    setShareRegistro(registro);
-                    setShareOpen(true);
+                    abrirCompartilhamento(registro);
                 }
             } else {
                 goToHistory();
@@ -139,23 +151,28 @@ export default function SessaoTreino() {
         setPrModalOpen(false);
         limparUltimosPRs();
         if (pendingRegistro) {
-            setShareRegistro(pendingRegistro);
+            abrirCompartilhamento(pendingRegistro);
             setPendingRegistro(null);
-            setShareOpen(true);
         } else {
             goToHistory();
         }
     };
 
     const handleShareSkip = () => {
+        if (sharePosting) return;
         setShareOpen(false);
-        setShareRegistro(null);
+        resetShareDraft();
         goToHistory();
     };
 
     const handleSharePost = async () => {
-        if (!shareRegistro || !user?.id) return;
+        if (!shareRegistro) return;
+        if (!user?.id) {
+            setErroMsg('Não foi possível identificar seu usuário para compartilhar.');
+            return;
+        }
         setSharePosting(true);
+        setErroMsg('');
         try {
             const fotoUrls: string[] = [];
             for (const photo of sharePhotos) {
@@ -166,10 +183,11 @@ export default function SessaoTreino() {
 
             await criarPost(user.id, montarPostTreinoCompartilhado(shareRegistro, shareTexto, fotoUrls));
             setShareOpen(false);
+            resetShareDraft();
             goToFeed();
         } catch (err) {
             console.error('Erro ao compartilhar:', err);
-            setErroMsg('Erro ao compartilhar. Tente novamente.');
+            setErroMsg('Treino salvo no histórico, mas não foi possível compartilhar. Tente novamente ou pule esta etapa.');
         } finally {
             setSharePosting(false);
         }
@@ -286,7 +304,9 @@ export default function SessaoTreino() {
             {/* Share Dialog */}
             <Dialog
                 open={shareOpen}
-                onClose={handleShareSkip}
+                onClose={() => {
+                    if (!sharePosting) handleShareSkip();
+                }}
                 fullWidth
                 maxWidth="sm"
                 PaperProps={{ sx: { borderRadius: '24px', mx: 2, p: 0 } }}
@@ -309,7 +329,7 @@ export default function SessaoTreino() {
                                 Mostre seu progresso para a comunidade
                             </Typography>
                         </Box>
-                        <IconButton onClick={handleShareSkip} size="small">
+                        <IconButton onClick={handleShareSkip} size="small" disabled={sharePosting}>
                             <X size={20} />
                         </IconButton>
                     </Box>
@@ -369,6 +389,7 @@ export default function SessaoTreino() {
                         <Button
                             variant="outlined"
                             fullWidth
+                            disabled={sharePosting}
                             onClick={handleShareSkip}
                             sx={{ py: 1.3, borderRadius: '12px' }}
                         >
