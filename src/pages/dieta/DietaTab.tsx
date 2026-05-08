@@ -163,6 +163,11 @@ export default function DietaTab() {
     () => ALL_REFEICOES.filter((t) => !tiposExistentes.includes(t)),
     [tiposExistentes],
   );
+  const diaSemAlimentos = useMemo(
+    () => diario.refeicoes.every((refeicao) => refeicao.itens.length === 0),
+    [diario.refeicoes],
+  );
+  const refeicaoInicial = diario.refeicoes[0]?.tipo || 'cafe';
 
   // Calorie balance
   const metaCaloriasDia = diario.metaCalorias || metas.calorias;
@@ -279,6 +284,17 @@ export default function DietaTab() {
           </Box>
         </CardContent>
       </Card>
+
+      {diaSemAlimentos && (
+        <DietaEmptyDayCard
+          onAdicionar={() => abrirPicker(refeicaoInicial)}
+          onQuickAdd={() => {
+            setQuickAddTipo(refeicaoInicial);
+            setQuickAddOpen(true);
+          }}
+          onCopiarDiaAnterior={handleCopiarDiaAnterior}
+        />
+      )}
 
       {/* Meal sections */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -443,6 +459,55 @@ function SummaryItem({ label, value, highlight, warn }: { label: string; value: 
         </Typography>
       </Typography>
     </Box>
+  );
+}
+
+/* ── Empty Day Card ────────────────────────── */
+function DietaEmptyDayCard({
+  onAdicionar,
+  onQuickAdd,
+  onCopiarDiaAnterior,
+}: {
+  onAdicionar: () => void;
+  onQuickAdd: () => void;
+  onCopiarDiaAnterior: () => void;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        mb: 2,
+        borderStyle: 'dashed',
+        borderColor: 'divider',
+        bgcolor: 'action.hover',
+      }}
+    >
+      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5 }}>
+          <UtensilsCrossed size={22} style={{ opacity: 0.28 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" fontWeight={800} sx={{ fontSize: '0.9rem' }}>
+              Dia sem alimentos
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.78rem' }}>
+              Comece buscando um alimento, registre calorias rápidas ou copie o dia anterior.
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 1 }}>
+          <Button variant="contained" startIcon={<Plus size={15} />} onClick={onAdicionar} sx={{ fontWeight: 700, textTransform: 'none' }}>
+            Alimento
+          </Button>
+          <Button variant="outlined" startIcon={<Zap size={15} />} onClick={onQuickAdd} sx={{ fontWeight: 700, textTransform: 'none' }}>
+            Rápido
+          </Button>
+          <Button variant="outlined" startIcon={<Copy size={15} />} onClick={onCopiarDiaAnterior} sx={{ fontWeight: 700, textTransform: 'none' }}>
+            Copiar ontem
+          </Button>
+        </Box>
+      </CardContent>
+    </Card>
   );
 }
 
