@@ -221,6 +221,24 @@ export default function FeedTab() {
               Conclua um treino e compartilhe com a comunidade!
             </Typography>
           </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => navigate('/feed/novo')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Criar post
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Search size={16} />}
+              onClick={() => navigate('/feed/busca')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Buscar pessoas
+            </Button>
+          </Box>
         </Box>
       )}
 
