@@ -77,6 +77,8 @@ export default function Historico() {
   const allTimePRs = useMemo(() => computeAllTimePRs(historico), [historico]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [limite, setLimite] = useState(7);
+  const gruposVisiveis = useMemo(() => agruparPorData(historico.slice(0, limite)), [historico, limite]);
+  const treinosRestantes = Math.max(historico.length - limite, 0);
 
   const handleHighlight = useCallback(() => {
     if (historico.length > 0) {
@@ -97,7 +99,15 @@ export default function Historico() {
         <Box sx={{ mt: 8, p: 4, borderRadius: 3, border: 1, borderStyle: 'dashed', borderColor: 'divider', bgcolor: 'action.hover' }}>
           <Clock size={48} style={{ opacity: 0.12, marginBottom: 16 }} />
           <Typography color="text.secondary" fontWeight={500} sx={{ mb: 0.5 }}>Sem treinos registrados</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>Complete seu primeiro treino para vê-lo aqui!</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7, mb: 2 }}>Complete seu primeiro treino para vê-lo aqui!</Typography>
+          <Button
+            variant="contained"
+            startIcon={<Dumbbell size={16} />}
+            onClick={() => navigate('/treino')}
+            sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+          >
+            Iniciar treino
+          </Button>
         </Box>
       </Box>
     );
@@ -112,7 +122,7 @@ export default function Historico() {
       </Alert>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {agruparPorData(historico.slice(0, limite)).map((grupo) => (
+        {gruposVisiveis.map((grupo) => (
           <Box key={grupo.data}>
             {/* Date header */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
@@ -288,13 +298,13 @@ export default function Historico() {
             </Box>
           </Box>
         ))}
-        {historico.length > limite && (
+        {treinosRestantes > 0 && (
           <Button
             fullWidth
             onClick={() => setLimite(prev => prev + 15)}
             sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
           >
-            Ver mais ({historico.length - limite} restantes)
+            Ver mais ({treinosRestantes} restantes)
           </Button>
         )}
       </Box>
