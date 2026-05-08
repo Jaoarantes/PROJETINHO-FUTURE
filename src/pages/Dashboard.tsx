@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, useTheme } from '@mui/material';
-import { Zap } from 'lucide-react';
+import { Box, Button, Typography, useTheme } from '@mui/material';
+import { Dumbbell, Zap } from 'lucide-react';
 import { useTreinoStore } from '../store/treinoStore';
 import { useAuthContext } from '../contexts/AuthContext';
 import {
@@ -77,6 +77,35 @@ function DeferredDashboardSection({
       ) : (
         <DashboardSectionFallback height={fallbackHeight} />
       )}
+    </Box>
+  );
+}
+
+function DashboardEmptyState({ onStart }: { onStart: () => void }) {
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        mb: 4,
+        p: 3,
+        border: 1,
+        borderStyle: 'dashed',
+        borderColor: 'divider',
+        borderRadius: '8px',
+        textAlign: 'center',
+        animation: 'dash-fadeUp 0.15s ease-out both',
+      }}
+    >
+      <Dumbbell size={44} style={{ opacity: 0.18, marginBottom: 12 }} />
+      <Typography fontWeight={800} sx={{ mb: 0.5 }}>
+        Nenhum treino no histórico ainda
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Conclua um treino para liberar estatísticas, evolução, medalhas e melhores marcas.
+      </Typography>
+      <Button variant="contained" onClick={onStart} sx={{ fontWeight: 700, borderRadius: 2 }}>
+        Ir para treinos
+      </Button>
     </Box>
   );
 }
@@ -162,6 +191,8 @@ export default function Dashboard() {
   }, [historico, periodo, dataInicio, dataFim]);
 
   const stats = useDashboardStats(historicoFiltrado, periodo);
+  const hasHistorico = historico.length > 0;
+  const hasHistoricoNoPeriodo = historicoFiltrado.length > 0;
 
   const heatmapConfig = useMemo(() => {
     const config = PERIODOS.find((p) => p.key === periodo)!;
@@ -226,58 +257,81 @@ export default function Dashboard() {
 
       <DashboardSummary stats={stats} isDark={isDark} />
 
-      <DeferredDashboardSection fallbackHeight={330}>
-        <DashboardActivitySection
-          heatmap={heatmap}
-          heatmapWeeks={heatmapConfig.semanas}
-          showFullHistory={periodo === 'tudo'}
-          frequenciaFormatada={stats.frequenciaFormatada}
-          isDark={isDark}
-        />
-      </DeferredDashboardSection>
+      {!hasHistorico ? (
+        <DashboardEmptyState onStart={() => navigate('/treino')} />
+      ) : !hasHistoricoNoPeriodo ? (
+        <Box
+          sx={{
+            mt: 2,
+            mb: 4,
+            p: 2,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: '8px',
+            textAlign: 'center',
+            animation: 'dash-fadeUp 0.15s ease-out both',
+          }}
+        >
+          <Typography fontWeight={700} sx={{ mb: 0.5 }}>
+            Sem treinos neste período
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Ajuste o filtro de datas ou selecione "Tudo" para ver seu histórico completo.
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <DeferredDashboardSection fallbackHeight={330}>
+            <DashboardActivitySection
+              heatmap={heatmap}
+              heatmapWeeks={heatmapConfig.semanas}
+              showFullHistory={periodo === 'tudo'}
+              frequenciaFormatada={stats.frequenciaFormatada}
+              isDark={isDark}
+            />
+          </DeferredDashboardSection>
 
-      <DeferredDashboardSection fallbackHeight={520}>
-        <MusculacaoSection
-          stats={stats}
-          isDark={isDark}
-          showVolumeMax={showVolumeMax}
-          setShowVolumeMax={setShowVolumeMax}
-          showCargaMax={showCargaMax}
-          setShowCargaMax={setShowCargaMax}
-          filtroCargaExercicio={filtroCargaExercicio}
-          setFiltroCargaExercicio={setFiltroCargaExercicio}
-          filtroEvolucaoExercicio={filtroEvolucaoExercicio}
-          setFiltroEvolucaoExercicio={setFiltroEvolucaoExercicio}
-        />
-      </DeferredDashboardSection>
+          <DeferredDashboardSection fallbackHeight={520}>
+            <MusculacaoSection
+              stats={stats}
+              isDark={isDark}
+              showVolumeMax={showVolumeMax}
+              setShowVolumeMax={setShowVolumeMax}
+              showCargaMax={showCargaMax}
+              setShowCargaMax={setShowCargaMax}
+              filtroCargaExercicio={filtroCargaExercicio}
+              setFiltroCargaExercicio={setFiltroCargaExercicio}
+              filtroEvolucaoExercicio={filtroEvolucaoExercicio}
+              setFiltroEvolucaoExercicio={setFiltroEvolucaoExercicio}
+            />
+          </DeferredDashboardSection>
 
-      <DeferredDashboardSection fallbackHeight={300}>
-        <CorridaSection
-          stats={stats}
-          isDark={isDark}
-          showPaceCorrida={showPaceCorrida}
-          setShowPaceCorrida={setShowPaceCorrida}
-          showDistCorrida={showDistCorrida}
-          setShowDistCorrida={setShowDistCorrida}
-        />
-      </DeferredDashboardSection>
+          <DeferredDashboardSection fallbackHeight={300}>
+            <CorridaSection
+              stats={stats}
+              isDark={isDark}
+              showPaceCorrida={showPaceCorrida}
+              setShowPaceCorrida={setShowPaceCorrida}
+              showDistCorrida={showDistCorrida}
+              setShowDistCorrida={setShowDistCorrida}
+            />
+          </DeferredDashboardSection>
 
-      <DeferredDashboardSection fallbackHeight={300}>
-        <NatacaoSection
-          stats={stats}
-          isDark={isDark}
-          showPaceNatacao={showPaceNatacao}
-          setShowPaceNatacao={setShowPaceNatacao}
-          showDistNatacao={showDistNatacao}
-          setShowDistNatacao={setShowDistNatacao}
-        />
-      </DeferredDashboardSection>
+          <DeferredDashboardSection fallbackHeight={300}>
+            <NatacaoSection
+              stats={stats}
+              isDark={isDark}
+              showPaceNatacao={showPaceNatacao}
+              setShowPaceNatacao={setShowPaceNatacao}
+              showDistNatacao={showDistNatacao}
+              setShowDistNatacao={setShowDistNatacao}
+            />
+          </DeferredDashboardSection>
 
-      {/* ═══ MELHORES MARCAS (CORRIDA) ═══ */}
-      <BestEffortsSection historico={historico} isDark={isDark} />
-
-      {/* ═══ MEDALHAS ═══ */}
-      <MedalhasSection historico={historico} isDark={isDark} />
+          <BestEffortsSection historico={historico} isDark={isDark} />
+          <MedalhasSection historico={historico} isDark={isDark} />
+        </>
+      )}
     </Box>
   );
 }
