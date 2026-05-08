@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Switch, Chip, TextField, IconButton, alpha,
+  Skeleton,
 } from '@mui/material';
 import { ArrowLeft, Dumbbell, UtensilsCrossed, Droplets, Flame, Heart, MessageCircle, UserPlus } from 'lucide-react';
 import { useNotificationStore } from '../store/notificationStore';
@@ -30,7 +31,7 @@ export default function NotificacoesConfig() {
     }
   }, [user, carregar]);
 
-  if (loading) return null;
+  if (loading) return <NotificacoesConfigSkeleton onBack={() => navigate(-1)} />;
 
   const toggleDay = (day: number) => {
     const days = settings.workoutDays.includes(day)
@@ -220,6 +221,33 @@ export default function NotificacoesConfig() {
           />
         </CardContent>
       </Card>
+    </Box>
+  );
+}
+
+function NotificacoesConfigSkeleton({ onBack }: { onBack: () => void }) {
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <IconButton onClick={onBack} size="small">
+          <ArrowLeft size={20} />
+        </IconButton>
+        <Typography variant="h5" fontWeight={700}>Notificações</Typography>
+      </Box>
+
+      {[0, 1, 2, 3].map((item) => (
+        <Card key={item} sx={{ mb: 2 }}>
+          <CardContent sx={{ py: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <Skeleton variant="text" width="45%" height={24} />
+                <Skeleton variant="text" width="78%" height={18} />
+              </Box>
+              <Skeleton variant="rounded" width={48} height={28} />
+            </Box>
+          </CardContent>
+        </Card>
+      ))}
     </Box>
   );
 }
