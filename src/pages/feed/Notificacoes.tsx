@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, IconButton, CircularProgress, Avatar,
+  Box, Typography, IconButton, CircularProgress, Avatar, Button,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Flame, MessageCircle, Bell, Trash2, X, UserPlus, Dumbbell } from 'lucide-react';
+import { ArrowLeft, Flame, MessageCircle, Bell, Trash2, X, UserPlus, Dumbbell, Search, Rss } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import {
   carregarNotificacoes, marcarNotificacoesLidas,
@@ -97,6 +97,24 @@ export default function Notificacoes() {
           <Typography variant="body2" color="text.secondary">
             Nenhuma notificação ainda.
           </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              startIcon={<Rss size={16} />}
+              onClick={() => navigate('/feed')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Ver feed
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Search size={16} />}
+              onClick={() => navigate('/feed/busca')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Buscar pessoas
+            </Button>
+          </Box>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
