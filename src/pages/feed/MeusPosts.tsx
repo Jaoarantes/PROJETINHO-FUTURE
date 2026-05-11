@@ -479,6 +479,14 @@ export default function MeusPosts() {
           <Typography variant="body2" color="text.secondary">
             Você ainda não publicou nada.
           </Typography>
+          <MuiButton
+            variant="contained"
+            startIcon={<ImagePlus size={16} />}
+            onClick={() => navigate('/feed/novo')}
+            sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+          >
+            Criar primeiro post
+          </MuiButton>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
