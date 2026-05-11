@@ -87,6 +87,7 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', '@dnd-kit/modifiers'],
           'vendor-maps': ['leaflet', 'react-leaflet'],
+          'vendor-scanner': ['html5-qrcode'],
         },
       },
     },
