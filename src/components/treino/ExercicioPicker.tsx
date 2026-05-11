@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, type SyntheticEvent } from 'react';
+import { lazy, Suspense, useState, useMemo, useCallback, type SyntheticEvent } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -24,9 +24,10 @@ import { buscarExercicios, getGruposMusculares } from '../../services/exercicioA
 import { useTreinoStore } from '../../store/treinoStore';
 import { useExerciciosCustom } from '../../hooks/useExerciciosCustom';
 import type { Exercicio } from '../../types/treino';
-import ExercicioDetalhe from './ExercicioDetalhe';
-import CadastrarExercicio from './CadastrarExercicio';
 import { getExerciseImageUrl } from '../../constants/exercise-images';
+
+const ExercicioDetalhe = lazy(() => import('./ExercicioDetalhe'));
+const CadastrarExercicio = lazy(() => import('./CadastrarExercicio'));
 
 interface Props {
   open: boolean;
@@ -369,22 +370,24 @@ export default function ExercicioPicker({ open, onClose, sessaoId }: Props) {
       </Dialog>
 
       {/* Modal de detalhe do exercício */}
-      <ExercicioDetalhe
-        exercicio={exercicioDetalhe}
-        open={detalheAberto}
-        onClose={() => setDetalheAberto(false)}
-        onSelecionar={(ex) => {
-          setDetalheAberto(false);
-          handleSelect(ex);
-        }}
-        modoSelecao
-      />
+      <Suspense fallback={null}>
+        <ExercicioDetalhe
+          exercicio={exercicioDetalhe}
+          open={detalheAberto}
+          onClose={() => setDetalheAberto(false)}
+          onSelecionar={(ex) => {
+            setDetalheAberto(false);
+            handleSelect(ex);
+          }}
+          modoSelecao
+        />
 
-      {/* Modal de cadastrar exercício */}
-      <CadastrarExercicio
-        open={cadastrarAberto}
-        onClose={() => setCadastrarAberto(false)}
-      />
+        {/* Modal de cadastrar exercício */}
+        <CadastrarExercicio
+          open={cadastrarAberto}
+          onClose={() => setCadastrarAberto(false)}
+        />
+      </Suspense>
     </>
   );
 }
