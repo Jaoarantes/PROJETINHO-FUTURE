@@ -9,11 +9,11 @@ import {
 import { Trash2, Dumbbell, Pencil, Plus, ChevronRight, Footprints, Waves, Clock, Calendar, Flame, Gauge, CircleEllipsis, Share2 } from 'lucide-react';
 const StravaRouteMap = lazy(() => import('../../components/treino/StravaRouteMap'));
 const ReorderableWorkoutList = lazy(() => import('../../components/treino/ReorderableWorkoutList'));
+const ShareWorkoutModal = lazy(() => import('../../components/treino/ShareWorkoutModal'));
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { useTreinoStore } from '../../store/treinoStore';
 import { useAuthContext } from '../../contexts/AuthContext';
-import ShareWorkoutModal from '../../components/treino/ShareWorkoutModal';
 import type { EtapaCorrida, TipoSessao, SessaoTreino, RegistroTreino } from '../../types/treino';
 import { TIPO_SESSAO_LABELS, TIPO_SERIE_CORES } from '../../types/treino';
 import { calcularCaloriasTreino } from '../../utils/calorieCalculator';
@@ -524,12 +524,16 @@ export default function TreinoTab() {
       </Menu>
 
       {/* Modal compartilhar treino */}
-      <ShareWorkoutModal
-        open={shareModalOpen}
-        onClose={() => setShareModalOpen(false)}
-        sessao={shareSessao}
-        userId={uid}
-      />
+      {shareModalOpen && (
+        <Suspense fallback={null}>
+          <ShareWorkoutModal
+            open={shareModalOpen}
+            onClose={() => setShareModalOpen(false)}
+            sessao={shareSessao}
+            userId={uid}
+          />
+        </Suspense>
+      )}
 
       {/* FAB — only show on "Meus Treinos" tab */}
       {tabIndex === 0 && (
