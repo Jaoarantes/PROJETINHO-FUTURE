@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import { X } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { buscarPorCodigoBarras } from '../../services/openFoodFacts';
 import type { Alimento } from '../../types/dieta';
 
 interface Props {
@@ -80,6 +79,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
           try { await scanner.stop(); } catch { /* ignora */ }
 
           try {
+            const { buscarPorCodigoBarras } = await import('../../services/openFoodFacts');
             const alimento = await buscarPorCodigoBarras(decodedText);
             if (!activeRef.current) return;
 
@@ -123,6 +123,7 @@ export default function BarcodeScanner({ open, onClose, onAlimentoEncontrado, on
 
     try {
       await pararScanner();
+      const { buscarPorCodigoBarras } = await import('../../services/openFoodFacts');
       const alimento = await buscarPorCodigoBarras(codigo);
       if (alimento) {
         onAlimentoEncontrado(alimento);
