@@ -43,6 +43,24 @@ interface NotificationState {
   aplicarNotificacoes: () => Promise<void>;
 }
 
+type NotificationSettingsDbPayload = {
+  user_id: string;
+  updated_at?: string;
+  workout_reminders_enabled?: boolean;
+  workout_days?: number[];
+  workout_time?: string;
+  meal_reminders_enabled?: boolean;
+  meal_times?: NotificationSettings['mealTimes'];
+  water_reminders_enabled?: boolean;
+  water_interval?: NotificationSettings['waterInterval'];
+  water_start_hour?: number;
+  water_end_hour?: number;
+  streak_warning_enabled?: boolean;
+  push_likes?: boolean;
+  push_comments?: boolean;
+  push_follows?: boolean;
+};
+
 const DEFAULT_SETTINGS: NotificationSettings = {
   workoutRemindersEnabled: false,
   workoutDays: [1, 3, 5], // Mon, Wed, Fri
@@ -125,7 +143,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     set({ settings: newSettings });
 
     // Map to DB columns
-    const dbData: Record<string, unknown> = { user_id: uid, updated_at: new Date().toISOString() };
+    const dbData: NotificationSettingsDbPayload = { user_id: uid, updated_at: new Date().toISOString() };
     if (updates.workoutRemindersEnabled !== undefined) dbData.workout_reminders_enabled = updates.workoutRemindersEnabled;
     if (updates.workoutDays !== undefined) dbData.workout_days = updates.workoutDays;
     if (updates.workoutTime !== undefined) dbData.workout_time = updates.workoutTime;
