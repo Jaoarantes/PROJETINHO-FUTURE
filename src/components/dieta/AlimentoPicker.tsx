@@ -24,7 +24,6 @@ import { X, Search, Plus, Minus, ScanBarcode, Trash2, Clock } from 'lucide-react
 import ConfirmDeleteDialog from '../ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
 import { alimentosPadrao } from '../../constants/alimentos-padrao';
-import { buscarAlimentos } from '../../services/openFoodFacts';
 import { carregarAlimentosCustom, salvarAlimentoCustom, deletarAlimentoCustom } from '../../services/dietaService';
 import { useDietaStore } from '../../store/dietaStore';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -144,6 +143,7 @@ export default function AlimentoPicker({ open, onClose, tipoRefeicao }: Props) {
     debounceRef.current = setTimeout(async () => {
       setBuscandoOnline(true);
       try {
+        const { buscarAlimentos } = await import('../../services/openFoodFacts');
         const results = await buscarAlimentos(busca);
         setResultadosOnline(results);
       } catch (err) {
