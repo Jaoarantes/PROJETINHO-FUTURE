@@ -1,10 +1,14 @@
-import { Capacitor } from '@capacitor/core';
-import { LocalNotifications } from '@capacitor/local-notifications';
+async function getLocalNotifications() {
+  const { Capacitor } = await import('@capacitor/core');
+  if (!Capacitor.isNativePlatform()) return null;
 
-const isNative = Capacitor.isNativePlatform();
+  const { LocalNotifications } = await import('@capacitor/local-notifications');
+  return LocalNotifications;
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (isNative) {
+  const LocalNotifications = await getLocalNotifications();
+  if (LocalNotifications) {
     const result = await LocalNotifications.requestPermissions();
     return result.display === 'granted';
   }
@@ -25,7 +29,8 @@ const ID_STREAK = 4000;
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 export async function scheduleWorkoutReminders(days: number[], hour: number, minute: number) {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
 
   // Cancel existing workout notifications
   await cancelByRange(ID_WORKOUT, ID_WORKOUT + 99);
@@ -46,7 +51,8 @@ export async function scheduleWorkoutReminders(days: number[], hour: number, min
 }
 
 export async function scheduleMealReminders(meals: { type: string; label: string; hour: number; minute: number }[]) {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
 
   await cancelByRange(ID_MEAL, ID_MEAL + 99);
 
@@ -66,7 +72,8 @@ export async function scheduleMealReminders(meals: { type: string; label: string
 }
 
 export async function scheduleWaterReminders(intervalHours: number, startHour: number, endHour: number) {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
 
   await cancelByRange(ID_WATER, ID_WATER + 99);
 
@@ -90,7 +97,8 @@ export async function scheduleWaterReminders(intervalHours: number, startHour: n
 }
 
 export async function scheduleStreakWarning() {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
 
   await cancelByRange(ID_STREAK, ID_STREAK + 99);
 
@@ -110,7 +118,9 @@ export async function scheduleStreakWarning() {
 }
 
 export async function cancelAllReminders() {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
+
   const pending = await LocalNotifications.getPending();
   if (pending.notifications.length > 0) {
     await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
@@ -118,7 +128,9 @@ export async function cancelAllReminders() {
 }
 
 async function cancelByRange(from: number, to: number) {
-  if (!isNative) return;
+  const LocalNotifications = await getLocalNotifications();
+  if (!LocalNotifications) return;
+
   const pending = await LocalNotifications.getPending();
   const toCancel = pending.notifications.filter((n) => n.id >= from && n.id <= to);
   if (toCancel.length > 0) {
