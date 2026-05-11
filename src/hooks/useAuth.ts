@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { supabase } from '../supabase';
 import { getUserProfile, saveUserProfile, type UserProfile } from '../services/userService';
 import type { User } from '@supabase/supabase-js';
@@ -138,6 +137,7 @@ export function useAuth() {
   };
 
   const signInWithGoogle = async () => {
+    const { Capacitor } = await import('@capacitor/core');
     const redirectTo = Capacitor.isNativePlatform()
       ? 'com.valere.app://auth/callback'
       : `${window.location.origin}/auth/callback`;

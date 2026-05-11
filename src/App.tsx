@@ -1,7 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
 import UpdatePrompt from './components/UpdatePrompt';
 import { supabase } from './supabase';
 
@@ -62,34 +60,51 @@ function DeepLinkHandler() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    let mounted = true;
+    let removeListener: (() => void) | undefined;
 
-    const listener = CapApp.addListener('appUrlOpen', async ({ url }) => {
-      // Handle OAuth callback deep link: com.valere.app://auth/callback?code=xxx
-      try {
-        const parsed = new URL(url);
-        if (parsed.pathname === '/auth/callback' || parsed.pathname === '//auth/callback') {
-          const code = parsed.searchParams.get('code');
-          if (code) {
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (!error) {
-              navigate('/treino', { replace: true });
-              return;
+    async function setupDeepLinks() {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!mounted || !Capacitor.isNativePlatform()) return;
+
+      const { App: CapApp } = await import('@capacitor/app');
+      const listener = await CapApp.addListener('appUrlOpen', async ({ url }) => {
+        // Handle OAuth callback deep link: com.valere.app://auth/callback?code=xxx
+        try {
+          const parsed = new URL(url);
+          if (parsed.pathname === '/auth/callback' || parsed.pathname === '//auth/callback') {
+            const code = parsed.searchParams.get('code');
+            if (code) {
+              const { error } = await supabase.auth.exchangeCodeForSession(code);
+              if (!error) {
+                navigate('/treino', { replace: true });
+                return;
+              }
             }
           }
+          // Generic deep link: navigate to the path
+          const path = parsed.pathname.replace(/^\/\//, '/');
+          if (path && path !== '/') {
+            navigate(path, { replace: true });
+          }
+        } catch {
+          // Invalid URL, ignore
         }
-        // Generic deep link: navigate to the path
-        const path = parsed.pathname.replace(/^\/\//, '/');
-        if (path && path !== '/') {
-          navigate(path, { replace: true });
-        }
-      } catch {
-        // Invalid URL, ignore
+      });
+
+      if (!mounted) {
+        listener.remove();
+        return;
       }
-    });
+
+      removeListener = () => listener.remove();
+    }
+
+    void setupDeepLinks();
 
     return () => {
-      listener.then((l) => l.remove());
+      mounted = false;
+      removeListener?.();
     };
   }, [navigate]);
 
