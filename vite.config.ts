@@ -86,6 +86,7 @@ export default defineConfig({
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-charts': ['recharts'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', '@dnd-kit/modifiers'],
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'vendor-maps': ['leaflet', 'react-leaflet'],
           'vendor-scanner': ['html5-qrcode'],
         },
