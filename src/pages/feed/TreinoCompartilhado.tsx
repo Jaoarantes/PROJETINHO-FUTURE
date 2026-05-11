@@ -4,7 +4,7 @@ import {
   Box, Typography, IconButton, CircularProgress, Avatar, Button, Card, CardContent, Chip,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { ArrowLeft, Dumbbell, Copy, X } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Copy, X, Bell, Rss } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { carregarTreinoCompartilhado, atualizarStatusShare } from '../../services/shareWorkoutService';
 import type { SharedWorkout } from '../../services/shareWorkoutService';
@@ -110,9 +110,57 @@ export default function TreinoCompartilhado() {
             Treino compartilhado
           </Typography>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 8 }}>
-          Treino não encontrado ou já foi processado.
-        </Typography>
+        <Box
+          sx={{
+            textAlign: 'center',
+            py: 8,
+            px: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '24px',
+              background: `linear-gradient(135deg, ${alpha('#FF6B2C', 0.12)} 0%, ${alpha('#FF6B2C', 0.04)} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Dumbbell size={36} color="#FF6B2C" />
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 0.5 }}>
+              Treino indisponível
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 320 }}>
+              Ele pode ter sido removido, expirado ou já processado.
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              startIcon={<Bell size={16} />}
+              onClick={() => navigate('/feed/notificacoes')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Ver notificações
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Rss size={16} />}
+              onClick={() => navigate('/feed')}
+              sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}
+            >
+              Ver feed
+            </Button>
+          </Box>
+        </Box>
       </Box>
     );
   }
