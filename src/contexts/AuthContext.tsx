@@ -1,19 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import type { User } from '@supabase/supabase-js';
-import type { UserProfile } from '../services/userService';
 
-export interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<unknown>;
-  signInWithGoogle: () => Promise<unknown>;
-  signUp: (email: string, password: string, nome: string) => Promise<unknown>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
+export type AuthContextType = ReturnType<typeof useAuth>;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
