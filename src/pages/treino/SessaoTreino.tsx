@@ -5,8 +5,7 @@ import {
     TextField, Chip, MenuItem as SelectItem, Snackbar, Alert, Menu, MenuItem,
     CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
-import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, Share2, X, Send, ArrowUpDown } from 'lucide-react';
+import { MinusCircle, ArrowLeft, Trash2, Plus, PlusCircle, Footprints, Waves, CheckCircle, Play, Navigation, MapPin, Pause, Square, ArrowUpDown } from 'lucide-react';
 import { useTreinoStore } from '../../store/treinoStore';
 import ConfirmDeleteDialog from '../../components/ConfirmDeleteDialog';
 import { useConfirmDelete } from '../../hooks/useConfirmDelete';
@@ -15,7 +14,6 @@ import { useAuthContext } from '../../contexts/AuthContext';
 import { useSuccessOverlayStore } from '../../store/successOverlayStore';
 import { useGPSTracker } from '../../hooks/useGPSTracker';
 import { formatPace } from '../../utils/geoUtils';
-import { uploadFeedPhoto, compressImage } from '../../services/feedService';
 import type { TipoCorridaTreino, EstiloNatacao, TipoSerie, RegistroTreino } from '../../types/treino';
 import { formatTimer, montarPostTreinoCompartilhado } from './sessaoTreinoUtils';
 import {
@@ -25,9 +23,9 @@ import {
 } from '../../types/treino';
 
 const ExercicioPicker = lazy(() => import('../../components/treino/ExercicioPicker'));
-const PhotoUploader = lazy(() => import('../../components/feed/PhotoUploader'));
 const PRMedalhasModal = lazy(() => import('../../components/treino/PRMedalhasModal'));
 const ReorderableExerciseList = lazy(() => import('../../components/treino/ReorderableExerciseList'));
+const ShareWorkoutDialog = lazy(() => import('../../components/treino/ShareWorkoutDialog'));
 
 export default function SessaoTreino() {
     const { id } = useParams<{ id: string }>();
@@ -174,6 +172,7 @@ export default function SessaoTreino() {
         setSharePosting(true);
         setErroMsg('');
         try {
+            const { uploadFeedPhoto, compressImage } = await import('../../services/feedService');
             const fotoUrls: string[] = [];
             for (const photo of sharePhotos) {
                 const compressed = await compressImage(photo);
@@ -301,113 +300,22 @@ export default function SessaoTreino() {
                 </Alert>
             </Snackbar>
 
-            {/* Share Dialog */}
-            <Dialog
-                open={shareOpen}
-                onClose={() => {
-                    if (!sharePosting) handleShareSkip();
-                }}
-                fullWidth
-                maxWidth="sm"
-                PaperProps={{ sx: { borderRadius: '24px', mx: 2, p: 0 } }}
-            >
-                <Box sx={{ p: 3 }}>
-                    {/* Header */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2.5 }}>
-                        <Box sx={{
-                            width: 44, height: 44, borderRadius: '14px',
-                            background: 'linear-gradient(135deg, rgba(255,107,44,0.15) 0%, rgba(255,107,44,0.05) 100%)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5,
-                        }}>
-                            <Share2 size={22} color="#FF6B2C" />
-                        </Box>
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem' }}>
-                                Compartilhar treino?
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                Mostre seu progresso para a comunidade
-                            </Typography>
-                        </Box>
-                        <IconButton onClick={handleShareSkip} size="small" disabled={sharePosting}>
-                            <X size={20} />
-                        </IconButton>
-                    </Box>
-
-                    {/* Workout Summary */}
-                    {shareRegistro && (
-                        <Box sx={{
-                            p: 2, mb: 2, borderRadius: '14px',
-                            background: (theme) => theme.palette.mode === 'dark'
-                                ? `linear-gradient(135deg, ${alpha('#FF6B2C', 0.08)} 0%, ${alpha('#FF6B2C', 0.02)} 100%)`
-                                : `linear-gradient(135deg, ${alpha('#FF6B2C', 0.05)} 0%, ${alpha('#FF6B2C', 0.01)} 100%)`,
-                            border: '1px solid',
-                            borderColor: alpha('#FF6B2C', 0.12),
-                        }}>
-                            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
-                                {shareRegistro.nome}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                {shareRegistro.duracaoTotalSegundos && (
-                                    <Chip label={`${Math.round(shareRegistro.duracaoTotalSegundos / 60)}min`} size="small" sx={{ height: 22, fontSize: '0.7rem' }} />
-                                )}
-                                {shareRegistro.exercicios.length > 0 && (
-                                    <Chip label={`${shareRegistro.exercicios.length} exerc.`} size="small" sx={{ height: 22, fontSize: '0.7rem' }} />
-                                )}
-                            </Box>
-                        </Box>
-                    )}
-
-                    {/* Caption */}
-                    <TextField
-                        multiline
-                        minRows={2}
-                        maxRows={4}
-                        fullWidth
-                        placeholder="Conte como foi o treino..."
-                        value={shareTexto}
-                        onChange={(e) => setShareTexto(e.target.value)}
-                        slotProps={{ htmlInput: { maxLength: 300 } }}
-                        sx={{ mb: 2 }}
+            {shareOpen && (
+                <Suspense fallback={null}>
+                    <ShareWorkoutDialog
+                        open={shareOpen}
+                        registro={shareRegistro}
+                        texto={shareTexto}
+                        photos={sharePhotos}
+                        posting={sharePosting}
+                        onTextoChange={setShareTexto}
+                        onAddPhotos={(photos) => setSharePhotos((prev) => [...prev, ...photos].slice(0, 3))}
+                        onRemovePhoto={(index) => setSharePhotos((prev) => prev.filter((_, idx) => idx !== index))}
+                        onSkip={handleShareSkip}
+                        onPost={handleSharePost}
                     />
-
-                    {/* Photos */}
-                    <Box sx={{ mb: 2.5 }}>
-                        {shareOpen && (
-                            <Suspense fallback={null}>
-                                <PhotoUploader
-                                    photos={sharePhotos}
-                                    onAdd={(f) => setSharePhotos((prev) => [...prev, ...f].slice(0, 3))}
-                                    onRemove={(i) => setSharePhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                                />
-                            </Suspense>
-                        )}
-                    </Box>
-
-                    {/* Buttons */}
-                    <Box sx={{ display: 'flex', gap: 1.5 }}>
-                        <Button
-                            variant="outlined"
-                            fullWidth
-                            disabled={sharePosting}
-                            onClick={handleShareSkip}
-                            sx={{ py: 1.3, borderRadius: '12px' }}
-                        >
-                            Pular
-                        </Button>
-                        <Button
-                            variant="contained"
-                            fullWidth
-                            disabled={sharePosting}
-                            onClick={handleSharePost}
-                            startIcon={sharePosting ? <CircularProgress size={18} color="inherit" /> : <Send size={18} />}
-                            sx={{ py: 1.3, borderRadius: '12px' }}
-                        >
-                            {sharePosting ? 'Publicando...' : 'Compartilhar'}
-                        </Button>
-                    </Box>
-                </Box>
-            </Dialog>
+                </Suspense>
+            )}
 
             {/* Modal de medalhas de PR */}
             {prModalOpen && (
