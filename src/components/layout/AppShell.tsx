@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
-import { App as CapApp } from '@capacitor/app';
 import BottomNav from './BottomNav';
 import ActiveWorkoutBar from '../treino/ActiveWorkoutBar';
 import SuccessOverlay from '../SuccessOverlay';
@@ -48,24 +47,42 @@ export default function AppShell() {
 
   // Handle Android back button
   useEffect(() => {
-    const listener = CapApp.addListener('backButton', ({ canGoBack }) => {
-      const isOnTab = TAB_ROUTES.includes(location.pathname);
+    let mounted = true;
+    let removeListener: (() => void) | undefined;
 
-      if (isOnTab) {
-        // On a main tab — minimize app instead of exiting
-        CapApp.minimizeApp();
-      } else if (canGoBack) {
-        navigate(-1);
-      } else {
-        CapApp.minimizeApp();
+    async function setupAndroidBackButton() {
+      const { Capacitor } = await import('@capacitor/core');
+      if (!mounted || !Capacitor.isNativePlatform()) return;
+
+      const { App: CapApp } = await import('@capacitor/app');
+      const listener = await CapApp.addListener('backButton', ({ canGoBack }) => {
+        const isOnTab = TAB_ROUTES.includes(location.pathname);
+
+        if (isOnTab) {
+          // On a main tab, minimize app instead of exiting.
+          CapApp.minimizeApp();
+        } else if (canGoBack) {
+          navigate(-1);
+        } else {
+          CapApp.minimizeApp();
+        }
+      });
+
+      if (!mounted) {
+        listener.remove();
+        return;
       }
-    });
+
+      removeListener = () => listener.remove();
+    }
+
+    void setupAndroidBackButton();
 
     return () => {
-      listener.then((l) => l.remove());
+      mounted = false;
+      removeListener?.();
     };
   }, [location.pathname, navigate]);
-
   const treinoAtivo = useTreinoStore((s) => s.treinoAtivo);
   const overlayOpen = useSuccessOverlayStore((s) => s.open);
   const overlayVariant = useSuccessOverlayStore((s) => s.variant);
