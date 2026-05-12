@@ -17,13 +17,13 @@ import {
 import useDashboardStats from '../components/dashboard/useDashboardStats';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardSummary from '../components/dashboard/DashboardSummary';
-import BestEffortsSection from '../components/dashboard/BestEffortsSection';
-import MedalhasSection from '../components/dashboard/MedalhasSection';
 
 const DashboardActivitySection = lazy(() => import('../components/dashboard/DashboardActivitySection'));
 const MusculacaoSection = lazy(() => import('../components/dashboard/MusculacaoSection'));
 const CorridaSection = lazy(() => import('../components/dashboard/CorridaSection'));
 const NatacaoSection = lazy(() => import('../components/dashboard/NatacaoSection'));
+const BestEffortsSection = lazy(() => import('../components/dashboard/BestEffortsSection'));
+const MedalhasSection = lazy(() => import('../components/dashboard/MedalhasSection'));
 
 function DashboardSectionFallback({ height = 220 }: { height?: number }) {
   return (
@@ -328,8 +328,13 @@ export default function Dashboard() {
             />
           </DeferredDashboardSection>
 
-          <BestEffortsSection historico={historico} isDark={isDark} />
-          <MedalhasSection historico={historico} isDark={isDark} />
+          <DeferredDashboardSection fallbackHeight={220}>
+            <BestEffortsSection historico={historico} isDark={isDark} />
+          </DeferredDashboardSection>
+
+          <DeferredDashboardSection fallbackHeight={520}>
+            <MedalhasSection historico={historico} isDark={isDark} />
+          </DeferredDashboardSection>
         </>
       )}
     </Box>
