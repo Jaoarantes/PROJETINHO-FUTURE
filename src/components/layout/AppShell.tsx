@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import BottomNav from './BottomNav';
-import ActiveWorkoutBar from '../treino/ActiveWorkoutBar';
 import SuccessOverlay from '../SuccessOverlay';
 import { useSuccessOverlayStore } from '../../store/successOverlayStore';
 import { useAuthContext } from '../../contexts/AuthContext';
@@ -14,6 +13,7 @@ import { carregarSocialStats, type SocialStats } from '../../services/feedServic
 import { useNotificationStore } from '../../store/notificationStore';
 
 const TAB_ROUTES = ['/treino', '/dieta', '/feed', '/perfil'];
+const ActiveWorkoutBar = lazy(() => import('../treino/ActiveWorkoutBar'));
 
 const defaultSocialStats: SocialStats = {
   totalPosts: 0, postsComFoto: 0, totalChamasRecebidas: 0, totalSeguidores: 0, totalComentariosRecebidos: 0,
@@ -102,7 +102,11 @@ export default function AppShell() {
       >
         <Outlet />
       </Box>
-      <ActiveWorkoutBar />
+      {treinoAtivo && (
+        <Suspense fallback={null}>
+          <ActiveWorkoutBar />
+        </Suspense>
+      )}
       <BottomNav />
       <SuccessOverlay open={overlayOpen} variant={overlayVariant} onComplete={hideOverlay} />
     </Box>
